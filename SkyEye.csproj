@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<AssemblyName>SkyEye</AssemblyName>
+		<TargetFramework>net9.0-windows</TargetFramework>
+		<PlatformTarget>x64</PlatformTarget>
+		<Optimize>true</Optimize>
+		<DebugSymbols>false</DebugSymbols>
+		<DebugType>none</DebugType>
+	</PropertyGroup>
+	<PropertyGroup>
+		<LangVersion>Latest</LangVersion>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<XIVLauncherPath>$(userprofile)\AppData\Roaming\XIVLauncherCN</XIVLauncherPath>
+		<DalamudPath>$(XIVLauncherPath)\addon\Hooks\dev</DalamudPath>
+		<DrPath>$(XIVLauncherPath)\installedPlugins\DailyRoutines\1.6.1.1</DrPath>
+		<NoWarn>CA1416;</NoWarn>
+	</PropertyGroup>
+	<ItemGroup>
+		<Reference Include="System.Windows.Extensions">
+			<HintPath>System.Windows.Extensions.dll</HintPath>
+		</Reference>
+		<Reference Include="Lumina">
+			<HintPath>$(DalamudPath)\Lumina.dll</HintPath>
+		</Reference>
+		<Reference Include="Lumina.Excel">
+			<HintPath>$(DalamudPath)\Lumina.Excel.dll</HintPath>
+		</Reference>
+		<Reference Include="Dalamud">
+			<HintPath>$(DalamudPath)\Dalamud.dll</HintPath>
+		</Reference>
+		<Reference Include="FFXIVClientStructs">
+			<HintPath>$(DalamudPath)\FFXIVClientStructs.dll</HintPath>
+		</Reference>
+		<Reference Include="InteropGenerator.Runtime">
+			<HintPath>$(DalamudPath)\InteropGenerator.Runtime.dll</HintPath>
+		</Reference>
+		<Reference Include="SharpDX.Mathematics">
+			<HintPath>$(DalamudPath)\SharpDX.Mathematics.dll</HintPath>
+		</Reference>
+		<Reference Include="ImGui.NET">
+			<HintPath>$(DalamudPath)\ImGui.NET.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+	<ItemGroup>
+		<Content Include="SkyEye.json" CopyToOutputDirectory="PreserveNewest"/>
+		<Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
+	</ItemGroup>
+	<Target Name="DeleteFiles" AfterTargets="Build">
+		<ItemGroup>
+			<FilesToDelete Include="$(OutputPath)/*" Exclude="$(OutputPath)/SkyEye*;$(OutputPath)/*.wav;$(OutputPath)/System.Windows.Extensions.dll;"/>
+		</ItemGroup>
+		<Delete Files="@(FilesToDelete)"/>
+	</Target>
+</Project>
