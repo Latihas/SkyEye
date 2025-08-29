@@ -15,7 +15,7 @@
 	"Punchline": "ULK工具",
 	"AcceptsFeedback": true,
 	"RepoUrl": "https://github.com/Latihas/SkyEye",
-	"DownloadLinkInstall": "https://raw.githubusercontent.com/zhouhuichen741/dalamud-plugins/master/plugins/HaselTweaks/HaselTweaks.zip",
-	"DownloadLinkTesting": "https://raw.githubusercontent.com/zhouhuichen741/dalamud-plugins/master/plugins/HaselTweaks/HaselTweaks.zip",
-	"DownloadLinkUpdate": "https://raw.githubusercontent.com/zhouhuichen741/dalamud-plugins/master/plugins/HaselTweaks/HaselTweaks.zip"
+	"DownloadLinkInstall": "https://raw.githubusercontent.com/Latihas/dalamud-plugins/main/SkyEye.zip",
+	"DownloadLinkTesting": "https://raw.githubusercontent.com/Latihas/dalamud-plugins/main/SkyEye.zip",
+	"DownloadLinkUpdate": "https://raw.githubusercontent.com/Latihas/dalamud-plugins/main/SkyEye.zip"
 }
