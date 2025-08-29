@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 
 namespace SkyEye.SkyEye.Data;
 
+[SuppressMessage("ReSharper", "UnusedMember.Local")]
+[SuppressMessage("ReSharper", "UnusedMember.Global")]
 internal static class PData {
 	public enum EurekaWeather {
 		Gales,
@@ -338,8 +341,6 @@ internal static class PData {
 		new(714.3189f, -630.0619f, -321.2806f),
 		new(735.9999f, -629.8334f, -274.5996f)
 	];
-
-	// ReSharper disable once UnusedMember.Local
 	private static string ToFriendlyString(this EurekaWeather weather) {
 		return weather switch {
 			EurekaWeather.Gales => "强风",

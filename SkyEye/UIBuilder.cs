@@ -18,33 +18,19 @@ using static System.Globalization.CultureInfo;
 namespace SkyEye.SkyEye;
 
 public class UiBuilder : IDisposable {
-	private static readonly SoundPlayer Player1 = new();
-
-	private static readonly SoundPlayer Player2 = new();
+	private static readonly SoundPlayer Player1 = new(), Player2 = new();
 	private readonly List<(Vector3 worldpos, uint fgcolor, uint bgcolor, string name, string fateId, PData.EurekaWeather SpawnRequiredWeather, bool SpawnByRequiredNight)> _eurekaList2D = [];
-	private readonly List<string> _eurekaLiveIdList2D = [];
-
-	private readonly List<string> _eurekaLiveIdList2DOld = [];
-
+	private readonly List<string> _eurekaLiveIdList2D = [], _eurekaLiveIdList2DOld = [];
 	private readonly Vector2[] _mapPosSize = new Vector2[2];
 	private readonly IDalamudPluginInterface _pi;
-
 	private readonly Plugin _pl;
-
 	private readonly Dictionary<uint, ushort> _sizeFactorDict;
-
 	private ImDrawListPtr _bdl;
-
 	private EorzeaTime _eorzeaTime;
-
 	private float _globalUiScale = 1f;
-
 	private Vector2? _mapOrigin = Vector2.Zero;
-
 	private Dictionary<PData.EurekaWeather, (string, string)> _weatherDic;
-
 	private (PData.EurekaWeather Weather, TimeSpan Time) _weatherNow;
-
 	private List<(PData.EurekaWeather Weather, TimeSpan Time)> _weathers;
 
 	public UiBuilder(Plugin plugin, IDalamudPluginInterface pluginInterface) {
@@ -53,7 +39,6 @@ public class UiBuilder : IDisposable {
 		_sizeFactorDict = Plugin.DataManager.GetExcelSheet<TerritoryType>().ToDictionary(k => k.RowId, v => v.Map.Value.SizeFactor);
 		Plugin.ClientState.TerritoryChanged += TerritoryChanged;
 		_pi.UiBuilder.Draw += UiBuilder_OnBuildUi;
-		Plugin.Framework.Update += OnUpdate;
 	}
 
 	public void Dispose() {
@@ -69,15 +54,10 @@ public class UiBuilder : IDisposable {
 		foreach (var k in EurekaHydatos.DeadFateDic.Keys) EurekaHydatos.DeadFateDic[k] = "-1";
 	}
 
-	private void OnUpdate(IFramework f) {
-	}
-
 	private void UiBuilder_OnBuildUi() {
 		var flag = false;
 		try {
-			flag = Plugin.ClientState.LocalPlayer != null &&
-			       (Plugin.ClientState.TerritoryType == 732 || Plugin.ClientState.TerritoryType == 763 || Plugin.ClientState.TerritoryType == 795 || Plugin.ClientState.TerritoryType == 827 || Plugin.ClientState.TerritoryType == 628) &&
-			       !Plugin.Condition[ConditionFlag.BetweenAreas] && !Plugin.Condition[ConditionFlag.BetweenAreas51];
+			flag = Plugin.InEureka() && !Plugin.Condition[ConditionFlag.BetweenAreas] && !Plugin.Condition[ConditionFlag.BetweenAreas51];
 		}
 		catch (Exception) {
 			// ignored

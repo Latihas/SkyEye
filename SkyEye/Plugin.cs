@@ -20,7 +20,6 @@ namespace SkyEye.SkyEye;
 
 public sealed class Plugin : IDalamudPlugin {
 	private static float _lSpeed = 1f;
-
 	private static SpeedHackPlugin _shp;
 	private readonly Lock _speedLock = new();
 	public readonly WindowSystem WindowSystem = new("SkyEye");
@@ -87,8 +86,13 @@ public sealed class Plugin : IDalamudPlugin {
 		ToggleConfigUi();
 	}
 
+	internal static bool InEureka() => ClientState.LocalPlayer != null && ClientState.TerritoryType is 732 or 763 or 795 or 827;
+	internal static bool InArea() 
+		=>  InEureka() ||  Configuration.Overlay2DSpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString());
+	
+
 	private void OnChatMessage(XivChatType type, int timestamp, SeString sender, SeString message) {
-		if (ClientState.LocalPlayer == null || message == null || ClientState.TerritoryType != 732 && ClientState.TerritoryType != 763 && ClientState.TerritoryType != 795 && ClientState.TerritoryType != 827) return;
+		if (message == null || !InEureka()) return;
 		var msg = message.TextValue.Trim();
 		if (msg.StartsWith("找到了财宝")) DetectedTreasurePositions = [];
 		if (!msg.StartsWith("财宝好像是在")) return;
@@ -115,7 +119,7 @@ public sealed class Plugin : IDalamudPlugin {
 				maxDistance = 25;
 				break;
 		}
-		var playerPos = ClientState.LocalPlayer.Position;
+		var playerPos = ClientState.LocalPlayer!.Position;
 		var treasures = from c in PData.RabbitTreasurePositions[ClientState.TerritoryType].Where(delegate(Vector3 c) {
 				var num = Vector3.Distance(playerPos, c);
 				return num >= minDistance && num <= maxDistance;
@@ -135,12 +139,9 @@ public sealed class Plugin : IDalamudPlugin {
 
 	private void UpdateRoundPlayers(IFramework framework) {
 		if (ClientState.LocalPlayer == null) return;
-		if (ClientState.TerritoryType != 732 && ClientState.TerritoryType != 763 && ClientState.TerritoryType != 795 && ClientState.TerritoryType != 827 || !Configuration.Overlay2DEnabled) {
-			var ts = Configuration.Overlay2DSpeedUpTerritory.Split('|');
-			if (!ts.Contains(ClientState.TerritoryType.ToString())) {
-				lock (_speedLock) SetSpeed(1f);
-				return;
-			}
+		if (!InArea()) {
+			lock (_speedLock) SetSpeed(1f);
+			return;
 		}
 		lock (OtherPlayer) {
 			OtherPlayer.Clear();

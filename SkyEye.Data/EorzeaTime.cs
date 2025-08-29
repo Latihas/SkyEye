@@ -4,7 +4,7 @@ namespace SkyEye.SkyEye.Data;
 
 public class EorzeaTime(DateTime dateTime) {
 	public static readonly DateTime Zero = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-	public DateTime EorzeaDateTime { get; set; } = dateTime;
+	public DateTime EorzeaDateTime { get; } = dateTime;
 	public static EorzeaTime ToEorzeaTime(DateTime dateTime) => new(new DateTime((long)Math.Round((dateTime.ToUniversalTime().Ticks - Zero.Ticks) * 20.571428571428573)));
 
 	public static DateTime GetNearestEarthInterval(DateTime dateTime) {
