@@ -37,8 +37,11 @@
 		<Reference Include="SharpDX.Mathematics">
 			<HintPath>$(DalamudPath)\SharpDX.Mathematics.dll</HintPath>
 		</Reference>
+		<Reference Include="*">
+			<HintPath>$(DalamudPath)\Dalamud.Bindings.ImGui.dll</HintPath>
+		</Reference>
 		<Reference Include="ImGui.NET">
-			<HintPath>$(DalamudPath)\ImGui.NET.dll</HintPath>
+			<HintPath>$(DalamudPath)\Dalamud.Bindings.ImGui.dll</HintPath>
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>

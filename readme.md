@@ -1,3 +1,5 @@
+> 友情裤链: https://raw.githubusercontent.com/Latihas/dalamud-plugins/main/repo.json
+
 SkyEye的个人维护版，原作者0x，代码完全公开无后门
 
 支持变速，可以组队中变速（队友距离足够远），支持添加附近挂友不降速，支持添加额外地图加速（如新月岛为1252）
@@ -6,4 +8,4 @@ SkyEye的个人维护版，原作者0x，代码完全公开无后门
 
 添加NM喊话，会发送当前pos和喊话信息（如2800）
 
-兼容DR变速
+需要DR支持变速

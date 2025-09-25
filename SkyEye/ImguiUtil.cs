@@ -1,5 +1,5 @@
 using System.Numerics;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace SkyEye.SkyEye;
 
@@ -14,7 +14,6 @@ internal static class ImguiUtil {
 		}
 		drawList.AddText(pos, col, text);
 	}
-
 
 	public static void DrawMapDot(this ImDrawListPtr drawList, Vector2 pos, uint fgcolor, uint bgcolor) {
 		drawList.AddCircleFilled(pos, 4f, fgcolor);

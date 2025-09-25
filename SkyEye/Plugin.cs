@@ -20,76 +20,75 @@ namespace SkyEye.SkyEye;
 
 public sealed class Plugin : IDalamudPlugin {
 	private static float _lSpeed = 1f;
-	private static SpeedHackPlugin _shp;
+	private static ChatBox _chatBox;
+	internal static List<Vector3> DetectedTreasurePositions = [];
+	private readonly ConfigWindow _configWindow;
 	private readonly Lock _speedLock = new();
-	public readonly WindowSystem WindowSystem = new("SkyEye");
-	internal List<Vector3> DetectedTreasurePositions = [];
-	private float _dspeed = 1f;
+	private readonly UiBuilder _uiBuilder;
 	internal readonly List<IPlayerCharacter> OtherPlayer = [];
+	public readonly WindowSystem WindowSystem = new("SkyEye");
+	private float _dspeed = 1f;
 
 	public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager) {
 		PluginInterface = pluginInterface;
 		CommandManager = commandManager;
 		Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-		Configuration.Initialize(PluginInterface);
-		new UiBuilder(this, pluginInterface);
-		ConfigWindow = new ConfigWindow(this);
-		WindowSystem.AddWindow(ConfigWindow);
+		_uiBuilder = new UiBuilder();
+		_configWindow = new ConfigWindow(this);
+		WindowSystem.AddWindow(_configWindow);
 		CommandManager.AddHandler("/skyeye", new CommandInfo(OnCommand) {
 			HelpMessage = "打开主界面"
 		});
-		PluginInterface.UiBuilder.Draw += DrawUi;
+		PluginInterface.UiBuilder.Draw += () => WindowSystem.Draw();
 		Framework.Update += UpdateRoundPlayers;
-		PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUi;
+		PluginInterface.UiBuilder.OpenConfigUi += () => OnCommand(null, null);
 		ChatGui.ChatMessageUnhandled += OnChatMessage;
 	}
 
-	internal IDalamudPluginInterface PluginInterface { get; init; }
+	internal static ChatBox ChatBox => _chatBox ??= new ChatBox();
 
-	private ICommandManager CommandManager { get; }
+	[PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; }
+
+	[PluginService] private ICommandManager CommandManager { get; }
 
 	public static Configuration Configuration { get; private set; }
 
-	[PluginService] public static IClientState ClientState { get; set; }
+	[PluginService] public static IClientState ClientState { get; private set; }
 
-	[PluginService] internal static IDataManager DataManager { get; set; }
+	[PluginService] internal static IDataManager DataManager { get; private set; }
 
-	[PluginService] internal static IPluginLog Log { get; set; }
+	[PluginService] internal static IPluginLog Log { get; private set; }
 
-	[PluginService] internal static ICondition Condition { get; set; }
+	[PluginService] internal static ICondition Condition { get; private set; }
 
-	[PluginService] internal static IGameGui Gui { get; set; }
+	[PluginService] internal static IGameGui Gui { get; private set; }
 
-	[PluginService] internal static IObjectTable Objects { get; set; }
+	[PluginService] internal static IObjectTable Objects { get; private set; }
 
-	[PluginService] internal static IFateTable Fates { get; set; }
+	[PluginService] internal static IFateTable Fates { get; private set; }
 
-	[PluginService] internal static IFramework Framework { get; set; } = null;
+	[PluginService] internal static IFramework Framework { get; } = null;
 
-	[PluginService] internal static ISigScanner SigScanner { get; set; } = null;
+	[PluginService] internal static ISigScanner SigScanner { get; private set; } = null;
 
-	[PluginService] internal static IChatGui ChatGui { get; set; } = null;
-
-
-	private ConfigWindow ConfigWindow { get; }
+	[PluginService] internal static IChatGui ChatGui { get; } = null;
 
 	public void Dispose() {
 		WindowSystem.RemoveAllWindows();
 		ChatGui.ChatMessageUnhandled -= OnChatMessage;
-		ConfigWindow.Dispose();
 		Framework.Update -= UpdateRoundPlayers;
-		_shp?.Dispose();
+		_uiBuilder.Dispose();
 		CommandManager.RemoveHandler("/skyeye");
 	}
 
-	private void OnCommand(string command, string args) {
-		ToggleConfigUi();
-	}
+	private void OnCommand(string command, string args) => _configWindow.Toggle();
+
 
 	internal static bool InEureka() => ClientState.LocalPlayer != null && ClientState.TerritoryType is 732 or 763 or 795 or 827;
-	internal static bool InArea() 
-		=>  InEureka() ||  Configuration.Overlay2DSpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString());
-	
+
+	internal static bool InArea()
+		=> InEureka() || Configuration.Overlay2DSpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString());
+
 
 	private void OnChatMessage(XivChatType type, int timestamp, SeString sender, SeString message) {
 		if (message == null || !InEureka()) return;
@@ -167,15 +166,6 @@ public sealed class Plugin : IDalamudPlugin {
 	public static void SetSpeed(float speedBase) {
 		if (_lSpeed == speedBase) return;
 		_lSpeed = speedBase;
-		_shp ??= new SpeedHackPlugin();
-		_shp.SetSpeedMultiplier(speedBase);
-	}
-
-	private void DrawUi() {
-		WindowSystem.Draw();
-	}
-
-	private void ToggleConfigUi() {
-		ConfigWindow.Toggle();
+		ChatBox.SendMessage($"/pdrspeed {_lSpeed}");
 	}
 }

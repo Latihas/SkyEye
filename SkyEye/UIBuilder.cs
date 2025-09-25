@@ -5,12 +5,10 @@ using System.Linq;
 using System.Media;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Plugin;
-using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using ImGuiNET;
 using Lumina.Excel.Sheets;
 using SkyEye.SkyEye.Data;
 using static System.Globalization.CultureInfo;
@@ -22,8 +20,6 @@ public class UiBuilder : IDisposable {
 	private readonly List<(Vector3 worldpos, uint fgcolor, uint bgcolor, string name, string fateId, PData.EurekaWeather SpawnRequiredWeather, bool SpawnByRequiredNight)> _eurekaList2D = [];
 	private readonly List<string> _eurekaLiveIdList2D = [], _eurekaLiveIdList2DOld = [];
 	private readonly Vector2[] _mapPosSize = new Vector2[2];
-	private readonly IDalamudPluginInterface _pi;
-	private readonly Plugin _pl;
 	private readonly Dictionary<uint, ushort> _sizeFactorDict;
 	private ImDrawListPtr _bdl;
 	private EorzeaTime _eorzeaTime;
@@ -33,16 +29,14 @@ public class UiBuilder : IDisposable {
 	private (PData.EurekaWeather Weather, TimeSpan Time) _weatherNow;
 	private List<(PData.EurekaWeather Weather, TimeSpan Time)> _weathers;
 
-	public UiBuilder(Plugin plugin, IDalamudPluginInterface pluginInterface) {
-		_pi = pluginInterface;
-		_pl = plugin;
+	public UiBuilder() {
 		_sizeFactorDict = Plugin.DataManager.GetExcelSheet<TerritoryType>().ToDictionary(k => k.RowId, v => v.Map.Value.SizeFactor);
 		Plugin.ClientState.TerritoryChanged += TerritoryChanged;
-		_pi.UiBuilder.Draw += UiBuilder_OnBuildUi;
+		Plugin.PluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
 	}
 
 	public void Dispose() {
-		_pi.UiBuilder.Draw -= UiBuilder_OnBuildUi;
+		Plugin.PluginInterface.UiBuilder.Draw -= UiBuilder_OnBuildUi;
 		Plugin.ClientState.TerritoryChanged -= TerritoryChanged;
 	}
 
@@ -68,7 +62,7 @@ public class UiBuilder : IDisposable {
 			RefreshEureka();
 			if (Plugin.Configuration.Overlay2DEnabled) DrawMapOverlay();
 			if (Plugin.Configuration.Overlay3DEnabled)
-				foreach (var pos in _pl.DetectedTreasurePositions)
+				foreach (var pos in Plugin.DetectedTreasurePositions)
 					if (Plugin.Gui.WorldToScreen(pos, out var v))
 						_bdl.DrawMapDot(v, 0xFF00FFFFu, 0xFF00FFFFu);
 		}
@@ -358,16 +352,16 @@ public class UiBuilder : IDisposable {
 		return (vector - new Vector2(1024f, 1024f)) / map.SizeFactor * 100F;
 	}
 
-	private void NmFound() {
+	private static void NmFound() {
 		Player1.Stop();
-		Player1.SoundLocation = Path.Combine(_pi.AssemblyLocation.Directory!.FullName, "nm.wav");
+		Player1.SoundLocation = Path.Combine(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, "nm.wav");
 		Player1.Load();
 		Player1.Play();
 	}
 
-	private void TzFound() {
+	private static void TzFound() {
 		Player2.Stop();
-		Player2.SoundLocation = Path.Combine(_pi.AssemblyLocation.Directory!.FullName, "tz.wav");
+		Player2.SoundLocation = Path.Combine(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, "tz.wav");
 		Player2.Load();
 		Player2.Play();
 	}
