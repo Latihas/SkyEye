@@ -3,7 +3,7 @@ using Dalamud.Interface.Windowing;
 
 namespace SkyEye.SkyEye;
 
-public class ConfigWindow(Plugin plugin) : Window("SkyEye") {
+public class ConfigWindow() : Window("SkyEye") {
 	private readonly Configuration _configuration = Plugin.Configuration;
 
 	public override void Draw() {
@@ -22,7 +22,7 @@ public class ConfigWindow(Plugin plugin) : Window("SkyEye") {
 		if (ImGui.InputText("Territory ids", ref _configuration.Overlay2DSpeedUpTerritory, 114514)) _configuration.Save();
 		ImGui.Text("无视周边的挂壁亲友（用竖线|隔开）");
 		if (ImGui.InputText("Friendly names", ref _configuration.Overlay2DSpeedUpFriendly, 114514)) _configuration.Save();
-		ImGui.Text($"周围人数：{(Plugin.InArea() ? plugin.OtherPlayer.Count : "不在区域内")};区域id：{Plugin.ClientState.TerritoryType}");
+		ImGui.Text($"周围人数：{(Plugin.InArea() ? Plugin.OtherPlayer.Count : "不在区域内")};区域id：{Plugin.ClientState.TerritoryType}");
 		if (Plugin.InEureka()) {
 			ImGui.Separator();
 			ImGui.Text("NM开战时间喊话");

@@ -25,7 +25,7 @@ public sealed class Plugin : IDalamudPlugin {
 	private readonly ConfigWindow _configWindow;
 	private readonly Lock _speedLock = new();
 	private readonly UiBuilder _uiBuilder;
-	internal readonly List<IPlayerCharacter> OtherPlayer = [];
+	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
 	public readonly WindowSystem WindowSystem = new("SkyEye");
 	private float _dspeed = 1f;
 
@@ -34,7 +34,7 @@ public sealed class Plugin : IDalamudPlugin {
 		CommandManager = commandManager;
 		Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 		_uiBuilder = new UiBuilder();
-		_configWindow = new ConfigWindow(this);
+		_configWindow = new ConfigWindow();
 		WindowSystem.AddWindow(_configWindow);
 		CommandManager.AddHandler("/skyeye", new CommandInfo(OnCommand) {
 			HelpMessage = "打开主界面"
@@ -48,26 +48,28 @@ public sealed class Plugin : IDalamudPlugin {
 	internal static ChatBox ChatBox => _chatBox ??= new ChatBox();
 	public static Configuration Configuration { get; private set; }
 	[PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; }
-
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
 	[PluginService] public static IClientState ClientState { get; private set; }
-
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
 	[PluginService] internal static IDataManager DataManager { get; private set; }
-
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
 	[PluginService] internal static IPluginLog Log { get; private set; }
-
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
 	[PluginService] internal static ICondition Condition { get; private set; }
-
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
 	[PluginService] internal static IGameGui Gui { get; private set; }
-
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
 	[PluginService] internal static IObjectTable Objects { get; private set; }
-
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
 	[PluginService] internal static IFateTable Fates { get; private set; }
-
-	[PluginService] internal static ISigScanner SigScanner { get; private set; } = null;
-
-	[PluginService] private static IChatGui ChatGui { get; set; } = null;
-	[PluginService] private static IFramework Framework { get; set; } = null;
-	[PluginService] private ICommandManager CommandManager { get; set; }
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
+	[PluginService] internal static ISigScanner SigScanner { get; private set; }
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
+	[PluginService] private static IChatGui ChatGui { get; set; }
+	// ReSharper disable once UnusedAutoPropertyAccessor.Local
+	[PluginService] private static IFramework Framework { get; set; }
+	// ReSharper disable once AutoPropertyCanBeMadeGetOnly.Local
+	[PluginService] private ICommandManager CommandManager { get; set;}
 
 	public void Dispose() {
 		WindowSystem.RemoveAllWindows();
