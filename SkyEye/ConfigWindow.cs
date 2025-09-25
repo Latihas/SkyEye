@@ -20,10 +20,12 @@ public class ConfigWindow() : Window("SkyEye") {
 				if (ImGui.InputFloat("Y", ref _configuration.RabbitWaitY)) _configuration.Save();
 				if (ImGui.InputFloat("Z", ref _configuration.RabbitWaitZ)) _configuration.Save();
 				if (ImGui.Button("设置为当前坐标")) {
-					_configuration.RabbitWaitX=Plugin.ClientState.LocalPlayer.Position.X;
-					_configuration.RabbitWaitY=Plugin.ClientState.LocalPlayer.Position.Y;
-					_configuration.RabbitWaitZ=Plugin.ClientState.LocalPlayer.Position.Z;
-					_configuration.Save();
+					if (Plugin.ClientState.LocalPlayer != null) {
+						_configuration.RabbitWaitX=Plugin.ClientState.LocalPlayer.Position.X;
+						_configuration.RabbitWaitY=Plugin.ClientState.LocalPlayer.Position.Y;
+						_configuration.RabbitWaitZ=Plugin.ClientState.LocalPlayer.Position.Z;
+						_configuration.Save();
+					}
 				}
 			}
 		}

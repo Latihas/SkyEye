@@ -33,7 +33,7 @@ public sealed class Plugin : IDalamudPlugin {
 	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
 	public readonly WindowSystem WindowSystem = new("SkyEye");
 	private float _dspeed = 1f;
-	private System.Timers.Timer carrotTimer;
+	private readonly System.Timers.Timer _carrotTimer;
 
 	public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager) {
 		PluginInterface = pluginInterface;
@@ -45,13 +45,10 @@ public sealed class Plugin : IDalamudPlugin {
 		CommandManager.AddHandler("/skyeye", new CommandInfo(OnCommand) {
 			HelpMessage = "打开主界面"
 		});
-		carrotTimer = new System.Timers.Timer(7000);
-		carrotTimer.AutoReset = true;
-		carrotTimer.Elapsed += (_, _) => {
-			if (Configuration.AutoRabbit) {
-				ChatBox.SendMessage("/e 自动使用幸运胡萝卜");
-				UseCarrot();
-			}
+		_carrotTimer = new System.Timers.Timer(7000);
+		_carrotTimer.AutoReset = true;
+		_carrotTimer.Elapsed += (_, _) => {
+			if (Configuration.AutoRabbit) UseCarrot();
 			else StopCarrotTimer();
 		};
 		NavmeshIpc.Init();
@@ -64,14 +61,14 @@ public sealed class Plugin : IDalamudPlugin {
 	private const uint LuckyCarrotItemId = 2002482;
 
 	private void StartCarrotTimer() {
-		if (carrotTimer.Enabled || !Configuration.AutoRabbit) return;
+		if (_carrotTimer.Enabled || !Configuration.AutoRabbit) return;
 		UseCarrot();
-		carrotTimer.Start();
+		_carrotTimer.Start();
 	}
 
 	private void StopCarrotTimer() {
-		if (carrotTimer is not { Enabled: true }) return;
-		carrotTimer.Stop();
+		if (_carrotTimer is not { Enabled: true }) return;
+		_carrotTimer.Stop();
 	}
 
 	private void UseCarrot() {
@@ -123,8 +120,8 @@ public sealed class Plugin : IDalamudPlugin {
 		Framework.Update -= UpdateRoundPlayers;
 		_uiBuilder.Dispose();
 		CommandManager.RemoveHandler("/skyeye");
-		carrotTimer.Stop();
-		carrotTimer.Dispose();
+		_carrotTimer.Stop();
+		_carrotTimer.Dispose();
 	}
 
 	private void OnCommand(string command, string args) => _configWindow.Toggle();
@@ -158,7 +155,6 @@ public sealed class Plugin : IDalamudPlugin {
 				catch (Exception) {
 					Log.Error("error");
 				}
-
 			return;
 		}
 		var result = Regex.Match(msg, "^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！");
@@ -212,7 +208,8 @@ public sealed class Plugin : IDalamudPlugin {
 			}
 			if (point != null) {
 				if (!NavmeshIpc.IsEnabled || !NavmeshIpc.IsReady()) {
-					Log.Error("vnavmesh插件异常");
+					Log.Error("vnavmesh插件异常，尝试重新初始化");
+					NavmeshIpc.Init();
 					return;
 				}
 				NavmeshIpc.PathfindAndMoveTo(point.Value, false);
@@ -248,6 +245,7 @@ public sealed class Plugin : IDalamudPlugin {
 	}
 
 	public static void SetSpeed(float speedBase) {
+		// ReSharper disable once CompareOfFloatsByEqualityOperator
 		if (_lSpeed == speedBase) return;
 		_lSpeed = speedBase;
 		ChatBox.SendMessage($"/pdrspeed {_lSpeed}");
