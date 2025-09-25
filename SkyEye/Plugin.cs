@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Command;
@@ -13,8 +14,12 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using SkyEye.SkyEye.Data;
 using static System.StringComparison;
+using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
 namespace SkyEye.SkyEye;
 
@@ -28,6 +33,7 @@ public sealed class Plugin : IDalamudPlugin {
 	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
 	public readonly WindowSystem WindowSystem = new("SkyEye");
 	private float _dspeed = 1f;
+	private System.Timers.Timer carrotTimer;
 
 	public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager) {
 		PluginInterface = pluginInterface;
@@ -39,10 +45,50 @@ public sealed class Plugin : IDalamudPlugin {
 		CommandManager.AddHandler("/skyeye", new CommandInfo(OnCommand) {
 			HelpMessage = "打开主界面"
 		});
+		carrotTimer = new System.Timers.Timer(7000);
+		carrotTimer.AutoReset = true;
+		carrotTimer.Elapsed += (_, _) => {
+			if (Configuration.AutoRabbit) {
+				ChatBox.SendMessage("/e 自动使用幸运胡萝卜");
+				UseCarrot();
+			}
+			else StopCarrotTimer();
+		};
+		NavmeshIpc.Init();
 		PluginInterface.UiBuilder.Draw += () => WindowSystem.Draw();
 		Framework.Update += UpdateRoundPlayers;
 		PluginInterface.UiBuilder.OpenConfigUi += () => OnCommand(null, null);
 		ChatGui.ChatMessageUnhandled += OnChatMessage;
+	}
+
+	private const uint LuckyCarrotItemId = 2002482;
+
+	private void StartCarrotTimer() {
+		if (carrotTimer.Enabled || !Configuration.AutoRabbit) return;
+		UseCarrot();
+		carrotTimer.Start();
+	}
+
+	private void StopCarrotTimer() {
+		if (carrotTimer is not { Enabled: true }) return;
+		carrotTimer.Stop();
+	}
+
+	private void UseCarrot() {
+		if (!Configuration.AutoRabbit) return;
+		if (!InEureka()) {
+			StopCarrotTimer();
+			return;
+		}
+		unsafe {
+			var inventoryManager = InventoryManager.Instance();
+			var itemCount = inventoryManager->GetInventoryItemCount(LuckyCarrotItemId);
+			if (itemCount > 0) ActionManager.Instance()->UseAction(ActionType.KeyItem, LuckyCarrotItemId, mode: ActionManager.UseActionMode.Queue);
+			else {
+				Log.Warning("没有幸运胡萝卜可用，停止自动使用");
+				StopCarrotTimer();
+			}
+		}
 	}
 
 	internal static ChatBox ChatBox => _chatBox ??= new ChatBox();
@@ -69,7 +115,7 @@ public sealed class Plugin : IDalamudPlugin {
 	// ReSharper disable once UnusedAutoPropertyAccessor.Local
 	[PluginService] private static IFramework Framework { get; set; }
 	// ReSharper disable once AutoPropertyCanBeMadeGetOnly.Local
-	[PluginService] private ICommandManager CommandManager { get; set;}
+	[PluginService] private ICommandManager CommandManager { get; set; }
 
 	public void Dispose() {
 		WindowSystem.RemoveAllWindows();
@@ -77,6 +123,8 @@ public sealed class Plugin : IDalamudPlugin {
 		Framework.Update -= UpdateRoundPlayers;
 		_uiBuilder.Dispose();
 		CommandManager.RemoveHandler("/skyeye");
+		carrotTimer.Stop();
+		carrotTimer.Dispose();
 	}
 
 	private void OnCommand(string command, string args) => _configWindow.Toggle();
@@ -85,19 +133,39 @@ public sealed class Plugin : IDalamudPlugin {
 	internal static bool InEureka() => ClientState.LocalPlayer != null && ClientState.TerritoryType is 732 or 763 or 795 or 827;
 
 	internal static bool InArea()
-		=> InEureka() || Configuration.Overlay2DSpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString());
+		=> InEureka() || Configuration.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString());
 
 
 	private void OnChatMessage(XivChatType type, int timestamp, SeString sender, SeString message) {
 		if (message == null || !InEureka()) return;
 		var msg = message.TextValue.Trim();
-		if (msg.StartsWith("找到了财宝")) DetectedTreasurePositions = [];
-		if (!msg.StartsWith("财宝好像是在")) return;
-		var result = Regex.Match(msg, "财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！");
-		if (!result.Success) return;
+		if (msg.StartsWith("找到了财宝，幸福兔心满意足地离去了。")) {
+			DetectedTreasurePositions = [];
+			StopCarrotTimer();
+			foreach (var obj in Objects)
+				try {
+					if (obj is not { ObjectKind: ObjectKind.EventObj } || !obj.Name.ToString().Contains("财宝箱")) continue;
+					unsafe {
+						TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
+					}
+					if (!Configuration.AutoRabbitWait) continue;
+					ChatBox.SendMessage($"/e 等待7s后返回");
+					Task.Run(async () => {
+						await Task.Delay(7000);
+						NavmeshIpc.PathfindAndMoveTo(new Vector3(Configuration.RabbitWaitX, Configuration.RabbitWaitY, Configuration.RabbitWaitZ), false);
+					});
+				}
+				catch (Exception) {
+					Log.Error("error");
+				}
+
+			return;
+		}
+		var result = Regex.Match(msg, "^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！");
+		if (!(result.Success || msg.StartsWith("幸福兔看起来很喜欢你。"))) return;
+		StartCarrotTimer();
 		var direction = result.Groups["direction"].Value;
-		int minDistance;
-		int maxDistance;
+		int minDistance, maxDistance;
 		switch (result.Groups["distance"].Value) {
 			case "很远":
 				minDistance = 200;
@@ -131,6 +199,25 @@ public sealed class Plugin : IDalamudPlugin {
 		else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = treasures.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
 		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = treasures.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
 		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = treasures.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
+
+		if (Configuration.AutoRabbit) {
+			float maxd = 114514;
+			Vector3? point = null;
+			foreach (var treasure in DetectedTreasurePositions) {
+				var d = Vector3.Distance(ClientState.LocalPlayer.Position, treasure);
+				if (d < maxd) {
+					maxd = d;
+					point = treasure;
+				}
+			}
+			if (point != null) {
+				if (!NavmeshIpc.IsEnabled || !NavmeshIpc.IsReady()) {
+					Log.Error("vnavmesh插件异常");
+					return;
+				}
+				NavmeshIpc.PathfindAndMoveTo(point.Value, false);
+			}
+		}
 	}
 
 
@@ -142,7 +229,6 @@ public sealed class Plugin : IDalamudPlugin {
 		}
 		lock (OtherPlayer) {
 			OtherPlayer.Clear();
-			if (Objects == null) return;
 			foreach (var obj in Objects)
 				try {
 					if (obj != null && obj.GameObjectId != ClientState.LocalPlayer.GameObjectId & obj.Address.ToInt64() != 0 && obj is IPlayerCharacter rcTemp) OtherPlayer.Add(rcTemp);
@@ -152,9 +238,9 @@ public sealed class Plugin : IDalamudPlugin {
 				}
 		}
 		lock (_speedLock) {
-			if (Configuration.Overlay2DSpeedUpEnabled) {
-				var friends = Configuration.Overlay2DSpeedUpFriendly.Split('|');
-				_dspeed = OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ClientState.LocalPlayer.Position) < (110 ^ 2)) ? 1f : Configuration.Overlay2DSpeedUpN;
+			if (Configuration.SpeedUpEnabled) {
+				var friends = Configuration.SpeedUpFriendly.Split('|');
+				_dspeed = OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ClientState.LocalPlayer.Position) < (110 ^ 2)) ? 1f : Configuration.SpeedUpN;
 			}
 			else _dspeed = 1f;
 			SetSpeed(_dspeed);
