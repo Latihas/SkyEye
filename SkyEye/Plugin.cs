@@ -46,12 +46,8 @@ public sealed class Plugin : IDalamudPlugin {
 	}
 
 	internal static ChatBox ChatBox => _chatBox ??= new ChatBox();
-
-	[PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; }
-
-	[PluginService] private ICommandManager CommandManager { get; }
-
 	public static Configuration Configuration { get; private set; }
+	[PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; }
 
 	[PluginService] public static IClientState ClientState { get; private set; }
 
@@ -67,11 +63,11 @@ public sealed class Plugin : IDalamudPlugin {
 
 	[PluginService] internal static IFateTable Fates { get; private set; }
 
-	[PluginService] internal static IFramework Framework { get; } = null;
-
 	[PluginService] internal static ISigScanner SigScanner { get; private set; } = null;
 
-	[PluginService] internal static IChatGui ChatGui { get; } = null;
+	[PluginService] private static IChatGui ChatGui { get; set; } = null;
+	[PluginService] private static IFramework Framework { get; set; } = null;
+	[PluginService] private ICommandManager CommandManager { get; set; }
 
 	public void Dispose() {
 		WindowSystem.RemoveAllWindows();
