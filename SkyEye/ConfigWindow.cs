@@ -31,9 +31,9 @@ public class ConfigWindow() : Window("SkyEye") {
         }
         if (ImGui.Checkbox("自动农怪", ref _configuration.AutoFarm)) _configuration.Save();
         if (_configuration.AutoFarm) {
-            if (ImGui.InputText("FarmTarget", ref _configuration.FarmTarget, 114514)) _configuration.Save();
-            if (ImGui.InputText("FarmStartCommand", ref _configuration.FarmStartCommand, 114514)) _configuration.Save();
-            if (ImGui.InputInt("FarmTargetMax", ref _configuration.FarmTargetMax, 114514)) _configuration.Save();
+            if (ImGui.InputText("怪名称", ref _configuration.FarmTarget, 114514)) _configuration.Save();
+            if (ImGui.InputText("开怪指令", ref _configuration.FarmStartCommand, 114514)) _configuration.Save();
+            if (ImGui.InputInt("最大引仇目标", ref _configuration.FarmTargetMax, 114514)) _configuration.Save();
         }
         ImGui.Separator();
         if (ImGui.Checkbox("无人就加速", ref _configuration.SpeedUpEnabled)) _configuration.Save();
