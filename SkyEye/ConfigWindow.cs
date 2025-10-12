@@ -1,3 +1,5 @@
+using System;
+using System.Runtime.InteropServices;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 
@@ -29,12 +31,16 @@ public class ConfigWindow() : Window("SkyEye") {
                 }
             }
         }
-        if (ImGui.Checkbox("自动农怪", ref _configuration.AutoFarm)) _configuration.Save();
+        if (ImGui.Checkbox("自动农怪(移动到北萨那兰会自动切换为刷B怪,名称为永恒不灭的菲兰德副耀士)", ref _configuration.AutoFarm)) _configuration.Save();
+        ImGui.SameLine();
+        if (ImGui.Button("永恒不灭的菲兰德副耀士")) ImGui.SetClipboardText("永恒不灭的菲兰德副耀士");
         if (_configuration.AutoFarm) {
             if (ImGui.InputText("怪名称", ref _configuration.FarmTarget, 114514)) _configuration.Save();
             if (ImGui.InputText("开怪指令", ref _configuration.FarmStartCommand, 114514)) _configuration.Save();
-            if (ImGui.InputInt("最大引仇目标", ref _configuration.FarmTargetMax, 114514)) _configuration.Save();
+            if (ImGui.InputInt("最大引仇目标", ref _configuration.FarmTargetMax, 1)) _configuration.Save();
+            if (ImGui.InputFloat("最大引仇距离", ref _configuration.FarmMaxDistance, 1)) _configuration.Save();
         }
+        else NavmeshIpc.Stop();
         ImGui.Separator();
         if (ImGui.Checkbox("无人就加速", ref _configuration.SpeedUpEnabled)) _configuration.Save();
         ImGui.SameLine();
@@ -54,6 +60,14 @@ public class ConfigWindow() : Window("SkyEye") {
             if (ImGui.Button("发送至喊话频道") && !string.IsNullOrWhiteSpace(_configuration.NmBattleTimeText)) {
                 Plugin.ChatBox.SendMessage($"/sh <pos>{_configuration.NmBattleTimeText}");
             }
+        }
+        if (Plugin.ClientState.TerritoryType == 147) ImGui.Text($"超时：{(DateTime.Now - Plugin.LastKill).Seconds }/{Plugin.FarmTimeout}");
+        if (ImGui.Button("测试")) {
+            StaticVfx.StaticVfxCreate = Marshal.GetDelegateForFunctionPointer<StaticVfx.StaticVfxCreateDelegate>(Plugin.SigScanner.ScanText("E8 ?? ?? ?? ?? F3 0F 10 35 ?? ?? ?? ?? 48 89 43 08"));
+            StaticVfx.StaticVfxRun = Marshal.GetDelegateForFunctionPointer<StaticVfx.StaticVfxRunDelegate>(Plugin.SigScanner.ScanText("E8 ?? ?? ?? ?? B0 02 EB 02"));
+            var playerObject = Plugin.ClientState.LocalPlayer!;
+            var path = "vfx/omen/eff/mdl_general_02x.avfx";
+            StaticVfx.Vfxs.Add(new StaticVfx(path, playerObject.Position, playerObject.Rotation), new VfxSpawnItem(path, SpawnType.Ground, false));
         }
     }
 }

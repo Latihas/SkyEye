@@ -6,6 +6,7 @@
         <Optimize>true</Optimize>
         <DebugSymbols>false</DebugSymbols>
         <DebugType>none</DebugType>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
     <PropertyGroup>
         <LangVersion>Latest</LangVersion>

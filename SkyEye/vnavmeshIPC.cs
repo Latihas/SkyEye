@@ -74,10 +74,7 @@ internal static class NavmeshIpc {
     /// <returns>如果插件已加载，则返回true</returns>
     private static bool IsPluginLoaded() {
         try {
-            if (Plugin.PluginInterface == null)
-                return false;
-
-            return Plugin.PluginInterface.InstalledPlugins?.Any(p => p.Name == Name && p.IsLoaded) == true;
+            return Plugin.PluginInterface.InstalledPlugins.Any(p => p.Name == Name && p.IsLoaded) == true;
         }
         catch (Exception ex) {
             Plugin.Log.Error($"检查插件加载状态时发生错误: {ex.Message}");
@@ -93,8 +90,6 @@ internal static class NavmeshIpc {
         if (IsPluginLoaded()) {
             try {
                 var pi = Plugin.PluginInterface;
-                if (pi == null) return;
-
                 _navIsReady = pi.GetIpcSubscriber<bool>($"{Name}.Nav.IsReady"); // 检查导航网格是否已准备就绪
                 _navBuildProgress = pi.GetIpcSubscriber<float>($"{Name}.Nav.BuildProgress"); // 获取导航网格构建进度（0.0-1.0）
                 _navReload = pi.GetIpcSubscriber<bool>($"{Name}.Nav.Reload"); // 重新加载导航网格
@@ -122,10 +117,9 @@ internal static class NavmeshIpc {
                 _pathfindInProgress = pi.GetIpcSubscriber<bool>($"{Name}.SimpleMove.PathfindInProgress"); // 检查寻路过程是否正在进行中
 
                 // 使用静态变量跟踪是否已经输出过初始化成功的日志，避免重复输出
-                if (!_hasLoggedInitSuccess) {
-                    Plugin.Log.Information("NavmeshIPC初始化成功");
-                    _hasLoggedInitSuccess = true;
-                }
+                if (_hasLoggedInitSuccess) return;
+                Plugin.Log.Information("NavmeshIPC初始化成功");
+                _hasLoggedInitSuccess = true;
             }
             catch (Exception ex) {
                 Plugin.Log.Error($"NavmeshIPC初始化失败: {ex}");
@@ -133,10 +127,9 @@ internal static class NavmeshIpc {
         }
         else {
             // 使用静态变量跟踪是否已经输出过未找到插件的警告，避免重复输出
-            if (!_hasLoggedPluginNotFound) {
-                Plugin.Log.Warning($"未找到 {Name} 插件，导航功能不可用");
-                _hasLoggedPluginNotFound = true;
-            }
+            if (_hasLoggedPluginNotFound) return;
+            Plugin.Log.Warning($"未找到 {Name} 插件，导航功能不可用");
+            _hasLoggedPluginNotFound = true;
         }
     }
 

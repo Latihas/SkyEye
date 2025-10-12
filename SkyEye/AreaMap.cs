@@ -8,5 +8,5 @@ internal static class AreaMap {
 
     internal static unsafe bool MapVisible => AreaMapAddon != (AtkUnitBase*)IntPtr.Zero && AreaMapAddon->IsVisible;
 
-    internal static unsafe ref float MapScale => ref *(float*)((byte*)AreaMapAddon + 980);
+    internal static unsafe ref float MapScale => ref *(float*)((byte*)AreaMapAddon + 0x3D4);
 }
