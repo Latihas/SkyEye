@@ -81,13 +81,15 @@ public sealed class Plugin : IDalamudPlugin {
     }
 
     private static IGameObject? _farmGameObject;
-    internal const int FarmTimeout = 30;
-    internal static DateTime LastKill = DateTime.Now.AddSeconds(-60);
-    private static readonly Random Random = new();
+    internal const int FarmTimeout = 50;
+    internal static DateTime LastKill = DateTime.Now;
 
+    private static readonly string[] Loc = ["蓝雾营地", "青磷精炼所"];
+    private static int _locIter;
 
     private static void Farm(IFramework framework) {
         if (ClientState.LocalPlayer is null || !Configuration.AutoFarm) return;
+        if (!NavmeshIpc.IsReady()) NavmeshIpc.Init();
         var playerPos = ClientState.LocalPlayer.Position;
         var playerName = ClientState.LocalPlayer.Name.ToString();
         var validObjs = Objects.Where(obj => !obj.IsDead && obj.Name.ToString().Contains(Configuration.FarmTarget)).ToList();
@@ -105,17 +107,18 @@ public sealed class Plugin : IDalamudPlugin {
                 }
             }
         }
-        if (NavmeshIpc.IsRunning()) LastKill = DateTime.Now;
+        // if (NavmeshIpc.IsRunning()) LastKill = DateTime.Now;
         if (ClientState.TerritoryType == 147 && (DateTime.Now - LastKill).Seconds > FarmTimeout) {
-            var targ = (Random.Next(2) == 1 ? "蓝雾营地" : "青磷精炼所");
+            _locIter = (_locIter + 1) % 2;
+            var targ = Loc[_locIter];
+            NavmeshIpc.Stop();
             ChatBox.SendMessage($"/e 检测超时，正在尝试移动到{targ}");
             ChatBox.SendMessage($"/pdrtelepo {targ}");
-            LastKill = DateTime.Now.AddSeconds(-FarmTimeout + 10);
+            LastKill = DateTime.Now;
         }
         var ieu = InEureka();
         foreach (var obj in validObjs.OrderBy(c => Vector3.Distance(playerPos, c.Position))) {
             if (obj.TargetObject != null) continue;
-            LastKill = DateTime.Now;
             if (ieu) {
                 if (Vector3.Distance(playerPos, obj.Position) < 15) {
                     unsafe {
@@ -128,10 +131,19 @@ public sealed class Plugin : IDalamudPlugin {
                 if (!NavmeshIpc.IsRunning()) NavmeshIpc.PathfindAndMoveTo(obj.Position, false);
             }
             else {
+                if (NavmeshIpc.IsRunning()) {
+                    var delta = DateTime.Now - LastKill;
+                    if (delta.Seconds % 15 == 14) {
+                        NavmeshIpc.Stop();
+                        NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
+                        if (!ClientState.LocalPlayer!.CurrentMount.HasValue) ChatBox.SendMessage("/ac 随机坐骑");
+                        LastKill = DateTime.Now;
+                    }
+                }
                 bool nk;
                 lock (KillingLock) nk = _killing;
                 if (nk) break;
-                if (Vector3.Distance(playerPos, obj.Position) < 1) {
+                if (Vector3.Distance(playerPos, obj.Position) < 2) {
                     lock (KillingLock) _killing = true;
                     _farmGameObject = obj;
                     unsafe {
@@ -141,7 +153,10 @@ public sealed class Plugin : IDalamudPlugin {
                     break;
                 }
                 if (!ClientState.LocalPlayer!.CurrentMount.HasValue) ChatBox.SendMessage("/ac 随机坐骑");
-                if (!NavmeshIpc.IsRunning()) NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
+                if (!NavmeshIpc.IsRunning()) {
+                    NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
+                    LastKill = DateTime.Now;
+                }
             }
         }
     }
