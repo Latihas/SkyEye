@@ -15,7 +15,10 @@ public class ConfigWindow() : Window("SkyEye") {
 
     public override void Draw() {
         if (ImGui.Checkbox("开关", ref Plugin.Configuration.Overlay2DEnabled)) Plugin.Configuration.Save();
-        if (!Plugin.Configuration.Overlay2DEnabled) return;
+        if (!Plugin.Configuration.Overlay2DEnabled) {
+            Plugin.SetSpeed(1);
+            return;
+        }
         if (ImGui.BeginTabBar("tab")) {
             NewTab("基础", () => {
                 if (ImGui.Checkbox("稀有天气时间开关", ref Plugin.Configuration.Overlay2DWeatherMapEnabled)) Plugin.Configuration.Save();
@@ -32,7 +35,7 @@ public class ConfigWindow() : Window("SkyEye") {
                         var p = Plugin.YlPositions[i];
                         ImGui.Text($"元灵{i}({p.X},{p.Y},{p.Z})");
                         ImGui.SameLine();
-                        if (ImGui.Button("发送")) {
+                        if (ImGui.Button($"发送位置{i}")) {
                             unsafe {
                                 AgentMap.Instance()->SetFlagMapMarker(Plugin.ClientState.TerritoryType, Plugin.ClientState.MapId, p);
                             }
@@ -46,7 +49,7 @@ public class ConfigWindow() : Window("SkyEye") {
                 ImGui.SameLine();
                 if (ImGui.InputFloat("倍率", ref Plugin.Configuration.SpeedUpN)) Plugin.Configuration.Save();
                 ImGui.SameLine();
-                if (ImGui.Button("重置")) Plugin.SetSpeed(1f);
+                if (ImGui.Button("重置")) Plugin.SetSpeed(1);
                 ImGui.Text(@"加速区域id（用竖线|隔开，默认支持732,763,795,827），可在ACT.DieMoe\Plugins\Data\FFXIV_ACT_Plugin\Chinese\Resource\FFXIV_ACT_Plugin.Resource.Generated.TerritoryList_English.txt中查看");
                 if (ImGui.InputText("Territory ids", ref Plugin.Configuration.SpeedUpTerritory, 114514)) Plugin.Configuration.Save();
                 ImGui.Text("无视周边的挂壁亲友（用竖线|隔开）");

@@ -346,7 +346,7 @@ public sealed class Plugin : IDalamudPlugin {
     private void UpdateRoundPlayers(IFramework framework) {
         if (ClientState.LocalPlayer == null) return;
         if (!InArea()) {
-            lock (_speedLock) SetSpeed(1f);
+            lock (_speedLock) SetSpeed(1);
             return;
         }
         lock (OtherPlayer) {
