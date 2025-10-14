@@ -19,6 +19,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using SkyEye.SkyEye.Data;
 using static System.StringComparison;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
@@ -29,10 +30,22 @@ namespace SkyEye.SkyEye;
 [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")]
 public sealed class Plugin : IDalamudPlugin {
     private const uint LuckyCarrotItemId = 2002482;
+    internal const int FarmTimeout = 50;
     private static float _lSpeed = 1f;
-    private static ChatBox? _chatBox;
     internal static List<Vector3> DetectedTreasurePositions = [];
     internal static readonly List<IPlayerCharacter> OtherPlayer = [];
+    internal static readonly List<Vector3> YlPositions = [];
+
+    internal static readonly HashSet<uint> Yl = [];
+
+    private static IGameObject? _farmGameObject;
+    internal static DateTime LastKill = DateTime.Now;
+
+    private static readonly string[] Loc = ["蓝雾营地", "青磷精炼所"];
+    private static bool _locIter;
+
+    private static bool _killing;
+    private static readonly Lock KillingLock = new();
     private readonly Timer _carrotTimer;
     private readonly ConfigWindow _configWindow;
     private readonly Lock _speedLock = new();
@@ -65,9 +78,43 @@ public sealed class Plugin : IDalamudPlugin {
         ChatGui.ChatMessageUnhandled += ChatRabbit;
     }
 
-    private static readonly HashSet<uint> Yl = [];
+    public static Configuration Configuration { get; private set; } = null!;
+    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
+    [PluginService] public static IClientState ClientState { get; private set; } = null!;
+
+    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
+
+    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+
+    [PluginService] internal static ICondition Condition { get; private set; } = null!;
+
+    [PluginService] internal static IGameGui Gui { get; private set; } = null!;
+
+    [PluginService] internal static IObjectTable Objects { get; private set; } = null!;
+
+    [PluginService] internal static IFateTable Fates { get; private set; } = null!;
+
+    [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
+
+    [PluginService] private static IChatGui ChatGui { get; set; } = null!;
+
+    [PluginService] private static IFramework Framework { get; set; } = null!;
+    [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
+
+    public void Dispose() {
+        WindowSystem.RemoveAllWindows();
+        ChatGui.ChatMessageUnhandled -= ChatRabbit;
+        Framework.Update -= UpdateRoundPlayers;
+        Framework.Update -= Farm;
+        Framework.Update -= FindYl;
+        _uiBuilder.Dispose();
+        CommandManager.RemoveHandler("/skyeye");
+        _carrotTimer.Stop();
+        _carrotTimer.Dispose();
+    }
 
     private static void FindYl(IFramework framework) {
+        if (ClientState.LocalPlayer is null || !InEureka()) return;
         IGameObject yls;
         try {
             yls = Objects.First(obj => obj.Name.ToString().Contains("元灵") && obj.ObjectKind != ObjectKind.Player);
@@ -76,16 +123,13 @@ public sealed class Plugin : IDalamudPlugin {
             return;
         }
         if (!Yl.Add(yls.EntityId)) return;
-        const string path = "vfx/channeling/eff/chn_m0906_ht02k2.avfx";
-        BaseVfx.Vfxs.Add(new ActorVfx(ClientState.LocalPlayer!, yls, path), new VfxSpawnItem(path, SpawnType.Target, false));
+        var p = yls.Position;
+        YlPositions.Add(p);
+        unsafe {
+            AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
+        }
+        ChatBox.SendMessage("/e 找到元灵<se.1>");
     }
-
-    private static IGameObject? _farmGameObject;
-    internal const int FarmTimeout = 50;
-    internal static DateTime LastKill = DateTime.Now;
-
-    private static readonly string[] Loc = ["蓝雾营地", "青磷精炼所"];
-    private static int _locIter;
 
     private static void Farm(IFramework framework) {
         if (ClientState.LocalPlayer is null || !Configuration.AutoFarm) return;
@@ -100,17 +144,14 @@ public sealed class Plugin : IDalamudPlugin {
         }
         if (_farmGameObject != null) {
             if (!_farmGameObject.IsValid()) _farmGameObject = null;
-            else {
-                if (_farmGameObject.IsDead) {
-                    LastKill = DateTime.Now;
-                    _farmGameObject = null;
-                }
+            else if (_farmGameObject.IsDead) {
+                LastKill = DateTime.Now;
+                _farmGameObject = null;
             }
         }
-        // if (NavmeshIpc.IsRunning()) LastKill = DateTime.Now;
         if (ClientState.TerritoryType == 147 && (DateTime.Now - LastKill).Seconds > FarmTimeout) {
-            _locIter = (_locIter + 1) % 2;
-            var targ = Loc[_locIter];
+            _locIter = !_locIter;
+            var targ = Loc[_locIter ? 1 : 0];
             NavmeshIpc.Stop();
             ChatBox.SendMessage($"/e 检测超时，正在尝试移动到{targ}");
             ChatBox.SendMessage($"/pdrtelepo {targ}");
@@ -132,8 +173,7 @@ public sealed class Plugin : IDalamudPlugin {
             }
             else {
                 if (NavmeshIpc.IsRunning()) {
-                    var delta = DateTime.Now - LastKill;
-                    if (delta.Seconds % 15 == 14) {
+                    if ((DateTime.Now - LastKill).Seconds % 15 == 14) {
                         NavmeshIpc.Stop();
                         NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
                         if (!ClientState.LocalPlayer!.CurrentMount.HasValue) ChatBox.SendMessage("/ac 随机坐骑");
@@ -161,9 +201,6 @@ public sealed class Plugin : IDalamudPlugin {
         }
     }
 
-    private static bool _killing;
-    private static readonly Lock KillingLock = new();
-
     private static async void Startkill() {
         try {
             NavmeshIpc.Stop();
@@ -181,40 +218,6 @@ public sealed class Plugin : IDalamudPlugin {
         finally {
             lock (KillingLock) _killing = false;
         }
-    }
-
-    internal static ChatBox ChatBox => _chatBox ??= new ChatBox();
-    public static Configuration Configuration { get; private set; }
-    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] public static IClientState ClientState { get; private set; } = null!;
-
-    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
-
-    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-
-    [PluginService] internal static ICondition Condition { get; private set; } = null!;
-
-    [PluginService] internal static IGameGui Gui { get; private set; } = null!;
-
-    [PluginService] internal static IObjectTable Objects { get; private set; } = null!;
-
-    [PluginService] internal static IFateTable Fates { get; private set; } = null!;
-
-    [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
-
-    [PluginService] private static IChatGui ChatGui { get; set; } = null!;
-
-    [PluginService] private static IFramework Framework { get; set; } = null!;
-    [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
-
-    public void Dispose() {
-        WindowSystem.RemoveAllWindows();
-        ChatGui.ChatMessageUnhandled -= ChatRabbit;
-        Framework.Update -= UpdateRoundPlayers;
-        _uiBuilder.Dispose();
-        CommandManager.RemoveHandler("/skyeye");
-        _carrotTimer.Stop();
-        _carrotTimer.Dispose();
     }
 
     private void StartCarrotTimer() {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
@@ -7,6 +8,9 @@ using Dalamud.Plugin.Ipc;
 
 namespace SkyEye.SkyEye;
 
+[SuppressMessage("ReSharper", "UnusedMember.Global")]
+[SuppressMessage("ReSharper", "NotAccessedField.Local")]
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 internal static class NavmeshIpc {
     // 静态变量，用于跟踪是否已经输出过日志
     private static bool _hasLoggedInitSuccess;
@@ -74,7 +78,7 @@ internal static class NavmeshIpc {
     /// <returns>如果插件已加载，则返回true</returns>
     private static bool IsPluginLoaded() {
         try {
-            return Plugin.PluginInterface.InstalledPlugins.Any(p => p.Name == Name && p.IsLoaded) == true;
+            return Plugin.PluginInterface.InstalledPlugins.Any(p => p.Name == Name && p.IsLoaded);
         }
         catch (Exception ex) {
             Plugin.Log.Error($"检查插件加载状态时发生错误: {ex.Message}");
@@ -142,9 +146,7 @@ internal static class NavmeshIpc {
     internal static T? Execute<T>(Func<T> func) {
         if (IsPluginLoaded()) {
             try {
-                // 检查IPC实例是否已初始化
-                if (func != null)
-                    return func();
+                return func();
             }
             catch (Exception ex) {
                 Plugin.Log.Error($"IPC执行错误: {ex}");
@@ -161,7 +163,7 @@ internal static class NavmeshIpc {
     internal static void Execute(Action action) {
         if (IsPluginLoaded()) {
             try {
-                action?.Invoke();
+                action();
             }
             catch (Exception ex) {
                 Plugin.Log.Error($"IPC执行错误: {ex}");
@@ -178,7 +180,7 @@ internal static class NavmeshIpc {
     internal static void Execute<T>(Action<T> action, T param) {
         if (IsPluginLoaded()) {
             try {
-                action?.Invoke(param);
+                action(param);
             }
             catch (Exception ex) {
                 Plugin.Log.Error($"IPC执行错误: {ex}");
@@ -197,7 +199,7 @@ internal static class NavmeshIpc {
     internal static void Execute<T1, T2>(Action<T1, T2> action, T1 p1, T2 p2) {
         if (IsPluginLoaded()) {
             try {
-                action?.Invoke(p1, p2);
+                action(p1, p2);
             }
             catch (Exception ex) {
                 Plugin.Log.Error($"IPC执行错误: {ex}");
@@ -221,7 +223,7 @@ internal static class NavmeshIpc {
     internal static float BuildProgress() {
         if (_navBuildProgress == null) return 0f;
         float? result = Execute(() => _navBuildProgress.InvokeFunc());
-        return result.HasValue ? result.Value : 0f;
+        return result ?? 0f;
     }
 
     /// <summary>重新加载导航网格</summary>
@@ -263,22 +265,22 @@ internal static class NavmeshIpc {
 
     /// <summary>查询给定位置附近的最近导航网格点</summary>
     /// <param name="pos">查询位置</param>
-    /// <param name="halfExtentXZ">XZ平面上的搜索半径</param>
+    /// <param name="halfExtentXz">XZ平面上的搜索半径</param>
     /// <param name="halfExtentY">Y轴（高度）上的搜索半径</param>
     /// <returns>最近的导航网格点，如果未找到则返回null</returns>
-    internal static Vector3? QueryMeshNearestPoint(Vector3 pos, float halfExtentXZ, float halfExtentY) {
+    internal static Vector3? QueryMeshNearestPoint(Vector3 pos, float halfExtentXz, float halfExtentY) {
         if (_queryMeshNearestPoint == null) return null;
-        return Execute(() => _queryMeshNearestPoint.InvokeFunc(pos, halfExtentXZ, halfExtentY));
+        return Execute(() => _queryMeshNearestPoint.InvokeFunc(pos, halfExtentXz, halfExtentY));
     }
 
     /// <summary>查询给定位置下方的地面点</summary>
     /// <param name="pos">查询位置</param>
     /// <param name="allowUnlandable">是否允许返回不可着陆的点</param>
-    /// <param name="halfExtentXZ">XZ平面上的搜索半径</param>
+    /// <param name="halfExtentXz">XZ平面上的搜索半径</param>
     /// <returns>地面点，如果未找到则返回null</returns>
-    internal static Vector3? QueryMeshPointOnFloor(Vector3 pos, bool allowUnlandable, float halfExtentXZ) {
+    internal static Vector3? QueryMeshPointOnFloor(Vector3 pos, bool allowUnlandable, float halfExtentXz) {
         if (_queryMeshPointOnFloor == null) return null;
-        return Execute(() => _queryMeshPointOnFloor.InvokeFunc(pos, allowUnlandable, halfExtentXZ));
+        return Execute(() => _queryMeshPointOnFloor.InvokeFunc(pos, allowUnlandable, halfExtentXz));
     }
 
     /// <summary>沿指定路径点移动角色</summary>
@@ -320,7 +322,7 @@ internal static class NavmeshIpc {
     internal static int NumWaypoints() {
         if (_pathNumWaypoints == null) return 0;
         int? result = Execute(() => _pathNumWaypoints.InvokeFunc());
-        return result.HasValue ? result.Value : 0;
+        return result ?? 0;
     }
 
     /// <summary>获取是否允许移动</summary>
@@ -358,7 +360,7 @@ internal static class NavmeshIpc {
     internal static float GetTolerance() {
         if (_pathGetTolerance == null) return 0f;
         float? result = Execute(() => _pathGetTolerance.InvokeFunc());
-        return result.HasValue ? result.Value : 0f;
+        return result ?? 0f;
     }
 
     /// <summary>设置路径点到达容差</summary>

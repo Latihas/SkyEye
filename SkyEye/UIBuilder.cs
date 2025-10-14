@@ -46,6 +46,8 @@ public class UiBuilder : IDisposable {
         foreach (var k in EurekaPagos.DeadFateDic.Keys) EurekaPagos.DeadFateDic[k] = "-1";
         foreach (var k in EurekaPyros.DeadFateDic.Keys) EurekaPyros.DeadFateDic[k] = "-1";
         foreach (var k in EurekaHydatos.DeadFateDic.Keys) EurekaHydatos.DeadFateDic[k] = "-1";
+        Plugin.YlPositions.Clear();
+        Plugin.Yl.Clear();
     }
 
     private void UiBuilder_OnBuildUi() {
@@ -276,12 +278,12 @@ public class UiBuilder : IDisposable {
                 }
                 else {
                     var timeFromNight2 = _eorzeaTime.TimeUntilNight();
-                    _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight2.ToString(@"hh\:mm\:ss"), 4286611584u, true);
+                    _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight2.ToString(@"hh\:mm\:ss"), 0xFF808080u, true);
                 }
             }
             else if (item2.SpawnRequiredWeather != PData.EurekaWeather.None && !item2.SpawnByRequiredNight) {
                 if (!_weatherDic.TryGetValue(item2.SpawnRequiredWeather, out var value) || _weatherNow.Weather == item2.SpawnRequiredWeather) _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item2, item2.fgcolor, true);
-                else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 4286611584u, true);
+                else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 0xFF808080u, true);
             }
             else {
                 if (item2.SpawnRequiredWeather == PData.EurekaWeather.None || !item2.SpawnByRequiredNight) continue;
@@ -294,12 +296,13 @@ public class UiBuilder : IDisposable {
                 }
                 else if (etimeHour3 is >= 6 and < 18) {
                     var timeFromNight3 = _eorzeaTime.TimeUntilNight();
-                    _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight3.ToString(@"hh\:mm\:ss"), 4286611584u, true);
+                    _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight3.ToString(@"hh\:mm\:ss"), 0xFF808080u, true);
                 }
-                else _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item1, 4286611584u, true);
+                else _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item1, 0xFF808080u, true);
             }
         }
         if (Plugin.Configuration.Overlay2DWeatherMapEnabled) DrawWeatherMap(valueOrDefault);
+        foreach (var yl in Plugin.YlPositions) _bdl.DrawText(WorldToMap(valueOrDefault, yl), "元灵", 0xFF0000FFu, true);
         _bdl.PopClipRect();
     }
 
@@ -317,7 +320,7 @@ public class UiBuilder : IDisposable {
             if (!ptr->Component->UldManager.NodeList[i]->IsVisible()) continue;
             var ptr2 = (AtkComponentNode*)ptr->Component->UldManager.NodeList[i];
             var ptr3 = (AtkImageNode*)ptr2->Component->UldManager.NodeList[4];
-            string text = null;
+            string? text = null;
             if (ptr3->PartsList != null && ptr3->PartId <= ptr3->PartsList->PartCount) {
                 var uldAsset = ((AtkUldPart*)((byte*)ptr3->PartsList->Parts + ptr3->PartId * (nint)Unsafe.SizeOf<AtkUldPart>()))->UldAsset;
                 if (uldAsset->AtkTexture.TextureType == TextureType.Resource) {
