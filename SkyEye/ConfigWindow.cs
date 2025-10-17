@@ -86,11 +86,13 @@ public class ConfigWindow() : Window("SkyEye") {
                 }
                 ImGui.SameLine();
                 if (ImGui.Button("永恒不灭的菲兰德副耀士")) ImGui.SetClipboardText("永恒不灭的菲兰德副耀士");
+
+                if (ImGui.InputText("怪名称", ref Plugin.Configuration.FarmTarget, 114514)) Plugin.Configuration.Save();
                 if (Plugin.Configuration.AutoFarm) {
-                    if (ImGui.InputText("怪名称", ref Plugin.Configuration.FarmTarget, 114514)) Plugin.Configuration.Save();
                     if (ImGui.InputText("开怪指令", ref Plugin.Configuration.FarmStartCommand, 114514)) Plugin.Configuration.Save();
                     if (ImGui.InputInt("最大引仇目标", ref Plugin.Configuration.FarmTargetMax, 1)) Plugin.Configuration.Save();
-                    if (ImGui.InputFloat("最大引仇距离", ref Plugin.Configuration.FarmMaxDistance, 1)) Plugin.Configuration.Save();
+                    if (ImGui.InputFloat("最大引仇距离(从第一个怪位置开始计算)", ref Plugin.Configuration.FarmMaxDistance, 1)) Plugin.Configuration.Save();
+                    if (ImGui.Checkbox("打完一波再拉下一波", ref Plugin.Configuration.FarmWait)) Plugin.Configuration.Save();
                 }
                 else NavmeshIpc.Stop();
                 ImGui.Text("自动农怪可能在第一次开启时无反应，还没找到bug在哪，/xivplugins关闭打开一次SkeEye即可。");

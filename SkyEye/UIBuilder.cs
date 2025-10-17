@@ -68,10 +68,22 @@ public class UiBuilder : IDisposable {
                     if (Plugin.Gui.WorldToScreen(pos, out var v))
                         _bdl.DrawMapDot(v, 0xFF00FFFFu, 0xFF00FFFFu);
         }
+        if (Plugin.lastFarmPos != null) {
+            if (Plugin.Gui.WorldToScreen(Plugin.lastFarmPos.Value, out var v)) {
+                _bdl.AddCircle(v, 20f, _green, 0, Configuration.Overlay2DDotStroke);
+                _bdl.AddCircleFilled(v, 15f, _red);
+                _bdl.AddCircle(v, 10f, _green, 0, Configuration.Overlay2DDotStroke);
+                _bdl.AddCircleFilled(v, 5f, _red);
+            }
+        }
         _eurekaList2D.Clear();
         foreach (var item in _eurekaLiveIdList2D) _eurekaLiveIdList2DOld.Add(item);
         _eurekaLiveIdList2D.Clear();
     }
+
+    private readonly uint _red = ImGui.GetColorU32(ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 0f, 0f, 1f)));
+
+    private readonly uint _green = ImGui.GetColorU32(ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 1f, 0f, 1f)));
 
     private void RefreshEureka() {
         switch (Plugin.ClientState.TerritoryType) {

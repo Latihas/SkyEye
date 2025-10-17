@@ -6,6 +6,7 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -132,18 +133,30 @@ public sealed class Plugin : IDalamudPlugin {
         ChatBox.SendMessage("/e 找到元灵<se.1>");
     }
 
+    internal static Vector3? lastFarmPos;
+    private static bool FarmFull;
+
+
     private static void Farm(IFramework framework) {
         if (!Configuration.PluginEnabled) return;
         if (ClientState.LocalPlayer is null || !Configuration.AutoFarm) return;
         if (!NavmeshIpc.IsReady()) NavmeshIpc.Init();
         var playerPos = ClientState.LocalPlayer.Position;
         var playerName = ClientState.LocalPlayer.Name.ToString();
-        var validObjs = Objects.Where(obj => !obj.IsDead && obj.Name.ToString().Contains(Configuration.FarmTarget)).ToList();
+        var validObjs = Objects.Where(obj =>
+            obj is { ObjectKind: ObjectKind.BattleNpc, IsDead: false } && obj.Name.ToString().Contains(Configuration.FarmTarget) && (lastFarmPos is null || Vector3.Distance(lastFarmPos.Value, obj.Position) < Configuration.FarmMaxDistance)).ToList();
         var attracted = validObjs.Where(obj => obj.TargetObject != null && obj.TargetObject.Name.ToString().Contains(playerName)).ToArray();
-        if (attracted.Length >= Configuration.FarmTargetMax || attracted.Any(c => Vector3.Distance(playerPos, c.Position) > Configuration.FarmMaxDistance)) {
+        Log.Error($"{lastFarmPos.ToString()},{attracted.Length}");
+        if (attracted.Length >= Configuration.FarmTargetMax) {
+            FarmFull = true;
             NavmeshIpc.Stop();
             return;
         }
+        if (attracted.Length == 0) {
+            lastFarmPos = null;
+            FarmFull = false;
+        }
+        if (Configuration.FarmWait && FarmFull) return;
         if (_farmGameObject != null) {
             if (!_farmGameObject.IsValid()) _farmGameObject = null;
             else if (_farmGameObject.IsDead) {
@@ -168,6 +181,7 @@ public sealed class Plugin : IDalamudPlugin {
                         TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
                     }
                     ChatBox.SendMessage(Configuration.FarmStartCommand);
+                    if (attracted.Length == 0) lastFarmPos = obj.Position;
                     NavmeshIpc.Stop();
                     break;
                 }
