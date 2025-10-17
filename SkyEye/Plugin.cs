@@ -146,7 +146,6 @@ public sealed class Plugin : IDalamudPlugin {
         var validObjs = Objects.Where(obj =>
             obj is { ObjectKind: ObjectKind.BattleNpc, IsDead: false } && obj.Name.ToString().Contains(Configuration.FarmTarget) && (lastFarmPos is null || Vector3.Distance(lastFarmPos.Value, obj.Position) < Configuration.FarmMaxDistance)).ToList();
         var attracted = validObjs.Where(obj => obj.TargetObject != null && obj.TargetObject.Name.ToString().Contains(playerName)).ToArray();
-        Log.Error($"{lastFarmPos.ToString()},{attracted.Length}");
         if (attracted.Length >= Configuration.FarmTargetMax) {
             FarmFull = true;
             NavmeshIpc.Stop();
