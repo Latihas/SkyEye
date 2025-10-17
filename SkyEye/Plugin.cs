@@ -114,6 +114,7 @@ public sealed class Plugin : IDalamudPlugin {
     }
 
     private static void FindYl(IFramework framework) {
+        if (!Configuration.PluginEnabled) return;
         if (ClientState.LocalPlayer is null || !InEureka()) return;
         IGameObject yls;
         try {
@@ -132,6 +133,7 @@ public sealed class Plugin : IDalamudPlugin {
     }
 
     private static void Farm(IFramework framework) {
+        if (!Configuration.PluginEnabled) return;
         if (ClientState.LocalPlayer is null || !Configuration.AutoFarm) return;
         if (!NavmeshIpc.IsReady()) NavmeshIpc.Init();
         var playerPos = ClientState.LocalPlayer.Position;
@@ -344,6 +346,7 @@ public sealed class Plugin : IDalamudPlugin {
 
 
     private void UpdateRoundPlayers(IFramework framework) {
+        if (!Configuration.PluginEnabled) return;
         if (ClientState.LocalPlayer == null) return;
         if (!InArea()) {
             lock (_speedLock) SetSpeed(1);

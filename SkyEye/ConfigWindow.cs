@@ -2,7 +2,10 @@ using System;
 using System.Runtime.InteropServices;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using FFXIVClientStructs.FFXIV.Client.System.String;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
 namespace SkyEye.SkyEye;
 
@@ -14,8 +17,8 @@ public class ConfigWindow() : Window("SkyEye") {
     }
 
     public override void Draw() {
-        if (ImGui.Checkbox("开关", ref Plugin.Configuration.Overlay2DEnabled)) Plugin.Configuration.Save();
-        if (!Plugin.Configuration.Overlay2DEnabled) {
+        if (ImGui.Checkbox("开关", ref Plugin.Configuration.PluginEnabled)) Plugin.Configuration.Save();
+        if (!Plugin.Configuration.PluginEnabled) {
             Plugin.SetSpeed(1);
             return;
         }

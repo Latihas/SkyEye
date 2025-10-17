@@ -62,7 +62,7 @@ public class UiBuilder : IDisposable {
             _eorzeaTime = EorzeaTime.ToEorzeaTime(DateTime.Now);
             _bdl = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
             RefreshEureka();
-            if (Plugin.Configuration.Overlay2DEnabled) DrawMapOverlay();
+            if (Plugin.Configuration.PluginEnabled) DrawMapOverlay();
             if (Plugin.Configuration.Overlay3DEnabled)
                 foreach (var pos in Plugin.DetectedTreasurePositions)
                     if (Plugin.Gui.WorldToScreen(pos, out var v))
