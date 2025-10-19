@@ -134,7 +134,7 @@ public sealed class Plugin : IDalamudPlugin {
     }
 
     internal static Vector3? lastFarmPos;
-    private static bool FarmFull;
+    internal static bool FarmFull;
 
 
     private static void Farm(IFramework framework) {
@@ -151,6 +151,7 @@ public sealed class Plugin : IDalamudPlugin {
             NavmeshIpc.Stop();
             return;
         }
+        if (validObjs.Count == 0 && NavmeshIpc.IsRunning()) NavmeshIpc.Stop();
         if (attracted.Length == 0) {
             lastFarmPos = null;
             FarmFull = false;

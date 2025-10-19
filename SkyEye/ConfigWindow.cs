@@ -20,6 +20,8 @@ public class ConfigWindow() : Window("SkyEye") {
         if (ImGui.Checkbox("开关", ref Plugin.Configuration.PluginEnabled)) Plugin.Configuration.Save();
         if (!Plugin.Configuration.PluginEnabled) {
             Plugin.SetSpeed(1);
+            Plugin.lastFarmPos = null;
+            Plugin.FarmFull = false;
             return;
         }
         if (ImGui.BeginTabBar("tab")) {
@@ -94,7 +96,6 @@ public class ConfigWindow() : Window("SkyEye") {
                     if (ImGui.InputFloat("最大引仇距离(从第一个怪位置开始计算)", ref Plugin.Configuration.FarmMaxDistance, 1)) Plugin.Configuration.Save();
                     if (ImGui.Checkbox("打完一波再拉下一波", ref Plugin.Configuration.FarmWait)) Plugin.Configuration.Save();
                 }
-                else NavmeshIpc.Stop();
                 ImGui.Text("自动农怪可能在第一次开启时无反应，还没找到bug在哪，/xivplugins关闭打开一次SkeEye即可。");
                 if (Plugin.ClientState.TerritoryType == 147 && Plugin.Configuration.AutoFarm) ImGui.Text($"超时：{(DateTime.Now - Plugin.LastKill).Seconds}/{Plugin.FarmTimeout}");
             });
