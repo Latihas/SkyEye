@@ -77,9 +77,11 @@ public sealed class Plugin : IDalamudPlugin {
         Framework.Update += UpdateRoundPlayers;
         Framework.Update += Farm;
         Framework.Update += FindYl;
+        // Framework.Update += WSS;
         PluginInterface.UiBuilder.OpenConfigUi += () => OnCommand(null, null);
         ChatGui.ChatMessageUnhandled += ChatRabbit;
     }
+
 
     public static Configuration Configuration { get; private set; } = null!;
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
@@ -114,6 +116,7 @@ public sealed class Plugin : IDalamudPlugin {
         CommandManager.RemoveHandler("/skyeye");
         _carrotTimer.Stop();
         _carrotTimer.Dispose();
+        ConfigWindow.StopWss();
     }
 
     private static void FindYl(IFramework framework) {

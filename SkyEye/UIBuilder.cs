@@ -52,6 +52,8 @@ public class UiBuilder : IDisposable {
         foreach (var k in EurekaHydatos.DeadFateDic.Keys) EurekaHydatos.DeadFateDic[k] = "-1";
         Plugin.YlPositions.Clear();
         Plugin.Yl.Clear();
+        Plugin.lastFarmPos = null;
+        Plugin.FarmFull = false;
     }
 
     private void UiBuilder_OnBuildUi() {

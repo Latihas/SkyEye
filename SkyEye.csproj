@@ -44,6 +44,9 @@
 		<Reference Include="ImGui.NET">
 			<HintPath>$(DalamudPath)\Dalamud.Bindings.ImGui.dll</HintPath>
 		</Reference>
+		<Reference Include="Newtonsoft.Json">
+			<HintPath>$(DalamudPath)\Newtonsoft.Json.dll</HintPath>
+		</Reference>
 	</ItemGroup>
 	<ItemGroup>
 		<Content Include="SkyEye.json" CopyToOutputDirectory="PreserveNewest"/>
