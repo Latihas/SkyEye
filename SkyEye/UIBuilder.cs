@@ -19,7 +19,11 @@ public class UiBuilder : IDisposable {
     private static readonly SoundPlayer Player1 = new(), Player2 = new();
     private readonly List<(Vector3 worldpos, uint fgcolor, uint bgcolor, string name, string fateId, PData.EurekaWeather SpawnRequiredWeather, bool SpawnByRequiredNight)> _eurekaList2D = [];
     private readonly List<string> _eurekaLiveIdList2D = [], _eurekaLiveIdList2DOld = [];
+
+    private readonly uint _green = ImGui.GetColorU32(ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 1f, 0f, 1f)));
     private readonly Vector2[] _mapPosSize = new Vector2[2];
+
+    private readonly uint _red = ImGui.GetColorU32(ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 0f, 0f, 1f)));
     private readonly Dictionary<uint, ushort> _sizeFactorDict;
     private ImDrawListPtr _bdl;
     private EorzeaTime _eorzeaTime;
@@ -80,10 +84,6 @@ public class UiBuilder : IDisposable {
         foreach (var item in _eurekaLiveIdList2D) _eurekaLiveIdList2DOld.Add(item);
         _eurekaLiveIdList2D.Clear();
     }
-
-    private readonly uint _red = ImGui.GetColorU32(ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 0f, 0f, 1f)));
-
-    private readonly uint _green = ImGui.GetColorU32(ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 1f, 0f, 1f)));
 
     private void RefreshEureka() {
         switch (Plugin.ClientState.TerritoryType) {

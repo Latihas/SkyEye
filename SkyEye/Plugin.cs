@@ -6,7 +6,6 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Dalamud.Bindings.ImGui;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -47,6 +46,9 @@ public sealed class Plugin : IDalamudPlugin {
 
     private static bool _killing;
     private static readonly Lock KillingLock = new();
+
+    internal static Vector3? lastFarmPos;
+    internal static bool FarmFull;
     private readonly Timer _carrotTimer;
     private readonly ConfigWindow _configWindow;
     private readonly Lock _speedLock = new();
@@ -132,9 +134,6 @@ public sealed class Plugin : IDalamudPlugin {
         }
         ChatBox.SendMessage("/e 找到元灵<se.1>");
     }
-
-    internal static Vector3? lastFarmPos;
-    internal static bool FarmFull;
 
 
     private static void Farm(IFramework framework) {
