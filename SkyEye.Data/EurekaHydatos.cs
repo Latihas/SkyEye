@@ -5,7 +5,7 @@ using System.Numerics;
 namespace SkyEye.SkyEye.Data;
 
 internal static class EurekaHydatos {
-    public static readonly (int, PData.EurekaWeather)[] Weathers = [
+    internal static readonly (int, PData.EurekaWeather)[] Weathers = [
         (12, PData.EurekaWeather.FairSkies),
         (34, PData.EurekaWeather.Showers),
         (56, PData.EurekaWeather.Gloom),
@@ -13,7 +13,7 @@ internal static class EurekaHydatos {
         (100, PData.EurekaWeather.Snow)
     ];
 
-    public static readonly Dictionary<int, string> DeadFateDic = new() {
+    internal static readonly Dictionary<int, string> DeadFateDic = new() {
         {
             1412, "-1"
         }, {
@@ -46,25 +46,25 @@ internal static class EurekaHydatos {
     };
 
 
-    public static readonly List<EurekaFate> HydatosFates = [
-        new(1412, "墨鱼", new Vector2(-527.2876f, -314.13358f), PData.EurekaWeather.None, false),
-        new(1413, "象", new Vector2(-611.0604f, -650.2218f), PData.EurekaWeather.None, false),
-        new(1414, "摩洛", new Vector2(-687.49335f, -460.28763f), PData.EurekaWeather.None, false),
-        new(1415, "皮鸟", new Vector2(-720.3792f, -780.43463f), PData.EurekaWeather.None, false),
-        new(1416, "老虎", new Vector2(-666.6416f, -240.2232f), PData.EurekaWeather.None, false),
-        new(1417, "达芙涅", new Vector2(209.62729f, -741.035f), PData.EurekaWeather.None, false),
-        new(1418, "马王", new Vector2(374.07266f, -356.36008f), PData.EurekaWeather.None, true),
-        new(1419, "琉刻", new Vector2(790.61536f, -210.9793f), PData.EurekaWeather.None, false),
-        new(1420, "巴龙", new Vector2(542.1913f, -343.35782f), PData.EurekaWeather.None, false),
-        new(1421, "刻托", new Vector2(729.041f, -878.44293f), PData.EurekaWeather.None, false),
-        new(1423, "守望者", new Vector2(559.084f, -574.3144f), PData.EurekaWeather.None, false),
-        new(1424, "UFO", new Vector2(260.78485f, -108.390564f), PData.EurekaWeather.None, false),
-        new(1422, "光灵鳐", new Vector2(-134.37721f, -74.77259f), PData.EurekaWeather.None, false),
-        new(1425, "兔子", new Vector2(-370.83264f, -485.80295f), PData.EurekaWeather.None, false)
+    internal static readonly EurekaFate[] HydatosFates = [
+        new(1425, 50, "戏水的幸福兔", "兔子", "", -1, new Vector2(14.4f, 22f)),
+        new(1412, 50, "奇怪的乌贼——卡拉墨鱼", "墨鱼", "左米特", 55, new Vector2(10.8f, 25.5f)),
+        new(1413, 51, "暴虐的魔兽——剑齿象", "象", "丰水曙象", 56, new Vector2(9f, 17f)),
+        new(1414, 52, "落泪的君主——摩洛", "摩洛", "瓦尔泥口花", 57, new Vector2(7.8f, 22.2f)),
+        new(1415, 53, "惊鸿艳影——皮艾萨邪鸟", "皮鸟", "多彩冠恐鸟", 58, new Vector2(7f, 14f)),
+        new(1416, 54, "高傲的猎人——霜鬃猎魔", "老虎", "北方猛虎", 59, new Vector2(8f, 25f)),
+        new(1417, 55, "浴血的妖妃——达佛涅", "达芙涅", "暗黑虚无鬼鱼", 60, new Vector2(25f, 15f)),
+        new(1418, 56, "异界的锻冶王——戈尔德马尔王", "马王", "丰水幽灵", 61, new Vector2(29f, 23.5f), spawnByRequiredNight: true),
+        new(1419, 57, "食妖植物——琉刻", "琉刻", "虎鹰", 62, new Vector2(37f, 26f)),
+        new(1420, 58, "业火狮子王——巴龙", "巴龙", "研究所雄狮", 63, new Vector2(32.5f, 24.5f)),
+        new(1421, 59, "魔蛇女王——刻托", "刻托", "丰水达菲妮", 64, new Vector2(36f, 14f)),
+        new(1423, 60, "水晶之龙——起源守望者", "守望者", "水晶爪", 65, new Vector2(32.8f, 19.7f)),
+        new(1424, 60, "未知的威胁——未确认飞行物体", "UFO", "", -1, new Vector2(27.1f, 29f)),
+        new(1422, 60, "兵武塔调查支援", "光灵鳐", "", -1, new Vector2(18.8f, 28.9f))
     ];
 
 
-    public static (PData.EurekaWeather Weather, TimeSpan Timeleft) GetCurrentWeatherInfo() => EorzeaWeather.GetCurrentWeatherInfo(Weathers);
+    internal static (PData.EurekaWeather Weather, TimeSpan Timeleft) GetCurrentWeatherInfo() => EorzeaWeather.GetCurrentWeatherInfo(Weathers);
 
-    public static List<(PData.EurekaWeather Weather, TimeSpan Time)> GetAllNextWeatherTime() => EorzeaWeather.GetAllWeathers(Weathers);
+    internal static List<(PData.EurekaWeather Weather, TimeSpan Time)> GetAllNextWeatherTime() => EorzeaWeather.GetAllWeathers(Weathers);
 }

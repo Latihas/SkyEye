@@ -2,27 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using Lumina.Excel.Sheets;
 
 namespace SkyEye.SkyEye.Data;
 
 [SuppressMessage("ReSharper", "UnusedMember.Local")]
 [SuppressMessage("ReSharper", "UnusedMember.Global")]
 internal static class PData {
-    public enum EurekaWeather {
-        Gales,
-        Showers,
-        FairSkies,
-        Snow,
-        HeatWaves,
-        Thunder,
-        Blizzards,
-        Fog,
-        UmbralWind,
-        Thunderstorms,
-        Gloom,
-        None
-    }
-
     internal static readonly Dictionary<uint, Vector3[]> RabbitTreasurePositions = new() {
         {
             763u, [
@@ -224,7 +210,7 @@ internal static class PData {
         new(501.59842f, 668.1235f, -467.8756f),
         new(732.08276f, 656.574f, -343.12262f)
     ];
-    public static readonly Vector3[] AnemosElementalPositions = [
+    internal static readonly Vector3[] AnemosElementalPositions = [
         new(-47.69984f, 35.005047f, -132.78749f),
         new(-71.0314f, 40.72186f, -412.3625f),
         new(-85.73978f, 26.00495f, 191.9998f),
@@ -265,7 +251,7 @@ internal static class PData {
         new(680.3775f, 40.020523f, -1.3000613f),
         new(686.88556f, 38.07274f, -154.0496f)
     ];
-    public static readonly Vector3[] HydatosElementalPositions = [
+    internal static readonly Vector3[] HydatosElementalPositions = [
         new(-116.452f, 501.6467f, -331.4255f),
         new(-123.5271f, 501.02158f, -559.1261f),
         new(-253.41269f, 499.13086f, -518.068f),
@@ -299,7 +285,7 @@ internal static class PData {
         new(828.46814f, 512.196f, -428.00702f),
         new(873.14496f, 512.10065f, -739.3626f)
     ];
-    public static readonly Vector3[] PagosElementalPositions = [
+    internal static readonly Vector3[] PagosElementalPositions = [
         new(-41.5411f, -471.7219f, -365.66238f),
         new(-93.89765f, -740.93286f, 390.37912f),
         new(-141.2347f, -562.60614f, -282.6532f),
@@ -341,8 +327,19 @@ internal static class PData {
         new(714.3189f, -630.0619f, -321.2806f),
         new(735.9999f, -629.8334f, -274.5996f)
     ];
+    internal static readonly Dictionary<int, (int, float, float)> MapInfo = new() {
+        {
+            732, (Plugin.DataManager.GetExcelSheet<Map>().GetRow(732).SizeFactor, 0.75f, 1.25f)
+        }, {
+            763, (Plugin.DataManager.GetExcelSheet<Map>().GetRow(763).SizeFactor, 15.75f, 16.25f)
+        }, {
+            795, (Plugin.DataManager.GetExcelSheet<Map>().GetRow(795).SizeFactor, 16, 16.25f)
+        }, {
+            827, (Plugin.DataManager.GetExcelSheet<Map>().GetRow(827).SizeFactor, 11, 20.5f)
+        }
+    };
 
-    private static string ToFriendlyString(this EurekaWeather weather) {
+    internal static string ToFriendlyString(this EurekaWeather weather) {
         return weather switch {
             EurekaWeather.Gales => "强风",
             EurekaWeather.Showers => "小雨",
@@ -355,7 +352,22 @@ internal static class PData {
             EurekaWeather.UmbralWind => "妖风",
             EurekaWeather.Thunderstorms => "雷暴",
             EurekaWeather.Gloom => "乱灵流",
-            _ => "无"
+            _ => ""
         };
+    }
+
+    internal enum EurekaWeather {
+        Gales,
+        Showers,
+        FairSkies,
+        Snow,
+        HeatWaves,
+        Thunder,
+        Blizzards,
+        Fog,
+        UmbralWind,
+        Thunderstorms,
+        Gloom,
+        None
     }
 }

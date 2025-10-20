@@ -77,7 +77,6 @@ public sealed class Plugin : IDalamudPlugin {
         Framework.Update += UpdateRoundPlayers;
         Framework.Update += Farm;
         Framework.Update += FindYl;
-        // Framework.Update += WSS;
         PluginInterface.UiBuilder.OpenConfigUi += () => OnCommand(null, null);
         ChatGui.ChatMessageUnhandled += ChatRabbit;
     }
@@ -95,7 +94,7 @@ public sealed class Plugin : IDalamudPlugin {
 
     [PluginService] internal static IGameGui Gui { get; private set; } = null!;
 
-    [PluginService] internal static IObjectTable Objects { get; private set; } = null!;
+    [PluginService] private static IObjectTable Objects { get; set; } = null!;
 
     [PluginService] internal static IFateTable Fates { get; private set; } = null!;
 
@@ -103,7 +102,7 @@ public sealed class Plugin : IDalamudPlugin {
 
     [PluginService] private static IChatGui ChatGui { get; set; } = null!;
 
-    [PluginService] private static IFramework Framework { get; set; } = null!;
+    [PluginService] internal static IFramework Framework { get; set; } = null!;
     [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
 
     public void Dispose() {
@@ -116,7 +115,7 @@ public sealed class Plugin : IDalamudPlugin {
         CommandManager.RemoveHandler("/skyeye");
         _carrotTimer.Stop();
         _carrotTimer.Dispose();
-        ConfigWindow.StopWss();
+        WebSocket.StopWss();
     }
 
     private static void FindYl(IFramework framework) {
@@ -388,7 +387,7 @@ public sealed class Plugin : IDalamudPlugin {
         }
     }
 
-    public static void SetSpeed(float speedBase) {
+    internal static void SetSpeed(float speedBase) {
         // ReSharper disable once CompareOfFloatsByEqualityOperator
         if (_lSpeed == speedBase) return;
         _lSpeed = speedBase;

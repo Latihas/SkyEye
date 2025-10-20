@@ -1,22 +1,26 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Net.WebSockets;
-using System.Numerics;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using SkyEye.SkyEye.Data;
+using static SkyEye.SkyEye.Data.PData;
+using static SkyEye.SkyEye.Util;
+using Action = System.Action;
 
 namespace SkyEye.SkyEye;
 
 public class ConfigWindow() : Window("SkyEye") {
+    private static readonly string[] regions = [
+        "未选择",
+        "陆行鸟",
+        "莫古力",
+        "猫小胖",
+        "豆豆柴"
+    ];
+
     private static void NewTab(string tabname, Action act) {
         if (!ImGui.BeginTabItem(tabname)) return;
         act();
@@ -29,6 +33,7 @@ public class ConfigWindow() : Window("SkyEye") {
             Plugin.SetSpeed(1);
             Plugin.lastFarmPos = null;
             Plugin.FarmFull = false;
+            NavmeshIpc.Stop();
             return;
         }
         if (ImGui.BeginTabBar("tab")) {
@@ -57,6 +62,7 @@ public class ConfigWindow() : Window("SkyEye") {
                 }
             });
             NewTab("加速", () => {
+                ImGui.Text("如果登录时就在ULK里可能会自动加速失败，关开一下就行了。");
                 if (ImGui.Checkbox("无人就加速", ref Plugin.Configuration.SpeedUpEnabled)) Plugin.Configuration.Save();
                 ImGui.SameLine();
                 if (ImGui.InputFloat("倍率", ref Plugin.Configuration.SpeedUpN)) Plugin.Configuration.Save();
@@ -109,166 +115,147 @@ public class ConfigWindow() : Window("SkyEye") {
             });
             NewTab("史书", () => {
                 if (ImGui.Checkbox("连接史书", ref Plugin.Configuration.EnableWss)) {
-                    nmalive.Clear();
-                    nmdead.Clear();
+                    WebSocket.nmalive.Clear();
+                    WebSocket.nmdead.Clear();
                     Plugin.Configuration.Save();
                 }
-
+                if (ImGui.InputText("提醒(Fate原名，包含即可，用竖线|隔开)", ref Plugin.Configuration.WssNotify, 114514)) Plugin.Configuration.Save();
                 if (Plugin.Configuration.EnableWss) {
                     if (ImGui.Combo("选择大区", ref Plugin.Configuration.WssRegion, regions)) {
                         Plugin.Configuration.Save();
-                        StopWss();
-                        _wssCts ??= new CancellationTokenSource();
-                        _ = StartWssService(_wssCts!.Token);
+                        WebSocket.StopWss();
+                        _ = WebSocket.StartWssService();
                         ImGui.EndCombo();
                     }
                     if (Plugin.Configuration.WssRegion is < 1 or > 4) return;
-                    if (!_isWssRunning) {
-                        _wssCts ??= new CancellationTokenSource();
-                        _ = StartWssService(_wssCts!.Token);
-                    }
+                    if (!WebSocket._isWssRunning) _ = WebSocket.StartWssService();
                     ImGui.Text("活着的");
-                    NewTable(["地点", "名称","血量", "触发时间(min)", "击杀时间(min)"],
-                        nmalive.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray(), [
-                            info => {
-                                switch (info.territory_id) {
-                                    case 1:
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, green);
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, green_alt);
-                                        break;
-                                    case 2:
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, cyan);
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, cyan_alt);
-                                        break;
-                                    case 3:
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, red);
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, red_alt);
-                                        break;
-                                    case 4:
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, blue);
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, blue_alt);
-                                        break;
-                                }
-                                ImGui.Text(info.territory_name_ori);
-                            },
-                            info => ImGui.Text(info.oriname),
-                            info => ImGui.Text(info.hp.ToString()),
-                            info => ImGui.Text(getDeltaMin(info.appeared_at).ToString()),
-                            info => ImGui.Text(getDeltaMin(info.defeated_at).ToString()),
-                        ]);
+                    var acts = new Action<WebSocket.NmInfo>[] {
+                        info => {
+                            switch (info.territory_id) {
+                                case 1:
+                                    ImGui.PushStyleColor(ImGuiCol.TableRowBg, green);
+                                    ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, green_alt);
+                                    break;
+                                case 2:
+                                    ImGui.PushStyleColor(ImGuiCol.TableRowBg, cyan);
+                                    ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, cyan_alt);
+                                    break;
+                                case 3:
+                                    ImGui.PushStyleColor(ImGuiCol.TableRowBg, red);
+                                    ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, red_alt);
+                                    break;
+                                case 4:
+                                    ImGui.PushStyleColor(ImGuiCol.TableRowBg, blue);
+                                    ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, blue_alt);
+                                    break;
+                            }
+                            ImGui.Text(info.territory_name_ori);
+                        },
+                        info => ImGui.Text(info.oriname), info => ImGui.Text(info.hp.ToString()), info => ImGui.Text(getDeltaMin(info.appeared_at).ToString()), info => { ImGui.Text(getDeltaMin(info.defeated_at).ToString()); }
+                    };
+                    NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"],
+                        WebSocket.nmalive.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray(), acts);
 
                     ImGui.Text("已死亡");
-                    NewTable(["地点", "名称",  "血量", "触发时间(min)", "击杀时间(min)"],
-                        nmdead.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray(), [
-                            info => {
-                                switch (info.territory_id) {
-                                    case 1:
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, green);
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, green_alt);
-                                        break;
-                                    case 2:
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, cyan);
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, cyan_alt);
-                                        break;
-                                    case 3:
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, red);
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, red_alt);
-                                        break;
-                                    case 4:
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, blue);
-                                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, blue_alt);
-                                        break;
+                    NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"],
+                        WebSocket.nmdead.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray(), acts);
+                }
+                else WebSocket.StopWss();
+            });
+            NewTab("Fate", () => {
+                var acts = new Action<EurekaFate>[] {
+                    i => ImGui.Text(i.Lv), i => {
+                        if (ImGui.Button(i.Name)) {
+                            ImGui.SetClipboardText(i.Name);
+                            if (Plugin.InEureka()) {
+                                unsafe {
+                                    AgentMap.Instance()->SetFlagMapMarker(Plugin.ClientState.TerritoryType, Plugin.ClientState.MapId,
+                                        ToVector3(MapToWorld(i.FatePosition, MapInfo[Plugin.ClientState.TerritoryType].Item1, MapInfo[Plugin.ClientState.TerritoryType].Item2, MapInfo[Plugin.ClientState.TerritoryType].Item3)));
                                 }
-                                ImGui.Text(info.territory_name_ori);
-                            },
-                            info => ImGui.Text(info.oriname),
-                            info => ImGui.Text(info.hp.ToString()),
-                            info => ImGui.Text(getDeltaMin(info.appeared_at).ToString()),
-                            info => ImGui.Text(getDeltaMin(info.defeated_at).ToString())
-                        ]);
-                }
-                else {
-                    StopWss();
+                                ChatBox.SendMessage("/vnav moveflag");
+                            }
+                        }
+                    },
+                    i => {
+                        if (i.Trigger.IsNullOrEmpty()) ImGui.Text("");
+                        else if (ImGui.Button(i.Trigger)) ImGui.SetClipboardText(i.Trigger);
+                    },
+                    i => ImGui.Text(i.TriggerLv), i => ImGui.Text(i.SpawnRequiredWeather.ToFriendlyString()), i => ImGui.Text(i.SpawnByRequiredNight ? "是" : "")
+                };
+                var orderact = new[] {
+                    () => {
+                        ImGui.Text("常风之地");
+                        NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "需要夜晚"], EurekaAnemos.AnemosFates, acts);
+                    },
+                    () => {
+                        ImGui.Text("恒冰之地");
+                        NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "需要夜晚"], EurekaPagos.PagosFates, acts);
+                    },
+                    () => {
+                        ImGui.Text("涌火之地");
+                        NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "需要夜晚"], EurekaPyros.PyrosFates, acts);
+                    },
+                    () => {
+                        ImGui.Text("丰水之地");
+                        NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "需要夜晚"], EurekaHydatos.HydatosFates, acts);
+                    }
+                };
+                switch (Plugin.ClientState.TerritoryType) {
+                    case 732:
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
+                        orderact[0]();
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, black);
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, black_alt);
+                        orderact[1]();
+                        orderact[2]();
+                        orderact[3]();
+                        break;
+                    case 763:
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
+                        orderact[1]();
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, black);
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, black_alt);
+                        orderact[0]();
+                        orderact[2]();
+                        orderact[3]();
+                        break;
+                    case 795:
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
+                        orderact[2]();
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, black);
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, black_alt);
+                        orderact[0]();
+                        orderact[1]();
+                        orderact[3]();
+                        break;
+                    case 827:
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
+                        orderact[3]();
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, black);
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, black_alt);
+                        orderact[0]();
+                        orderact[1]();
+                        orderact[2]();
+                        break;
+                    default:
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBg, black);
+                        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, black_alt);
+                        orderact[0]();
+                        orderact[1]();
+                        orderact[2]();
+                        orderact[3]();
+                        break;
                 }
             });
-            NewTab("测试", () => {
-                if (ImGui.Button("测试")) {
-                }
-            });
-        }
-    }
-
-    private static readonly List<string> regions = [
-        "未选择",
-        "陆行鸟",
-        "莫古力",
-        "猫小胖",
-        "豆豆柴"
-    ];
-
-    private static readonly Vector4 green = new(0, 1, 0, 1);
-    private static readonly Vector4 green_alt = new(0, 1, 0, 0.8f);
-    private static readonly Vector4 red = new(1, 0, 0, 1);
-    private static readonly Vector4 red_alt = new(1, 0, 0, 0.8f);
-    private static readonly Vector4 blue = new(0, 0, 1, 1);
-    private static readonly Vector4 blue_alt = new(0, 0, 1, 0.8f);
-    private static readonly Vector4 cyan = new(0.3f, 0.3f, 1, 1);
-    private static readonly Vector4 cyan_alt = new(0.3f, 0.3f, 1, 0.8f);
-
-    private static bool _isWssRunning;
-    private static CancellationTokenSource? _wssCts;
-
-    private static async Task StartWssService(CancellationToken cancellationToken) {
-        if (_isWssRunning) return;
-        _isWssRunning = true;
-        nmalive.Clear();
-        nmdead.Clear();
-        try {
-            await RunWebSocketClient(cancellationToken);
-        }
-        finally {
-            _isWssRunning = false;
-        }
-    }
-
-    private record NmInfo {
-        internal readonly string oriname;
-        internal readonly string defeated_at;
-        internal readonly string appeared_at;
-        internal readonly int hp;
-        internal readonly int territory_id;
-        internal readonly string territory_name_ori;
-
-        public NmInfo(JToken a) {
-            var text = a["short_name"].ToString();
-            oriname = a["name"].ToString();
-            territory_name_ori = a["territory_name"].ToString();
-            territory_id = territory_name_ori switch {
-                "常风之地" => 1,
-                "恒冰之地" => 2,
-                "涌火之地" => 3,
-                "丰水之地" => 4,
-                _ => 0,
-            };
-            defeated_at = a["defeated_at"].ToString();
-            appeared_at = a["appeared_at"].ToString();
-            hp = int.Parse(a["hp"].ToString());
-        }
-    }
-
-    private static long getT(string d) {
-        try {
-            var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-            return DateTime.Now.Ticks;
-        }
-        catch {
-            try {
-                var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd H:mm:ss", CultureInfo.InvariantCulture);
-                return DateTime.Now.Ticks - dateTime.Ticks;
-            }
-            catch {
-                return -1;
-            }
+            // NewTab("测试", () => {
+            //     if (ImGui.Button("测试")) {
+            //     }
+            // });
         }
     }
 
@@ -286,137 +273,5 @@ public class ConfigWindow() : Window("SkyEye") {
                 return -1;
             }
         }
-    }
-
-    private const ImGuiTableFlags ImGuiTableFlag = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg;
-
-    private static void NewTable<T>(string[] header, T[] data, Action<T>[] acts) {
-        if (ImGui.BeginTable("Table", acts.Length, ImGuiTableFlag)) {
-            foreach (var item in header) {
-                if (item == "") ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 24);
-                else if (item.Contains("序号")) ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthFixed, 96);
-                else ImGui.TableSetupColumn(item);
-            }
-            ImGui.TableHeadersRow();
-            foreach (var res in data) {
-                ImGui.TableNextRow();
-                for (var i = 0; i < acts.Length; i++) {
-                    ImGui.TableSetColumnIndex(i);
-                    acts[i](res);
-                }
-            }
-            ImGui.EndTable();
-        }
-    }
-
-    private static readonly string[] pref = [
-        "未知", "常风之地", "恒冰之地", "涌火之地", "丰水之地"
-    ];
-    private static readonly Lock WssLock = new();
-    private static readonly List<NmInfo> nmalive = [];
-    private static readonly List<NmInfo> nmdead = [];
-
-    private static async Task RunWebSocketClient(CancellationToken cancellationToken) {
-        using var client = new ClientWebSocket();
-        try {
-            Plugin.Log.Info($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Plugin.Configuration.WssRegion}/ws");
-            await client.ConnectAsync(new Uri($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Plugin.Configuration.WssRegion}/ws"), cancellationToken);
-            var buffer = new byte[4096];
-            while (client.State == WebSocketState.Open) {
-                try {
-                    using var ms = new MemoryStream();
-                    WebSocketReceiveResult result;
-                    do {
-                        result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
-                        if (result.MessageType == WebSocketMessageType.Close) {
-                            await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by server", CancellationToken.None);
-                            break;
-                        }
-                        ms.Write(buffer, 0, result.Count);
-                    } while (!result.EndOfMessage);
-                    if (result.MessageType != 0 || ms.Length == 0L) {
-                        continue;
-                    }
-                    ms.Seek(0L, SeekOrigin.Begin);
-                    using var reader = new StreamReader(ms, Encoding.UTF8);
-                    var txt = await reader.ReadToEndAsync();
-                    Plugin.Log.Info(txt);
-                    var val = (JObject)JsonConvert.DeserializeObject(txt);
-                    lock (WssLock) {
-                        switch (val["type"].ToString()) {
-                            case "initial": {
-                                var val2 = val["data"];
-                                foreach (var i in val2["active"]) {
-                                    var x = nmalive.FirstOrDefault(a => i["name"].ToString() == a.oriname);
-                                    var ni = new NmInfo(i);
-                                    if (x == null) nmalive.Add(ni);
-                                    else if (getT(ni.defeated_at) > getT(x.defeated_at)) {
-                                        nmalive.Remove(x);
-                                        nmalive.Add(ni);
-                                    }
-                                }
-                                foreach (var i in val2["archive"]) {
-                                    var x = nmdead.FirstOrDefault(a => i["name"].ToString() == a.oriname);
-                                    var ni = new NmInfo(i);
-                                    if (x == null) nmdead.Add(ni);
-                                    else if (getT(ni.defeated_at) > getT(x.defeated_at)) {
-                                        nmdead.Remove(x);
-                                        nmdead.Add(ni);
-                                    }
-                                }
-                                break;
-                            }
-                            case "keepalive":
-                                continue;
-                            case "active.update": {
-                                var datau = val["data"];
-                                var info2 = nmalive.FirstOrDefault(a => datau["name"].ToString() == a.oriname);
-                                if (info2 != null) nmalive.Remove(info2);
-                                nmalive.Add(new NmInfo(datau));
-                                break;
-                            }
-                            case "active.archive": {
-                               var dataa = val["data"];
-                                var info3 = nmalive.FirstOrDefault(a => dataa["name"].ToString() == a.oriname);
-                                if (info3 != null) nmalive.Remove(info3);
-                                nmdead.Add(new NmInfo(dataa));
-                                break;
-                            }
-                            case "active.add": {
-                                var  dataadd = val["data"];
-                                var x = nmalive.FirstOrDefault(a => dataadd["name"].ToString() == a.oriname);
-                                var ni = new NmInfo(dataadd);
-                                if (x == null) nmalive.Add(ni);
-                                else if (getT(ni.defeated_at) > getT(x.defeated_at)) {
-                                    nmalive.Remove(x);
-                                    nmalive.Add(ni);
-                                }
-                                break;
-                            }
-                        }
-                        // Detail(nmalive, nmdead);
-                    }
-                }
-                catch (Exception value) {
-                    Console.WriteLine(value);
-                }
-            }
-        }
-        finally {
-            if (client.State == WebSocketState.Open)
-                await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None);
-        }
-    }
-
-    internal static void StopWss() {
-        try {
-            _wssCts?.Cancel();
-            _wssCts?.Dispose();
-            _wssCts = null;
-        }
-        catch (Exception) {
-            // ignored
-        }
-        _isWssRunning = false;
     }
 }

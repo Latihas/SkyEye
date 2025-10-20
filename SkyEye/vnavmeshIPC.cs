@@ -211,9 +211,7 @@ internal static class NavmeshIpc {
     /// <returns>如果导航网格已准备就绪，则返回true</returns>
     internal static bool IsReady() {
         // 先检查IPC实例是否已初始化
-        if (_navIsReady == null)
-            return false;
-
+        if (_navIsReady == null) return false;
         bool? result = Execute(() => _navIsReady.InvokeFunc());
         return result.HasValue && result.Value;
     }

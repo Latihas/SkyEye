@@ -5,7 +5,7 @@ using System.Numerics;
 namespace SkyEye.SkyEye.Data;
 
 internal static class EurekaPagos {
-    public static readonly (int, PData.EurekaWeather)[] Weathers = [
+    internal static readonly (int, PData.EurekaWeather)[] Weathers = [
         (10, PData.EurekaWeather.FairSkies),
         (28, PData.EurekaWeather.Fog),
         (46, PData.EurekaWeather.HeatWaves),
@@ -14,7 +14,7 @@ internal static class EurekaPagos {
         (100, PData.EurekaWeather.Blizzards)
     ];
 
-    public static readonly Dictionary<int, string> DeadFateDic = new() {
+    internal static readonly Dictionary<int, string> DeadFateDic = new() {
         {
             1351, "-1"
         }, {
@@ -57,31 +57,31 @@ internal static class EurekaPagos {
     };
 
 
-    public static readonly List<EurekaFate> PagosFates = [
-        new(1351, "周冬雨", new Vector2(-0.1946f, 234.4f), PData.EurekaWeather.None, false),
-        new(1369, "读书人", new Vector2(194.67f, 340.845f), PData.EurekaWeather.None, true),
-        new(1353, "灰烬龙", new Vector2(428.54f, 425.388f), PData.EurekaWeather.None, false),
-        new(1354, "魔虫", new Vector2(559.886f, 320.959f), PData.EurekaWeather.None, false),
-        new(1355, "安娜波", new Vector2(575.078f, 10.7835f), PData.EurekaWeather.Fog, false),
-        new(1366, "白泽", new Vector2(378.451f, 58.118f), PData.EurekaWeather.None, false),
-        new(1357, "雪屋王", new Vector2(-222.164f, -269.87f), PData.EurekaWeather.None, false),
-        new(1356, "阿萨格", new Vector2(-548.7f, -520.554f), PData.EurekaWeather.None, false),
-        new(1352, "山羊", new Vector2(-579.55f, -132.637f), PData.EurekaWeather.None, false),
-        new(1360, "螃蟹", new Vector2(-638.802f, -299.99f), PData.EurekaWeather.Fog, false),
-        new(1358, "双牛", new Vector2(-380.98f, -131.9f), PData.EurekaWeather.None, false),
-        new(1361, "圣牛", new Vector2(252.05f, -227.33f), PData.EurekaWeather.None, false),
-        new(1362, "贝爷", new Vector2(467.758f, -150.738f), PData.EurekaWeather.Thunder, false),
-        new(1359, "荷鲁斯", new Vector2(217.191f, -58.8899f), PData.EurekaWeather.HeatWaves, false),
-        new(1363, "大眼", new Vector2(118.55f, 178.48f), PData.EurekaWeather.None, false),
-        new(1365, "凯西", new Vector2(37.76f, -361.25f), PData.EurekaWeather.Blizzards, false),
-        new(1364, "娄希", new Vector2(727.415f, -126.398f), PData.EurekaWeather.None, true),
-        new(1367, "小兔子", new Vector2(-163.29f, 300.203f), PData.EurekaWeather.None, false),
-        new(1368, "大兔子", new Vector2(-46.6f, -9.67f), PData.EurekaWeather.None, false)
+    internal static readonly EurekaFate[] PagosFates = [
+        new(1367, 20, "雪上的幸福兔", "小兔子", "", -1, new Vector2(18, 27.5f)),
+        new(1368, 31, "盯上宝石的幸福兔", "大兔子", "", -1, new Vector2(21, 21.5f)),
+        new(1351, 20, "纯白的支配者——雪之女王", "周冬雨", "雪童子", 25, new Vector2(21.9f, 26.8f)),
+        new(1369, 21, "腐烂的读书家——塔克西姆", "读书人", "珍卷恶魔", 26, new Vector2(25.4f, 27.4f), spawnByRequiredNight: true),
+        new(1353, 22, "灰壳的鳞王——灰烬龙", "灰烬龙", "血魔", 27, new Vector2(29f, 30f)),
+        new(1354, 23, "地壳变动之谜——异形魔虫", "魔虫", "瓦尔巨虫", 28, new Vector2(33f, 27f)),
+        new(1355, 24, "融雪的化身——安娜波", "安娜波", "融雪元精", 29, new Vector2(33f, 21.5f), PData.EurekaWeather.Fog),
+        new(1366, 25, "五行眼的主人——白泽", "白泽", "啜泣百目妖", 30, new Vector2(29f, 22f)),
+        new(1357, 26, "移动的雪洞——雪屋王", "雪屋王", "胡瓦西", 31, new Vector2(17f, 16f)),
+        new(1356, 27, "硬质的病魔——阿萨格", "阿萨格", "徘徊欧浦肯", 32, new Vector2(10.4f, 11.4f)),
+        new(1352, 28, "家畜的慈母——苏罗毗", "山羊", "恒冰公山羊", 33, new Vector2(10.3f, 19.5f)),
+        new(1360, 29, "圆桌的雾王——亚瑟罗王", "螃蟹", "瓦尔利螯陆蟹", 34, new Vector2(8.7f, 15.5f), PData.EurekaWeather.Fog),
+        new(1358, 30, "唇亡齿寒", "双牛", "研究所弥诺陶洛斯", 35, new Vector2(14f, 19f)),
+        new(1361, 31, "野牛的救世主——优雷卡圣牛", "圣牛", "古老水牛", 36, new Vector2(26f, 16f)),
+        new(1362, 32, "雷云的魔兽——哈达约什", "贝爷", "虚无小龙", 37, new Vector2(30f, 19f), PData.EurekaWeather.Thunder),
+        new(1359, 33, "太阳的使者——荷鲁斯", "荷鲁斯", "虚无薇薇尔飞龙", 38, new Vector2(26f, 20f), PData.EurekaWeather.HeatWaves),
+        new(1363, 34, "暗眼王——总领安哥拉·曼纽", "大眼", "瞪视之眼", 39, new Vector2(24f, 25f)),
+        new(1365, 35, "模仿犯——复制魔花凯西", "凯西", "阿米雷戴", 40, new Vector2(22.3f, 14.4f), PData.EurekaWeather.Blizzards),
+        new(1364, 35, "苍蓝冰刃——娄希", "娄希", "瓦尔腐尸", 40, new Vector2(36f, 19f), spawnByRequiredNight: true)
     ];
 
 
-    public static (PData.EurekaWeather Weather, TimeSpan Timeleft) GetCurrentWeatherInfo() => EorzeaWeather.GetCurrentWeatherInfo(Weathers);
+    internal static (PData.EurekaWeather Weather, TimeSpan Timeleft) GetCurrentWeatherInfo() => EorzeaWeather.GetCurrentWeatherInfo(Weathers);
 
 
-    public static List<(PData.EurekaWeather Weather, TimeSpan Time)> GetAllNextWeatherTime() => EorzeaWeather.GetAllWeathers(Weathers);
+    internal static List<(PData.EurekaWeather Weather, TimeSpan Time)> GetAllNextWeatherTime() => EorzeaWeather.GetAllWeathers(Weathers);
 }

@@ -12,26 +12,23 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lumina.Excel.Sheets;
 using SkyEye.SkyEye.Data;
 using static System.Globalization.CultureInfo;
+using static SkyEye.SkyEye.Data.PData;
+using static SkyEye.SkyEye.Util;
 
 namespace SkyEye.SkyEye;
 
-public class UiBuilder : IDisposable {
+internal class UiBuilder : IDisposable {
     private static readonly SoundPlayer Player1 = new(), Player2 = new();
-    private readonly List<(Vector3 worldpos, uint fgcolor, uint bgcolor, string name, string fateId, PData.EurekaWeather SpawnRequiredWeather, bool SpawnByRequiredNight)> _eurekaList2D = [];
+    private readonly List<(Vector3 worldpos, uint fgcolor, uint bgcolor, string name, string fateId, EurekaWeather SpawnRequiredWeather, bool SpawnByRequiredNight)> _eurekaList2D = [];
     private readonly List<string> _eurekaLiveIdList2D = [], _eurekaLiveIdList2DOld = [];
-
-    private readonly uint _green = ImGui.GetColorU32(ImGui.ColorConvertFloat4ToU32(new Vector4(0f, 1f, 0f, 1f)));
     private readonly Vector2[] _mapPosSize = new Vector2[2];
-
-    private readonly uint _red = ImGui.GetColorU32(ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 0f, 0f, 1f)));
     private readonly Dictionary<uint, ushort> _sizeFactorDict;
     private ImDrawListPtr _bdl;
     private EorzeaTime _eorzeaTime;
     private float _globalUiScale = 1f;
     private Vector2? _mapOrigin = Vector2.Zero;
-    private Dictionary<PData.EurekaWeather, (string, string)> _weatherDic;
-    private (PData.EurekaWeather Weather, TimeSpan Time) _weatherNow;
-    private List<(PData.EurekaWeather Weather, TimeSpan Time)> _weathers;
+    private readonly Dictionary<EurekaWeather, (string, string)> _weatherDic = new();
+    private (EurekaWeather Weather, TimeSpan Time) _weatherNow;
 
     public UiBuilder() {
         _sizeFactorDict = Plugin.DataManager.GetExcelSheet<TerritoryType>().ToDictionary(k => k.RowId, v => v.Map.Value.SizeFactor);
@@ -75,12 +72,8 @@ public class UiBuilder : IDisposable {
                         _bdl.DrawMapDot(v, 0xFF00FFFFu, 0xFF00FFFFu);
         }
         if (Plugin.lastFarmPos != null) {
-            if (Plugin.Gui.WorldToScreen(Plugin.lastFarmPos.Value, out var v)) {
-                _bdl.AddCircle(v, 20f, _green, 0, Configuration.Overlay2DDotStroke);
-                _bdl.AddCircleFilled(v, 15f, _red);
-                _bdl.AddCircle(v, 10f, _green, 0, Configuration.Overlay2DDotStroke);
-                _bdl.AddCircleFilled(v, 5f, _red);
-            }
+            if (Plugin.Gui.WorldToScreen(Plugin.lastFarmPos.Value, out var v))
+                _bdl.DrawMapDot(v, 0xFFFF0000u, 0xFF00FF00u);
         }
         _eurekaList2D.Clear();
         foreach (var item in _eurekaLiveIdList2D) _eurekaLiveIdList2DOld.Add(item);
@@ -88,7 +81,8 @@ public class UiBuilder : IDisposable {
     }
 
     private void RefreshEureka() {
-        switch (Plugin.ClientState.TerritoryType) {
+        var TerritoryType = Plugin.ClientState.TerritoryType;
+        switch (TerritoryType) {
             case 732:
                 foreach (var o7 in Plugin.Fates) {
                     _eurekaLiveIdList2D.Add(o7.FateId.ToString());
@@ -151,61 +145,50 @@ public class UiBuilder : IDisposable {
                     EurekaHydatos.DeadFateDic[o2.Key] = "-1";
                 break;
         }
-        switch (Plugin.ClientState.TerritoryType) {
+        if (!Plugin.InEureka()) return;
+        List<(EurekaWeather Weather, TimeSpan Time)> _weathers = null!;
+        (int, EurekaWeather)[] regionWeather = null!;
+        EurekaFate[] fates = null!;
+        switch (TerritoryType) {
             case 732: {
                 _weathers = EurekaAnemos.GetAllNextWeatherTime();
                 _weatherNow = EurekaAnemos.GetCurrentWeatherInfo();
-                _weatherDic = new Dictionary<PData.EurekaWeather, (string, string)>();
-                foreach (var o9 in _weathers) {
-                    var timeLeft = EorzeaWeather.GetWeatherUptime(o9.Weather, EurekaAnemos.Weathers, DateTime.Now).End - DateTime.Now;
-                    _weatherDic.Add(o9.Weather, (o9.Time.ToString(@"hh\:mm\:ss"), timeLeft.ToString(@"hh\:mm\:ss")));
-                }
-                var map = Plugin.DataManager.GetExcelSheet<Map>().GetRow(732u);
-                foreach (var o10 in EurekaAnemos.AnemosFates)
-                    _eurekaList2D.Add((ToVector3(MapToWorld(o10.FatePosition, map)), uint.MaxValue, uint.MaxValue, o10.BossShortName, o10.FateId.ToString(), o10.SpawnRequiredWeather, o10.SpawnByRequiredNight));
-                return;
+                regionWeather = EurekaAnemos.Weathers;
+                fates = EurekaAnemos.AnemosFates;
+                break;
             }
             case 763: {
                 _weathers = EurekaPagos.GetAllNextWeatherTime();
                 _weatherNow = EurekaPagos.GetCurrentWeatherInfo();
-                _weatherDic = new Dictionary<PData.EurekaWeather, (string, string)>();
-                foreach (var o11 in _weathers) {
-                    var timeLeft2 = EorzeaWeather.GetWeatherUptime(o11.Weather, EurekaPagos.Weathers, DateTime.Now).End - DateTime.Now;
-                    _weatherDic.Add(o11.Weather, (o11.Time.ToString(@"hh\:mm\:ss"), timeLeft2.ToString(@"hh\:mm\:ss")));
-                }
-                Plugin.DataManager.GetExcelSheet<Map>().GetRow(763u);
-                foreach (var o12 in EurekaPagos.PagosFates)
-                    _eurekaList2D.Add((ToVector3(o12.FatePosition), uint.MaxValue, uint.MaxValue, o12.BossShortName, o12.FateId.ToString(), o12.SpawnRequiredWeather, o12.SpawnByRequiredNight));
-                return;
+                regionWeather = EurekaPagos.Weathers;
+                fates = EurekaPagos.PagosFates;
+                break;
             }
             case 795: {
                 _weathers = EurekaPyros.GetAllNextWeatherTime();
                 _weatherNow = EurekaPyros.GetCurrentWeatherInfo();
-                _weatherDic = new Dictionary<PData.EurekaWeather, (string, string)>();
-                foreach (var o13 in _weathers) {
-                    var timeLeft3 = EorzeaWeather.GetWeatherUptime(o13.Weather, EurekaPyros.Weathers, DateTime.Now).End - DateTime.Now;
-                    _weatherDic.Add(o13.Weather, (o13.Time.ToString(@"hh\:mm\:ss"), timeLeft3.ToString(@"hh\:mm\:ss")));
-                }
-                Plugin.DataManager.GetExcelSheet<Map>().GetRow(795u);
-                foreach (var o14 in EurekaPyros.PyrosFates)
-                    _eurekaList2D.Add((ToVector3(o14.FatePosition), uint.MaxValue, uint.MaxValue, o14.BossShortName, o14.FateId.ToString(), o14.SpawnRequiredWeather, o14.SpawnByRequiredNight));
-                return;
+                regionWeather = EurekaPyros.Weathers;
+                fates = EurekaPyros.PyrosFates;
+                break;
             }
             case 827: {
                 _weathers = EurekaHydatos.GetAllNextWeatherTime();
                 _weatherNow = EurekaHydatos.GetCurrentWeatherInfo();
-                _weatherDic = new Dictionary<PData.EurekaWeather, (string, string)>();
-                foreach (var o15 in _weathers) {
-                    var timeLeft4 = EorzeaWeather.GetWeatherUptime(o15.Weather, EurekaHydatos.Weathers, DateTime.Now).End - DateTime.Now;
-                    _weatherDic.Add(o15.Weather, (o15.Time.ToString(@"hh\:mm\:ss"), timeLeft4.ToString(@"hh\:mm\:ss")));
-                }
-                Plugin.DataManager.GetExcelSheet<Map>().GetRow(827u);
-                foreach (var o16 in EurekaHydatos.HydatosFates)
-                    _eurekaList2D.Add((ToVector3(o16.FatePosition), uint.MaxValue, uint.MaxValue, o16.BossShortName, o16.FateId.ToString(), o16.SpawnRequiredWeather, o16.SpawnByRequiredNight));
-                return;
+                regionWeather = EurekaHydatos.Weathers;
+                fates = EurekaHydatos.HydatosFates;
+                break;
             }
         }
+        _weatherDic.Clear();
+        foreach (var o9 in _weathers) {
+            var timeLeft = EorzeaWeather.GetWeatherUptime(o9.Weather, regionWeather, DateTime.Now).End - DateTime.Now;
+            _weatherDic.Add(o9.Weather, (o9.Time.ToString(@"hh\:mm\:ss"), timeLeft.ToString(@"hh\:mm\:ss")));
+        }
+        foreach (var o10 in fates)
+            _eurekaList2D.Add((ToVector3(MapToWorld(o10.FatePosition, MapInfo[TerritoryType].Item1, MapInfo[TerritoryType].Item2, MapInfo[TerritoryType].Item3)),
+                uint.MaxValue, uint.MaxValue, o10.BossShortName, o10.FateId.ToString(), o10.SpawnRequiredWeather, o10.SpawnByRequiredNight));
     }
+
 
     private unsafe void DrawMapOverlay() {
         RefreshMapOrigin();
@@ -218,7 +201,7 @@ public class UiBuilder : IDisposable {
             var pos2 = WorldToMap(valueOrDefault, item2.worldpos);
             if (_eurekaLiveIdList2D.Contains(item2.fateId)) {
                 var fateProgress = FateManager.Instance()->GetFateById(ushort.Parse(item2.fateId))->Progress;
-                if (fateProgress > 0) _bdl.DrawText(pos2, item2.name + "(" + fateProgress + "%)", 4278247424u, true);
+                if (fateProgress > 0) _bdl.DrawText(pos2, item2.name + "(" + fateProgress + "%)", 0xFF00E000u, true);
                 else _bdl.DrawText(pos2, item2.name, 0xFF00E000u, true);
                 if (fateProgress > 97)
                     switch (Plugin.ClientState.TerritoryType) {
@@ -268,8 +251,8 @@ public class UiBuilder : IDisposable {
                         timeFromCanTriggered = TimeSpan.Zero;
                         break;
                 }
-                if (item2 is { SpawnRequiredWeather: PData.EurekaWeather.None, SpawnByRequiredNight: false }) _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(@"hh\:mm\:ss"), 4286611584u, true);
-                else if (item2.SpawnRequiredWeather == PData.EurekaWeather.None) {
+                if (item2 is { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: false }) _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(@"hh\:mm\:ss"), 4286611584u, true);
+                else if (item2.SpawnRequiredWeather == EurekaWeather.None) {
                     var etimeHour = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
                     if (etimeHour is < 6 or >= 18) {
                         _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(@"hh\:mm\:ss"), 4286611584u, true);
@@ -283,8 +266,8 @@ public class UiBuilder : IDisposable {
                 else if (TimeSpan.Parse(value.Item1) < timeFromCanTriggered) _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(@"hh\:mm\:ss"), 4286611584u, true);
                 else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 4286611584u, true);
             }
-            else if (item2 is { SpawnRequiredWeather: PData.EurekaWeather.None, SpawnByRequiredNight: false }) _bdl.DrawText(pos2, item2.name, item2.fgcolor, true);
-            else if (item2 is { SpawnRequiredWeather: PData.EurekaWeather.None, SpawnByRequiredNight: true }) {
+            else if (item2 is { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: false }) _bdl.DrawText(pos2, item2.name, item2.fgcolor, true);
+            else if (item2 is { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: true }) {
                 var etimeHour2 = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
                 if (etimeHour2 is < 6 or >= 18) {
                     var timeFromDay = _eorzeaTime.TimeUntilDay();
@@ -295,12 +278,12 @@ public class UiBuilder : IDisposable {
                     _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight2.ToString(@"hh\:mm\:ss"), 0xFF808080u, true);
                 }
             }
-            else if (item2.SpawnRequiredWeather != PData.EurekaWeather.None && !item2.SpawnByRequiredNight) {
+            else if (item2.SpawnRequiredWeather != EurekaWeather.None && !item2.SpawnByRequiredNight) {
                 if (!_weatherDic.TryGetValue(item2.SpawnRequiredWeather, out var value) || _weatherNow.Weather == item2.SpawnRequiredWeather) _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item2, item2.fgcolor, true);
                 else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 0xFF808080u, true);
             }
             else {
-                if (item2.SpawnRequiredWeather == PData.EurekaWeather.None || !item2.SpawnByRequiredNight) continue;
+                if (item2.SpawnRequiredWeather == EurekaWeather.None || !item2.SpawnByRequiredNight) continue;
                 var etimeHour3 = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
                 var weatherLeftTime = _weatherDic[item2.SpawnRequiredWeather].Item2;
                 if ((!_weatherDic.ContainsKey(item2.SpawnRequiredWeather) || _weatherNow.Weather == item2.SpawnRequiredWeather) && etimeHour3 is < 6 or >= 18) {
@@ -344,7 +327,6 @@ public class UiBuilder : IDisposable {
             }
             if (text is not ("060443.tex" or "060443_hr1.tex")) continue;
             var ptr4 = (AtkComponentNode*)ptr->Component->UldManager.NodeList[i];
-            // Plugin.Log.Verbose($"node found {i}");
             var atkResNode2 = ptr4->AtkResNode;
             var vector = new Vector2(areaMapAddon->X, areaMapAddon->Y);
             _mapOrigin = ImGui.GetMainViewport().Pos + vector + (new Vector2(atkResNode.X, atkResNode.Y) + new Vector2(atkResNode2.X, atkResNode2.Y) + new Vector2(atkResNode2.OriginX, atkResNode2.OriginY)) * _globalUiScale;
@@ -358,18 +340,7 @@ public class UiBuilder : IDisposable {
         origin + ToVector2(worldVector3 - Plugin.ClientState.LocalPlayer!.Position) * AreaMap.MapScale * _sizeFactorDict[Plugin.ClientState.TerritoryType] / 100f * _globalUiScale;
 
 
-    private static Vector2 ToVector2(Vector3 v) => new(v.X, v.Z);
-
-    private static Vector3 ToVector3(Vector2 v) => new(v.X, 0f, v.Y);
-
-    private static float MapToWorld(float value, uint scale, int offset = 0) => offset * (scale / 100f) + 50f * (value - 1f) * (scale / 100f);
-
-    private static Vector2 MapToWorld(Vector2 coordinates, Map map) {
-        var vector = new Vector2(MapToWorld(coordinates.X, map.SizeFactor, map.OffsetX), MapToWorld(coordinates.Y, map.SizeFactor, map.OffsetY));
-        return (vector - new Vector2(1024f, 1024f)) / map.SizeFactor * 100F;
-    }
-
-    private static void NmFound() {
+    internal static void NmFound() {
         Player1.Stop();
         Player1.SoundLocation = Path.Combine(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, "nm.wav");
         Player1.Load();
@@ -386,41 +357,40 @@ public class UiBuilder : IDisposable {
     private void DrawWeatherMap(Vector2 valueOrDefault) {
         var notice = "";
         var allNextWeatherTime = EurekaAnemos.GetAllNextWeatherTime();
-        (PData.EurekaWeather, TimeSpan) anemosweatherNow = EurekaAnemos.GetCurrentWeatherInfo();
-        var anemosweatherDic = new Dictionary<PData.EurekaWeather, (string, string)>();
+        (EurekaWeather, TimeSpan) anemosweatherNow = EurekaAnemos.GetCurrentWeatherInfo();
+        var anemosweatherDic = new Dictionary<EurekaWeather, (string, string)>();
         foreach (var o in allNextWeatherTime) {
             var timeLeft = EorzeaWeather.GetWeatherUptime(o.Weather, EurekaAnemos.Weathers, DateTime.Now).End - DateTime.Now;
             anemosweatherDic.Add(o.Weather, (o.Time.ToString(@"hh\:mm\:ss"), timeLeft.ToString(@"hh\:mm\:ss")));
         }
         notice += "风岛：";
         var etimeHour = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
-        notice = anemosweatherNow.Item1 != PData.EurekaWeather.Gales ? notice + "强风×(" + anemosweatherDic[PData.EurekaWeather.Gales].Item1 + ")" : notice + "强风○(" + anemosweatherDic[PData.EurekaWeather.Gales].Item2 + ")";
+        notice = anemosweatherNow.Item1 != EurekaWeather.Gales ? notice + "强风×(" + anemosweatherDic[EurekaWeather.Gales].Item1 + ")" : notice + "强风○(" + anemosweatherDic[EurekaWeather.Gales].Item2 + ")";
         notice = etimeHour is < 6 or >= 18 ? notice + "    夜晚○(" + _eorzeaTime.TimeUntilDay().ToString(@"hh\:mm\:ss") + ")" : notice + "    夜晚×(" + _eorzeaTime.TimeUntilNight().ToString(@"hh\:mm\:ss") + ")";
         notice += "\n";
         var allNextWeatherTime2 = EurekaPagos.GetAllNextWeatherTime();
-        (PData.EurekaWeather, TimeSpan) pagosweatherNow = EurekaPagos.GetCurrentWeatherInfo();
-        var pagosweatherDic = new Dictionary<PData.EurekaWeather, (string, string)>();
+        (EurekaWeather, TimeSpan) pagosweatherNow = EurekaPagos.GetCurrentWeatherInfo();
+        var pagosweatherDic = new Dictionary<EurekaWeather, (string, string)>();
         foreach (var o2 in allNextWeatherTime2) {
             var timeLeft2 = EorzeaWeather.GetWeatherUptime(o2.Weather, EurekaPagos.Weathers, DateTime.Now).End - DateTime.Now;
             pagosweatherDic.Add(o2.Weather, (o2.Time.ToString(@"hh\:mm\:ss"), timeLeft2.ToString(@"hh\:mm\:ss")));
         }
         notice += "冰岛：";
-        notice = pagosweatherNow.Item1 != PData.EurekaWeather.Blizzards ? notice + "暴雪×(" + pagosweatherDic[PData.EurekaWeather.Blizzards].Item1 + ")" : notice + "暴雪○(" + pagosweatherDic[PData.EurekaWeather.Blizzards].Item2 + ")";
-        notice = pagosweatherNow.Item1 != PData.EurekaWeather.Fog ? notice + "    薄雾×(" + pagosweatherDic[PData.EurekaWeather.Fog].Item1 + ")" : notice + "    薄雾○(" + pagosweatherDic[PData.EurekaWeather.Fog].Item2 + ")";
+        notice = pagosweatherNow.Item1 != EurekaWeather.Blizzards ? notice + "暴雪×(" + pagosweatherDic[EurekaWeather.Blizzards].Item1 + ")" : notice + "暴雪○(" + pagosweatherDic[EurekaWeather.Blizzards].Item2 + ")";
+        notice = pagosweatherNow.Item1 != EurekaWeather.Fog ? notice + "    薄雾×(" + pagosweatherDic[EurekaWeather.Fog].Item1 + ")" : notice + "    薄雾○(" + pagosweatherDic[EurekaWeather.Fog].Item2 + ")";
         notice += "\n";
         var allNextWeatherTime3 = EurekaPyros.GetAllNextWeatherTime();
-        (PData.EurekaWeather, TimeSpan) pyrosweatherNow = EurekaPyros.GetCurrentWeatherInfo();
-        var pyrosweatherDic = new Dictionary<PData.EurekaWeather, (string, string)>();
+        (EurekaWeather, TimeSpan) pyrosweatherNow = EurekaPyros.GetCurrentWeatherInfo();
+        var pyrosweatherDic = new Dictionary<EurekaWeather, (string, string)>();
         foreach (var o3 in allNextWeatherTime3) {
             var timeLeft3 = EorzeaWeather.GetWeatherUptime(o3.Weather, EurekaPyros.Weathers, DateTime.Now).End - DateTime.Now;
             pyrosweatherDic.Add(o3.Weather, (o3.Time.ToString(@"hh\:mm\:ss"), timeLeft3.ToString(@"hh\:mm\:ss")));
         }
         notice += "火岛：";
-        notice = pyrosweatherNow.Item1 != PData.EurekaWeather.Blizzards ? notice + "暴雪×(" + pyrosweatherDic[PData.EurekaWeather.Blizzards].Item1 + ")" : notice + "暴雪○(" + pyrosweatherDic[PData.EurekaWeather.Blizzards].Item2 + ")";
-        notice = pyrosweatherNow.Item1 != PData.EurekaWeather.HeatWaves ? notice + "    热浪×(" + pyrosweatherDic[PData.EurekaWeather.HeatWaves].Item1 + ")" : notice + "    热浪○(" + pyrosweatherDic[PData.EurekaWeather.HeatWaves].Item2 + ")";
+        notice = pyrosweatherNow.Item1 != EurekaWeather.Blizzards ? notice + "暴雪×(" + pyrosweatherDic[EurekaWeather.Blizzards].Item1 + ")" : notice + "暴雪○(" + pyrosweatherDic[EurekaWeather.Blizzards].Item2 + ")";
+        notice = pyrosweatherNow.Item1 != EurekaWeather.HeatWaves ? notice + "    热浪×(" + pyrosweatherDic[EurekaWeather.HeatWaves].Item1 + ")" : notice + "    热浪○(" + pyrosweatherDic[EurekaWeather.HeatWaves].Item2 + ")";
         switch (Plugin.ClientState.TerritoryType) {
             case 732: {
-                ToVector3(MapToWorld(new Vector2(25.9f, 27f), Plugin.DataManager.GetExcelSheet<Map>().GetRow(732u)));
                 var pos830 = WorldToMap(valueOrDefault, new Vector3(-9.1946f, 0f, 584.4f));
                 _bdl.DrawText(pos830, notice, uint.MaxValue, true);
                 break;

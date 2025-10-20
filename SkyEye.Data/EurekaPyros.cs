@@ -57,29 +57,29 @@ internal static class EurekaPyros {
     };
 
 
-    internal static readonly List<EurekaFate> PyrosFates = [
-        new(1388, "惨叫", new Vector2(320.9842f, 201.438f), PData.EurekaWeather.None, true),
-        new(1389, "雷兽", new Vector2(386.33926f, 358.24274f), PData.EurekaWeather.Thunder, false),
-        new(1390, "诡辩者", new Vector2(513.146f, 468.17218f), PData.EurekaWeather.None, false),
-        new(1391, "塔塔露", new Vector2(94.2181f, 765.32275f), PData.EurekaWeather.None, false),
-        new(1392, "阿福", new Vector2(-112.91578f, 342.06964f), PData.EurekaWeather.UmbralWind, false),
-        new(1393, "大公", new Vector2(-176.88625f, -394.7388f), PData.EurekaWeather.None, true),
-        new(1394, "雷鸟", new Vector2(-578.14294f, -386.20517f), PData.EurekaWeather.None, false),
-        new(1395, "蝎子", new Vector2(-433.2961f, -543.60785f), PData.EurekaWeather.None, false),
-        new(1396, "火巨人", new Vector2(-315.6653f, -738.8786f), PData.EurekaWeather.None, false),
-        new(1397, "海燕", new Vector2(-12.539706f, -486.02472f), PData.EurekaWeather.None, false),
-        new(1398, "哥布林", new Vector2(24.877388f, -666.72644f), PData.EurekaWeather.None, false),
-        new(1399, "雷军", new Vector2(291.65533f, -631.25104f), PData.EurekaWeather.Thunder, false),
-        new(1400, "树人", new Vector2(429.29465f, -496.1107f), PData.EurekaWeather.None, false),
-        new(1401, "明眸", new Vector2(543.06006f, -316.8035f), PData.EurekaWeather.None, false),
-        new(1402, "阴阳", new Vector2(-491.60144f, 632.4779f), PData.EurekaWeather.None, false),
-        new(1403, "狼", new Vector2(126.20996f, 413.7807f), PData.EurekaWeather.Blizzards, false),
-        new(1404, "彭女士", new Vector2(720.3792f, -780.43463f), PData.EurekaWeather.HeatWaves, false),
-        new(1407, "小兔子", new Vector2(144.02539f, 214.77539f), PData.EurekaWeather.None, false),
-        new(1408, "大兔子", new Vector2(172.51315f, -524.5715f), PData.EurekaWeather.None, false)
+    internal static readonly EurekaFate[] PyrosFates = [
+        new(1407, 35, "瞄准珊瑚的幸福兔", "小兔子", "", -1, new Vector2(24f, 26f)),
+        new(1408, 46, "困入岩石的幸福兔", "大兔子", "", -1, new Vector2(25f, 11.1f)),
+        new(1388, 35, "洁白的惨叫——琉科西亚", "惨叫", "涌火浮灵", 40, new Vector2(26.9f, 26.6f), spawnByRequiredNight: true),
+        new(1389, 36, "狰狞的雷兽——佛劳洛斯", "雷兽", "雷暴元精", 41, new Vector2(30f, 28.4f), PData.EurekaWeather.Thunder),
+        new(1390, 37, "妖异中的辩论家——诡辩者", "诡辩者", "涌火阿班达", 42, new Vector2(31.9f, 31.3f)),
+        new(1391, 38, "恐怖的人偶——格拉菲亚卡内", "塔塔露", "瓦尔维京人偶", 43, new Vector2(23f, 37.2f)),
+        new(1392, 39, "图书守护者——阿斯卡拉福斯", "阿福", "过期魔导书", 44, new Vector2(19.1f, 29.1f), PData.EurekaWeather.UmbralWind),
+        new(1393, 40, "深渊贵族——巴钦大公爵", "大公", "暗黑行吟诗人", 45, new Vector2(17.7f, 14.5f), spawnByRequiredNight: true),
+        new(1394, 41, "闪电的指挥者——埃托洛斯", "雷鸟", "瓦尔独爪妖禽", 46, new Vector2(10f, 14f)),
+        new(1395, 42, "灼热的刺剑——来萨特", "蝎子", "食鸟者", 47, new Vector2(13.7f, 11.5f)),
+        new(1396, 43, "炎热霸主——火巨人", "火巨人", "涌火陆蟹", 48, new Vector2(15.4f, 7f)),
+        new(1397, 44, "落泪的海燕——伊丽丝", "海燕", "北境盐蓝燕", 49, new Vector2(21.3f, 11.8f)),
+        new(1398, 45, "奇迹的生还者——佣兵雷姆普里克斯", "哥布林", "青蓝之手逃亡者", 50, new Vector2(22.1f, 8.3f)),
+        new(1399, 46, "雷兽统领——闪电督军", "雷军", "遗弃象魔", 51, new Vector2(27.1f, 9f), PData.EurekaWeather.Thunder),
+        new(1400, 47, "樵夫杰科的死亡对决", "树人", "涌火树精", 52, new Vector2(29.9f, 11.8f)),
+        new(1401, 48, "智慧与战斗之母——明眸", "明眸", "瓦尔斯卡尼特", 53, new Vector2(31.8f, 15.1f)),
+        new(1402, 49, "相反的双子——阴·阳", "阴阳", "涌火百目妖", 54, new Vector2(11.7f, 34.3f)),
+        new(1403, 50, "嘲讽的霜狼——斯库尔", "狼", "涌火狗灵", 55, new Vector2(24f, 30f), PData.EurekaWeather.Blizzards),
+        new(1404, 50, "炎蝶的女王——彭忒西勒亚", "彭女士", "瓦尔血飞蛾", 55, new Vector2(36f, 6f), PData.EurekaWeather.HeatWaves)
     ];
 
-    public static (PData.EurekaWeather Weather, TimeSpan Timeleft) GetCurrentWeatherInfo() => EorzeaWeather.GetCurrentWeatherInfo(Weathers);
+    internal static (PData.EurekaWeather Weather, TimeSpan Timeleft) GetCurrentWeatherInfo() => EorzeaWeather.GetCurrentWeatherInfo(Weathers);
 
-    public static List<(PData.EurekaWeather Weather, TimeSpan Time)> GetAllNextWeatherTime() => EorzeaWeather.GetAllWeathers(Weathers);
+    internal static List<(PData.EurekaWeather Weather, TimeSpan Time)> GetAllNextWeatherTime() => EorzeaWeather.GetAllWeathers(Weathers);
 }
