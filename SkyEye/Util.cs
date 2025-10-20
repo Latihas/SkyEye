@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 
@@ -46,6 +47,27 @@ internal static class Util {
         (new Vector2(MapToWorld(coordinates.X, SizeFactor, OffsetX), MapToWorld(coordinates.Y, SizeFactor, OffsetY))
          - new Vector2(1024f, 1024f)) / SizeFactor * 100F;
 
+    internal static long getT(string d) {
+        try {
+            var dateTime = DateTimeOffset.Parse(d, CultureInfo.InvariantCulture);
+            return DateTime.Now.Ticks - dateTime.Ticks;
+        }
+        catch {
+            try {
+                var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+                return DateTime.Now.Ticks - dateTime.Ticks;
+            }
+            catch {
+                try {
+                    var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd H:mm:ss", CultureInfo.InvariantCulture);
+                    return DateTime.Now.Ticks - dateTime.Ticks;
+                }
+                catch {
+                    return 0;
+                }
+            }
+        }
+    }
 
     internal static void NewTable<T>(string[] header, T[] data, Action<T>[] acts) {
         if (ImGui.BeginTable("Table", acts.Length, ImGuiTableFlag)) {

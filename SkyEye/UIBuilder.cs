@@ -23,11 +23,11 @@ internal class UiBuilder : IDisposable {
     private readonly List<string> _eurekaLiveIdList2D = [], _eurekaLiveIdList2DOld = [];
     private readonly Vector2[] _mapPosSize = new Vector2[2];
     private readonly Dictionary<uint, ushort> _sizeFactorDict;
+    private readonly Dictionary<EurekaWeather, (string, string)> _weatherDic = new();
     private ImDrawListPtr _bdl;
     private EorzeaTime _eorzeaTime;
     private float _globalUiScale = 1f;
     private Vector2? _mapOrigin = Vector2.Zero;
-    private readonly Dictionary<EurekaWeather, (string, string)> _weatherDic = new();
     private (EurekaWeather Weather, TimeSpan Time) _weatherNow;
 
     public UiBuilder() {

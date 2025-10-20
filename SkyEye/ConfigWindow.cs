@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using System.Linq;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
@@ -129,7 +128,6 @@ public class ConfigWindow() : Window("SkyEye") {
                     }
                     if (Plugin.Configuration.WssRegion is < 1 or > 4) return;
                     if (!WebSocket._isWssRunning) _ = WebSocket.StartWssService();
-                    ImGui.Text("活着的");
                     var acts = new Action<WebSocket.NmInfo>[] {
                         info => {
                             switch (info.territory_id) {
@@ -154,12 +152,14 @@ public class ConfigWindow() : Window("SkyEye") {
                         },
                         info => ImGui.Text(info.oriname), info => ImGui.Text(info.hp.ToString()), info => ImGui.Text(getDeltaMin(info.appeared_at).ToString()), info => { ImGui.Text(getDeltaMin(info.defeated_at).ToString()); }
                     };
-                    NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"],
-                        WebSocket.nmalive.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray(), acts);
-
+                    ImGui.Text("活着的");
+                    var data = WebSocket.nmalive.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray();
+                    NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"], data, acts);
+                    ImGui.PopStyleColor(2 * data.Length);
                     ImGui.Text("已死亡");
-                    NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"],
-                        WebSocket.nmdead.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray(), acts);
+                    var data2 = WebSocket.nmdead.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray();
+                    NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"], data2, acts);
+                    ImGui.PopStyleColor(2 * data2.Length);
                 }
                 else WebSocket.StopWss();
             });
@@ -206,6 +206,7 @@ public class ConfigWindow() : Window("SkyEye") {
                         ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
                         orderact[0]();
+                        ImGui.PopStyleColor(2);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBg, black);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, black_alt);
                         orderact[1]();
@@ -216,6 +217,7 @@ public class ConfigWindow() : Window("SkyEye") {
                         ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
                         orderact[1]();
+                        ImGui.PopStyleColor(2);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBg, black);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, black_alt);
                         orderact[0]();
@@ -226,6 +228,7 @@ public class ConfigWindow() : Window("SkyEye") {
                         ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
                         orderact[2]();
+                        ImGui.PopStyleColor(2);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBg, black);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, black_alt);
                         orderact[0]();
@@ -236,6 +239,7 @@ public class ConfigWindow() : Window("SkyEye") {
                         ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
                         orderact[3]();
+                        ImGui.PopStyleColor(2);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBg, black);
                         ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, black_alt);
                         orderact[0]();
@@ -251,6 +255,7 @@ public class ConfigWindow() : Window("SkyEye") {
                         orderact[3]();
                         break;
                 }
+                ImGui.PopStyleColor(2);
             });
             // NewTab("测试", () => {
             //     if (ImGui.Button("测试")) {
@@ -261,17 +266,10 @@ public class ConfigWindow() : Window("SkyEye") {
 
     private static int getDeltaMin(string d) {
         try {
-            var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-            return (int)new TimeSpan(DateTime.Now.Ticks - dateTime.Ticks).TotalMinutes;
+            return (int)new TimeSpan(getT(d)).TotalMinutes;
         }
         catch {
-            try {
-                var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd H:mm:ss", CultureInfo.InvariantCulture);
-                return (int)new TimeSpan(DateTime.Now.Ticks - dateTime.Ticks).TotalMinutes;
-            }
-            catch {
-                return -1;
-            }
+            return 0;
         }
     }
 }

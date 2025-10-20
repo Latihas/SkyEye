@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.WebSockets;
@@ -10,6 +9,7 @@ using System.Threading.Tasks;
 using Dalamud.Utility;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using static SkyEye.SkyEye.Util;
 
 namespace SkyEye.SkyEye;
 
@@ -35,22 +35,6 @@ internal static class WebSocket {
         }
     }
 
-    private static long getT(string d) {
-        try {
-            var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-            return DateTime.Now.Ticks - dateTime.Ticks;
-        }
-        catch {
-            try {
-                var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd H:mm:ss", CultureInfo.InvariantCulture);
-                return DateTime.Now.Ticks - dateTime.Ticks;
-            }
-            catch {
-                return -1;
-            }
-        }
-    }
-
 
     internal static void StopWss() {
         try {
@@ -64,10 +48,13 @@ internal static class WebSocket {
         _isWssRunning = false;
     }
 
+    private static bool InWssNotify(string name) => Plugin.Configuration.WssNotify.Split("|").Any(f => !f.IsNullOrEmpty() && name.Contains(f));
+
     private static void Notify(string name, bool sound = true) {
-        foreach (var f in Plugin.Configuration.WssNotify.Split("|"))
-            if (!f.IsNullOrEmpty() && name.Contains(f))
-                Plugin.Framework.RunOnFrameworkThread(() => ChatBox.SendMessage($"/e 史书提醒：{name}{(sound ? "<se.1>" : "")}"));
+        if (InWssNotify(name)) {
+            Plugin.Framework.RunOnFrameworkThread(() => ChatBox.SendMessage($"/e 史书提醒：{name}"));
+            if (sound) UiBuilder.NmFound();
+        }
     }
 
     private static async Task RunWebSocketClient(CancellationToken cancellationToken) {
@@ -146,13 +133,11 @@ internal static class WebSocket {
                                 if (x == null) {
                                     nmalive.Add(ni);
                                     Notify($"{ni.oriname}已触发");
-                                    UiBuilder.NmFound();
                                 }
                                 else if (getT(ni.defeated_at) > getT(x.defeated_at)) {
                                     nmalive.Remove(x);
                                     nmalive.Add(ni);
                                     Notify($"{ni.oriname}已触发");
-                                    UiBuilder.NmFound();
                                 }
                                 break;
                             }
