@@ -8,18 +8,18 @@ namespace SkyEye.SkyEye;
 internal static class Util {
     private const ImGuiTableFlags ImGuiTableFlag = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg;
 
-    internal static readonly Vector4 green = new(0, 1, 0, 0.4f);
-    internal static readonly Vector4 green_alt = new(0, 1, 0, 0.3f);
-    internal static readonly Vector4 red = new(1, 0, 0, 0.4f);
-    internal static readonly Vector4 red_alt = new(1, 0, 0, 0.3f);
-    internal static readonly Vector4 blue = new(0, 0, 1, 0.4f);
-    internal static readonly Vector4 blue_alt = new(0, 0, 1, 0.3f);
-    internal static readonly Vector4 cyan = new(0.3f, 0.3f, 1, 0.4f);
-    internal static readonly Vector4 cyan_alt = new(0.3f, 0.3f, 1, 0.3f);
-    internal static readonly Vector4 black = new(0, 0, 0, 0.8f);
-    internal static readonly Vector4 black_alt = new(0.2f, 0.2f, 0.2f, 1);
-    internal static readonly Vector4 white = new(1, 1, 1, 0.4f);
-    internal static readonly Vector4 white_alt = new(1, 1, 1, 0.3f);
+    internal static readonly Vector4 green = new(0, 1, 0, 0.4f),
+        green_alt = new(0, 1, 0, 0.3f),
+        red = new(1, 0, 0, 0.4f),
+        red_alt = new(1, 0, 0, 0.3f),
+        blue = new(0, 0, 1, 0.4f),
+        blue_alt = new(0, 0, 1, 0.3f),
+        cyan = new(0.3f, 0.3f, 1, 0.4f),
+        cyan_alt = new(0.3f, 0.3f, 1, 0.3f),
+        black = new(0, 0, 0, 0.8f),
+        black_alt = new(0.2f, 0.2f, 0.2f, 1),
+        white = new(1, 1, 1, 0.4f),
+        white_alt = new(1, 1, 1, 0.3f);
 
     internal static void DrawText(this ImDrawListPtr drawList, Vector2 pos, string text, uint col, bool stroke, bool centerAlignX = true, uint strokecol = 4278190080u) {
         if (centerAlignX) pos -= new Vector2(ImGui.CalcTextSize(text).X, 0f) / 2f;
@@ -32,9 +32,9 @@ internal static class Util {
         drawList.AddText(pos, col, text);
     }
 
-    internal static void DrawMapDot(this ImDrawListPtr drawList, Vector2 pos, uint fgcolor, uint bgcolor) {
-        drawList.AddCircleFilled(pos, 4f, fgcolor);
-        drawList.AddCircle(pos, 2f, bgcolor, 0, 2f);
+    internal static void DrawMapDot(this ImDrawListPtr drawList, Vector2 pos, uint fgcolor, uint bgcolor, float radius = 4f) {
+        drawList.AddCircleFilled(pos, radius, fgcolor);
+        drawList.AddCircle(pos, radius / 2, bgcolor, 0, radius / 2);
     }
 
     internal static Vector2 ToVector2(Vector3 v) => new(v.X, v.Z);

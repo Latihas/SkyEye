@@ -11,7 +11,7 @@ namespace SkyEye.SkyEye.Data;
 internal static class PData {
     internal static readonly Dictionary<uint, Vector3[]> RabbitTreasurePositions = new() {
         {
-            763u, [
+            763, [
                 new Vector3(-737.8369f, -677.9246f, 143.3176f),
                 new Vector3(-651.9872f, -688.063f, 85.1839f),
                 new Vector3(-606.5342f, -700.6216f, 143.02383f),
@@ -75,7 +75,7 @@ internal static class PData {
                 new Vector3(817.1915f, -629.0625f, -276.2072f)
             ]
         }, {
-            795u, [
+            795, [
                 new Vector3(-469.8102f, 659.1795f, 441.7094f),
                 new Vector3(-464.4484f, 660.6446f, 419.2033f),
                 new Vector3(-438.3944f, 660.7888f, 400.7463f),
@@ -139,7 +139,7 @@ internal static class PData {
                 new Vector3(836.0986f, 656.5436f, -396.1939f)
             ]
         }, {
-            827u, [
+            827, [
                 new Vector3(-933.6184f, 523.23627f, -736.6334f),
                 new Vector3(-920.3497f, 505.9977f, -172.3633f),
                 new Vector3(-863.5947f, 513.31824f, -440.51706f),

@@ -51,10 +51,9 @@ internal static class WebSocket {
     private static bool InWssNotify(string name) => Plugin.Configuration.WssNotify.Split("|").Any(f => !f.IsNullOrEmpty() && name.Contains(f));
 
     private static void Notify(string name, bool sound = true) {
-        if (InWssNotify(name)) {
-            Plugin.Framework.RunOnFrameworkThread(() => ChatBox.SendMessage($"/e 史书提醒：{name}"));
-            if (sound) UiBuilder.NmFound();
-        }
+        if (!InWssNotify(name)) return;
+        Plugin.Framework.RunOnFrameworkThread(() => ChatBox.SendMessage($"/e 史书提醒：{name}"));
+        if (sound) UiBuilder.NmFound();
     }
 
     private static async Task RunWebSocketClient(CancellationToken cancellationToken) {

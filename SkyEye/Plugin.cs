@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Dalamud;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -19,6 +21,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using SkyEye.SkyEye.Data;
 using static System.StringComparison;
@@ -28,33 +31,30 @@ using Timer = System.Timers.Timer;
 namespace SkyEye.SkyEye;
 
 [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")]
+[SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed class Plugin : IDalamudPlugin {
     private const uint LuckyCarrotItemId = 2002482;
     internal const int FarmTimeout = 50;
-    private static float _lSpeed = 1f;
+    private static float _lSpeed = 1f, _dspeed = 1f;
     internal static List<Vector3> DetectedTreasurePositions = [];
     internal static readonly List<IPlayerCharacter> OtherPlayer = [];
     internal static readonly List<Vector3> YlPositions = [];
-
     internal static readonly HashSet<uint> Yl = [];
-
     private static IGameObject? _farmGameObject;
     internal static DateTime LastKill = DateTime.Now;
-
-    private static readonly string[] Loc = ["蓝雾营地", "青磷精炼所"];
-    private static bool _locIter;
-
-    private static bool _killing;
+    private static readonly uint[] Loc = [21, 22];
+    private static bool _locIter, _killing;
     private static readonly Lock KillingLock = new();
-
     internal static Vector3? lastFarmPos;
     internal static bool FarmFull;
+
+    private static IntPtr? SpeedPtr;
     private readonly Timer _carrotTimer;
     private readonly ConfigWindow _configWindow;
     private readonly Lock _speedLock = new();
     private readonly UiBuilder _uiBuilder;
+    // ReSharper disable once MemberCanBePrivate.Global
     public readonly WindowSystem WindowSystem = new("SkyEye");
-    private float _dspeed = 1f;
 
     public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager) {
         PluginInterface = pluginInterface;
@@ -81,7 +81,6 @@ public sealed class Plugin : IDalamudPlugin {
         ChatGui.ChatMessageUnhandled += ChatRabbit;
     }
 
-
     public static Configuration Configuration { get; private set; } = null!;
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] public static IClientState ClientState { get; private set; } = null!;
@@ -102,7 +101,7 @@ public sealed class Plugin : IDalamudPlugin {
 
     [PluginService] private static IChatGui ChatGui { get; set; } = null!;
 
-    [PluginService] internal static IFramework Framework { get; set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
 
     public void Dispose() {
@@ -170,7 +169,9 @@ public sealed class Plugin : IDalamudPlugin {
             var targ = Loc[_locIter ? 1 : 0];
             NavmeshIpc.Stop();
             ChatBox.SendMessage($"/e 检测超时，正在尝试移动到{targ}");
-            ChatBox.SendMessage($"/pdrtelepo {targ}");
+            unsafe {
+                Telepo.Instance()->Teleport(targ, 0);
+            }
             LastKill = DateTime.Now;
         }
         var ieu = InEureka();
@@ -182,7 +183,8 @@ public sealed class Plugin : IDalamudPlugin {
                         TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
                     }
                     ChatBox.SendMessage(Configuration.FarmStartCommand);
-                    if (attracted.Length == 0) lastFarmPos = obj.Position;
+                    if (attracted.Length == 0)
+                        lastFarmPos = Configuration.FarmDistAlgo == 0 ? obj.Position : new Vector3(Configuration.FarmWaitX, Configuration.FarmWaitY, Configuration.FarmWaitZ);
                     NavmeshIpc.Stop();
                     break;
                 }
@@ -343,10 +345,9 @@ public sealed class Plugin : IDalamudPlugin {
             Vector3? point = null;
             foreach (var treasure in DetectedTreasurePositions) {
                 var d = Vector3.Distance(ClientState.LocalPlayer.Position, treasure);
-                if (d < maxd) {
-                    maxd = d;
-                    point = treasure;
-                }
+                if (d > maxd) continue;
+                maxd = d;
+                point = treasure;
             }
             if (point != null) {
                 if (!NavmeshIpc.IsEnabled || !NavmeshIpc.IsReady()) {
@@ -387,10 +388,18 @@ public sealed class Plugin : IDalamudPlugin {
         }
     }
 
+    // https://github.com/Jaksuhn/ffxiv-bundleoftweaks
+    // https://github.com/MnFeN/Triggernometry
+    [SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
     internal static void SetSpeed(float speedBase) {
-        // ReSharper disable once CompareOfFloatsByEqualityOperator
         if (_lSpeed == speedBase) return;
         _lSpeed = speedBase;
-        ChatBox.SendMessage($"/pdrspeed {_lSpeed}");
+        if (SpeedPtr == null) {
+            var ba = SigScanner.ScanText("48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 4F") + 3;
+            SpeedPtr = ba + Marshal.ReadInt32(ba) + 4 + 0x58;
+        }
+        var finalspeed = speedBase * 6;
+        SafeMemory.Write(SpeedPtr.Value, finalspeed);
+        ChatBox.SendMessage($"/e SetSpeed(6x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
     }
 }
