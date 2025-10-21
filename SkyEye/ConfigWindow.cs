@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
@@ -42,24 +43,23 @@ public class ConfigWindow() : Window("SkyEye") {
             NewTab("基础", () => {
                 if (ImGui.Checkbox("稀有天气时间开关", ref Plugin.Configuration.Overlay2DWeatherMapEnabled)) Plugin.Configuration.Save();
                 if (ImGui.Checkbox("元灵位置绘制开关", ref Plugin.Configuration.Overlay3DEnabled)) Plugin.Configuration.Save();
-                if (InEureka()) {
-                    ImGui.Separator();
-                    ImGui.Text("NM开战时间喊话");
-                    if (ImGui.InputText("输入NM开战时间", ref Plugin.Configuration.NmBattleTimeText, 128)) Plugin.Configuration.Save();
+                if (!InEureka()) return;
+                ImGui.Separator();
+                ImGui.Text("NM开战时间喊话");
+                if (ImGui.InputText("输入NM开战时间", ref Plugin.Configuration.NmBattleTimeText, 128)) Plugin.Configuration.Save();
+                ImGui.SameLine();
+                if (ImGui.Button("发送至喊话频道") && !string.IsNullOrWhiteSpace(Plugin.Configuration.NmBattleTimeText))
+                    ChatBox.SendMessage($"/sh <pos>{Plugin.Configuration.NmBattleTimeText}");
+                ImGui.Separator();
+                for (var i = 0; i < YlPositions.Count; i++) {
+                    var p = YlPositions[i];
+                    ImGui.Text($"元灵{i}({p.X},{p.Y},{p.Z})");
                     ImGui.SameLine();
-                    if (ImGui.Button("发送至喊话频道") && !string.IsNullOrWhiteSpace(Plugin.Configuration.NmBattleTimeText))
-                        ChatBox.SendMessage($"/sh <pos>{Plugin.Configuration.NmBattleTimeText}");
-                    ImGui.Separator();
-                    for (var i = 0; i < YlPositions.Count; i++) {
-                        var p = YlPositions[i];
-                        ImGui.Text($"元灵{i}({p.X},{p.Y},{p.Z})");
-                        ImGui.SameLine();
-                        if (ImGui.Button($"发送位置{i}")) {
-                            unsafe {
-                                AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
-                            }
-                            ChatBox.SendMessage($"/sh 元灵位置{i}: <flag>");
+                    if (ImGui.Button($"发送位置{i}")) {
+                        unsafe {
+                            AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
                         }
+                        ChatBox.SendMessage($"/sh 元灵位置{i}: <flag>");
                     }
                 }
             });
@@ -94,22 +94,24 @@ public class ConfigWindow() : Window("SkyEye") {
                 }
             });
             NewTab("农怪", () => {
-                ImGui.Text("提示：该功能会占用Vnav寻路功能");
-                if (ImGui.Checkbox("自动农怪(移动到北萨那兰会自动切换为刷B怪,名称为永恒不灭的菲兰德副耀士)", ref Plugin.Configuration.AutoFarm)) {
+                ImGui.Text("提示：");
+                ImGui.Text("该功能会占用Vnav寻路功能");
+                ImGui.Text("移动到北萨那兰会自动切换为刷B怪,名称为永恒不灭的菲兰德副耀士");
+                ImGui.SameLine();
+                if (ImGui.Button("永恒不灭的菲兰德副耀士")) ImGui.SetClipboardText("永恒不灭的菲兰德副耀士");
+                ImGui.Text("自动农怪可能在第一次开启时无反应，/xivplugins关闭打开一次SkeEye即可。");
+                if (ImGui.Checkbox("自动农怪", ref Plugin.Configuration.AutoFarm)) {
                     LastKill = DateTime.Now;
                     Plugin.Configuration.Save();
                 }
-                ImGui.SameLine();
-                if (ImGui.Button("永恒不灭的菲兰德副耀士")) ImGui.SetClipboardText("永恒不灭的菲兰德副耀士");
-
                 if (ImGui.InputText("怪名称", ref Plugin.Configuration.FarmTarget, 114514)) Plugin.Configuration.Save();
+                if (ImGui.Combo("引仇距离计算方式", ref Plugin.Configuration.FarmDistAlgo, distAlgo)) {
+                    Plugin.Configuration.Save();
+                    ImGui.EndCombo();
+                }
                 if (Plugin.Configuration.AutoFarm) {
                     if (ImGui.InputText("开怪指令", ref Plugin.Configuration.FarmStartCommand, 114514)) Plugin.Configuration.Save();
                     if (ImGui.InputInt("最大引仇目标", ref Plugin.Configuration.FarmTargetMax, 1)) Plugin.Configuration.Save();
-                    if (ImGui.Combo("引仇距离计算方式", ref Plugin.Configuration.FarmDistAlgo, distAlgo)) {
-                        Plugin.Configuration.Save();
-                        ImGui.EndCombo();
-                    }
                     if (Plugin.Configuration.FarmDistAlgo == 1) {
                         if (ImGui.InputFloat("FarmWaitX", ref Plugin.Configuration.FarmWaitX)) Plugin.Configuration.Save();
                         if (ImGui.InputFloat("FarmWaitY", ref Plugin.Configuration.FarmWaitY)) Plugin.Configuration.Save();
@@ -119,12 +121,12 @@ public class ConfigWindow() : Window("SkyEye") {
                             Plugin.Configuration.FarmWaitY = ClientState.LocalPlayer.Position.Y;
                             Plugin.Configuration.FarmWaitZ = ClientState.LocalPlayer.Position.Z;
                             Plugin.Configuration.Save();
+                            if (lastFarmPos != null) lastFarmPos = new Vector3(Plugin.Configuration.FarmWaitX, Plugin.Configuration.FarmWaitY, Plugin.Configuration.FarmWaitZ);
                         }
                     }
                     if (ImGui.InputFloat("最大引仇距离", ref Plugin.Configuration.FarmMaxDistance, 1)) Plugin.Configuration.Save();
                     if (ImGui.Checkbox("打完一波再拉下一波", ref Plugin.Configuration.FarmWait)) Plugin.Configuration.Save();
                 }
-                ImGui.Text("自动农怪可能在第一次开启时无反应，/xivplugins关闭打开一次SkeEye即可。");
                 if (ClientState.TerritoryType == 147 && Plugin.Configuration.AutoFarm) ImGui.Text($"超时：{(DateTime.Now - LastKill).Seconds}/{FarmTimeout}");
             });
             NewTab("史书", () => {

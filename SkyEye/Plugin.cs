@@ -143,15 +143,15 @@ public sealed class Plugin : IDalamudPlugin {
         if (!NavmeshIpc.IsReady()) NavmeshIpc.Init();
         var playerPos = ClientState.LocalPlayer.Position;
         var playerName = ClientState.LocalPlayer.Name.ToString();
-        var validObjs = Objects.Where(obj =>
-            obj is { ObjectKind: ObjectKind.BattleNpc, IsDead: false } && obj.Name.ToString().Contains(Configuration.FarmTarget) && (lastFarmPos is null || Vector3.Distance(lastFarmPos.Value, obj.Position) < Configuration.FarmMaxDistance)).ToList();
-        var attracted = validObjs.Where(obj => obj.TargetObject != null && obj.TargetObject.Name.ToString().Contains(playerName)).ToArray();
+        var allObjs=Objects.Where(obj =>
+            obj is { ObjectKind: ObjectKind.BattleNpc, IsDead: false } && obj.Name.ToString().Contains(Configuration.FarmTarget)).ToList();
+        var validObjs = allObjs.Where(obj =>lastFarmPos is null || Vector3.Distance(lastFarmPos.Value, obj.Position) < Configuration.FarmMaxDistance).ToList();
+        var attracted = allObjs.Where(obj => obj.TargetObject != null && obj.TargetObject.Name.ToString().Contains(playerName)).ToArray();
         if (attracted.Length >= Configuration.FarmTargetMax) {
             FarmFull = true;
             NavmeshIpc.Stop();
             return;
         }
-        if (validObjs.Count == 0 && NavmeshIpc.IsRunning()) NavmeshIpc.Stop();
         if (attracted.Length == 0) {
             lastFarmPos = null;
             FarmFull = false;
@@ -183,7 +183,7 @@ public sealed class Plugin : IDalamudPlugin {
                         TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
                     }
                     ChatBox.SendMessage(Configuration.FarmStartCommand);
-                    if (attracted.Length == 0)
+                    if (attracted.Length == 0 || lastFarmPos == null)
                         lastFarmPos = Configuration.FarmDistAlgo == 0 ? obj.Position : new Vector3(Configuration.FarmWaitX, Configuration.FarmWaitY, Configuration.FarmWaitZ);
                     NavmeshIpc.Stop();
                     break;

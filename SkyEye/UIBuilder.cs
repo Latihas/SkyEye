@@ -19,6 +19,7 @@ using static SkyEye.SkyEye.Util;
 namespace SkyEye.SkyEye;
 
 internal class UiBuilder : IDisposable {
+    private const string timeFormat = @"hh\:mm\:ss";
     private static readonly SoundPlayer Player1 = new(), Player2 = new();
     private readonly List<(Vector3 worldpos, uint fgcolor, uint bgcolor, string name, string fateId, EurekaWeather SpawnRequiredWeather, bool SpawnByRequiredNight)> _eurekaList2D = [];
     private readonly List<string> _eurekaLiveIdList2D = [], _eurekaLiveIdList2DOld = [];
@@ -157,7 +158,7 @@ internal class UiBuilder : IDisposable {
         _weatherDic.Clear();
         foreach (var o9 in _weathers) {
             var timeLeft = EorzeaWeather.GetWeatherUptime(o9.Weather, regionWeather, DateTime.Now).End - DateTime.Now;
-            _weatherDic.Add(o9.Weather, (o9.Time.ToString(@"hh\:mm\:ss"), timeLeft.ToString(@"hh\:mm\:ss")));
+            _weatherDic.Add(o9.Weather, (o9.Time.ToString(timeFormat), timeLeft.ToString(timeFormat)));
         }
         foreach (var o10 in fates)
             _eurekaList2D.Add((ToVector3(MapToWorld(o10.FatePosition, MapInfo[TerritoryType].Item1, MapInfo[TerritoryType].Item2, MapInfo[TerritoryType].Item3)),
@@ -175,8 +176,8 @@ internal class UiBuilder : IDisposable {
             var pos2 = WorldToMap(valueOrDefault, item2.worldpos);
             if (_eurekaLiveIdList2D.Contains(item2.fateId)) {
                 var fateProgress = FateManager.Instance()->GetFateById(ushort.Parse(item2.fateId))->Progress;
-                if (fateProgress > 0) _bdl.DrawText(pos2, item2.name + "(" + fateProgress + "%)", 0xFF00E000, true);
-                else _bdl.DrawText(pos2, item2.name, 0xFF00E000, true);
+                if (fateProgress > 0) _bdl.DrawText(pos2, item2.name + "(" + fateProgress + "%)", 0xFF00E000);
+                else _bdl.DrawText(pos2, item2.name, 0xFF00E000);
                 if (fateProgress > 97) {
                     var time = DateTime.Now.ToString(CurrentCulture).Replace("/", "-");
                     var fateId = ushort.Parse(item2.fateId);
@@ -213,57 +214,67 @@ internal class UiBuilder : IDisposable {
                         : new TimeSpan(0, 7, 0) - (DateTime.Now - Convert.ToDateTime(EurekaHydatos.DeadFateDic[ushort.Parse(item2.fateId)])),
                     _ => TimeSpan.Zero
                 };
-                if (item2 is { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: false }) _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(@"hh\:mm\:ss"), 0xFF808080, true);
+                if (item2 is { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: false }) _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(timeFormat), 0xFF808080);
                 else if (item2.SpawnRequiredWeather == EurekaWeather.None) {
                     if (_eorzeaTime == null) continue;
                     var etimeHour = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
                     if (etimeHour is < 6 or >= 18) {
-                        _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(@"hh\:mm\:ss"), 0xFF808080, true);
+                        _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(timeFormat), 0xFF808080);
                         continue;
                     }
                     var timeFromNight = _eorzeaTime.TimeUntilNight();
-                    if (timeFromNight < timeFromCanTriggered) _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(@"hh\:mm\:ss"), 0xFF808080, true);
-                    else _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight.ToString(@"hh\:mm\:ss"), 0xFF808080, true);
+                    if (timeFromNight < timeFromCanTriggered) _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(timeFormat), 0xFF808080);
+                    else _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight.ToString(timeFormat), 0xFF808080);
                 }
                 else if (!_weatherDic.TryGetValue(item2.SpawnRequiredWeather, out var value) || _weatherNow.Weather == item2.SpawnRequiredWeather || TimeSpan.Parse(value.Item1) < timeFromCanTriggered)
-                    _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(@"hh\:mm\:ss"), 0xFF808080, true);
-                else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 0xFF808080, true);
+                    _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(timeFormat), 0xFF808080);
+                else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 0xFF808080);
             }
-            else if (item2 is { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: false }) _bdl.DrawText(pos2, item2.name, item2.fgcolor, true);
-            else if (item2 is { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: true }) {
-                if (_eorzeaTime == null) continue;
-                var etimeHour2 = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
-                if (etimeHour2 is < 6 or >= 18) {
-                    var timeFromDay = _eorzeaTime.TimeUntilDay();
-                    _bdl.DrawText(pos2, item2.name + "\n" + timeFromDay.ToString(@"hh\:mm\:ss"), item2.fgcolor, true);
+            else
+                switch (item2) {
+                    case { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: false }:
+                        _bdl.DrawText(pos2, item2.name, item2.fgcolor);
+                        break;
+                    case { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: true } when _eorzeaTime == null:
+                        continue;
+                    case { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: true }: {
+                        var etimeHour2 = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
+                        if (etimeHour2 is < 6 or >= 18) {
+                            var timeFromDay = _eorzeaTime.TimeUntilDay();
+                            _bdl.DrawText(pos2, item2.name + "\n" + timeFromDay.ToString(timeFormat), item2.fgcolor);
+                        }
+                        else {
+                            var timeFromNight2 = _eorzeaTime.TimeUntilNight();
+                            _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight2.ToString(timeFormat), 0xFF808080);
+                        }
+                        break;
+                    }
+                    default: {
+                        if (item2.SpawnRequiredWeather != EurekaWeather.None && !item2.SpawnByRequiredNight) {
+                            if (!_weatherDic.TryGetValue(item2.SpawnRequiredWeather, out var value) || _weatherNow.Weather == item2.SpawnRequiredWeather) _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item2, item2.fgcolor);
+                            else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 0xFF808080);
+                        }
+                        else {
+                            if (item2.SpawnRequiredWeather == EurekaWeather.None || !item2.SpawnByRequiredNight || _eorzeaTime == null) continue;
+                            var etimeHour3 = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
+                            var weatherLeftTime = _weatherDic[item2.SpawnRequiredWeather].Item2;
+                            if ((!_weatherDic.ContainsKey(item2.SpawnRequiredWeather) || _weatherNow.Weather == item2.SpawnRequiredWeather) && etimeHour3 is < 6 or >= 18) {
+                                var timeFromDay2 = _eorzeaTime.TimeUntilDay();
+                                if (timeFromDay2.Ticks < TimeSpan.Parse(weatherLeftTime).Ticks) _bdl.DrawText(pos2, item2.name + "\n" + timeFromDay2.ToString(timeFormat), item2.fgcolor);
+                                else _bdl.DrawText(pos2, item2.name + "\n" + weatherLeftTime, item2.fgcolor);
+                            }
+                            else if (etimeHour3 is >= 6 and < 18) {
+                                var timeFromNight3 = _eorzeaTime.TimeUntilNight();
+                                _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight3.ToString(timeFormat), 0xFF808080);
+                            }
+                            else _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item1, 0xFF808080);
+                        }
+                        break;
+                    }
                 }
-                else {
-                    var timeFromNight2 = _eorzeaTime.TimeUntilNight();
-                    _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight2.ToString(@"hh\:mm\:ss"), 0xFF808080, true);
-                }
-            }
-            else if (item2.SpawnRequiredWeather != EurekaWeather.None && !item2.SpawnByRequiredNight) {
-                if (!_weatherDic.TryGetValue(item2.SpawnRequiredWeather, out var value) || _weatherNow.Weather == item2.SpawnRequiredWeather) _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item2, item2.fgcolor, true);
-                else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 0xFF808080, true);
-            }
-            else {
-                if (item2.SpawnRequiredWeather == EurekaWeather.None || !item2.SpawnByRequiredNight || _eorzeaTime == null) continue;
-                var etimeHour3 = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
-                var weatherLeftTime = _weatherDic[item2.SpawnRequiredWeather].Item2;
-                if ((!_weatherDic.ContainsKey(item2.SpawnRequiredWeather) || _weatherNow.Weather == item2.SpawnRequiredWeather) && etimeHour3 is < 6 or >= 18) {
-                    var timeFromDay2 = _eorzeaTime.TimeUntilDay();
-                    if (timeFromDay2.Ticks < TimeSpan.Parse(weatherLeftTime).Ticks) _bdl.DrawText(pos2, item2.name + "\n" + timeFromDay2.ToString(@"hh\:mm\:ss"), item2.fgcolor, true);
-                    else _bdl.DrawText(pos2, item2.name + "\n" + weatherLeftTime, item2.fgcolor, true);
-                }
-                else if (etimeHour3 is >= 6 and < 18) {
-                    var timeFromNight3 = _eorzeaTime.TimeUntilNight();
-                    _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight3.ToString(@"hh\:mm\:ss"), 0xFF808080, true);
-                }
-                else _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item1, 0xFF808080, true);
-            }
         }
         if (Plugin.Configuration.Overlay2DWeatherMapEnabled) DrawWeatherMap(valueOrDefault);
-        foreach (var yl in Plugin.YlPositions) _bdl.DrawText(WorldToMap(valueOrDefault, yl), "元灵", 0xFF0000FF, true);
+        foreach (var yl in Plugin.YlPositions) _bdl.DrawText(WorldToMap(valueOrDefault, yl), "元灵", 0xFF0000FF);
         _bdl.PopClipRect();
     }
 
@@ -328,41 +339,41 @@ internal class UiBuilder : IDisposable {
         notice.Append("风岛：强风");
         var o = EurekaAnemos.GetAllNextWeatherTime().First(i => i.Weather == EurekaWeather.Gales);
         if (EurekaAnemos.GetCurrentWeatherInfo().Weather != EurekaWeather.Gales)
-            notice.Append("×(").Append(o.Time.ToString(@"hh\:mm\:ss"));
+            notice.Append("×(").Append(o.Time.ToString(timeFormat));
         else
-            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaAnemos.Weathers, DateTime.Now).End - DateTime.Now).ToString(@"hh\:mm\:ss"));
+            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaAnemos.Weathers, DateTime.Now).End - DateTime.Now).ToString(timeFormat));
         notice.Append(")    夜晚");
         if (etimeHour is < 6 or >= 18)
-            notice.Append("○(").Append(_eorzeaTime.TimeUntilDay().ToString(@"hh\:mm\:ss"));
+            notice.Append("○(").Append(_eorzeaTime.TimeUntilDay().ToString(timeFormat));
         else
-            notice.Append("×(").Append(_eorzeaTime.TimeUntilNight().ToString(@"hh\:mm\:ss"));
+            notice.Append("×(").Append(_eorzeaTime.TimeUntilNight().ToString(timeFormat));
         var pagosweatherNow = EurekaPagos.GetCurrentWeatherInfo();
         notice.Append(")\n冰岛：暴雪");
         var next = EurekaPagos.GetAllNextWeatherTime();
         o = next.First(i => i.Weather == EurekaWeather.Blizzards);
         if (pagosweatherNow.Weather != EurekaWeather.Blizzards)
-            notice.Append("×(").Append(o.Time.ToString(@"hh\:mm\:ss"));
+            notice.Append("×(").Append(o.Time.ToString(timeFormat));
         else
-            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPagos.Weathers, DateTime.Now).End - DateTime.Now).ToString(@"hh\:mm\:ss"));
+            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPagos.Weathers, DateTime.Now).End - DateTime.Now).ToString(timeFormat));
         notice.Append(")    薄雾");
         o = next.First(i => i.Weather == EurekaWeather.Fog);
         if (pagosweatherNow.Weather != EurekaWeather.Fog)
-            notice.Append("×(").Append(o.Time.ToString(@"hh\:mm\:ss"));
+            notice.Append("×(").Append(o.Time.ToString(timeFormat));
         else
-            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPagos.Weathers, DateTime.Now).End - DateTime.Now).ToString(@"hh\:mm\:ss"));
+            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPagos.Weathers, DateTime.Now).End - DateTime.Now).ToString(timeFormat));
         notice.Append(")\n火岛：暴雪");
         next = EurekaPyros.GetAllNextWeatherTime();
         o = next.First(i => i.Weather == EurekaWeather.Blizzards);
         if (pagosweatherNow.Weather != EurekaWeather.Blizzards)
-            notice.Append("×(").Append(o.Time.ToString(@"hh\:mm\:ss"));
+            notice.Append("×(").Append(o.Time.ToString(timeFormat));
         else
-            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPyros.Weathers, DateTime.Now).End - DateTime.Now).ToString(@"hh\:mm\:ss"));
+            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPyros.Weathers, DateTime.Now).End - DateTime.Now).ToString(timeFormat));
         notice.Append(")    热浪");
         o = next.First(i => i.Weather == EurekaWeather.HeatWaves);
         if (pagosweatherNow.Weather != EurekaWeather.Blizzards)
-            notice.Append("×(").Append(o.Time.ToString(@"hh\:mm\:ss"));
+            notice.Append("×(").Append(o.Time.ToString(timeFormat));
         else
-            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPyros.Weathers, DateTime.Now).End - DateTime.Now).ToString(@"hh\:mm\:ss"));
+            notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPyros.Weathers, DateTime.Now).End - DateTime.Now).ToString(timeFormat));
         notice.Append(')');
         var ns = notice.ToString();
         _bdl.DrawText(WorldToMap(valueOrDefault, Plugin.ClientState.TerritoryType switch {
@@ -370,6 +381,6 @@ internal class UiBuilder : IDisposable {
             795 => new Vector3(0.2181f, 0f, 865.32275f),
             827 => new Vector3(89.62729f, 0f, -1241.035f),
             _ => throw new Exception()
-        }), ns, uint.MaxValue, true);
+        }), ns, uint.MaxValue);
     }
 }

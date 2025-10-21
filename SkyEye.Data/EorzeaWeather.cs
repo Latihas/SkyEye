@@ -19,12 +19,9 @@ internal static class EorzeaWeather {
         where chance < _.Item1
         select _.Item2).FirstOrDefault();
 
-    internal static (PData.EurekaWeather weather, TimeSpan time) GetCurrentWeatherInfo((int, PData.EurekaWeather)[] weathers) {
-        var chance = CalculateTarget(DateTime.Now.ToUniversalTime());
-        var item = Forecast(weathers, chance);
-        var timeNow = EorzeaTime.GetNearestEarthInterval(DateTime.Now);
-        return (weather: item, time: (timeNow + TimeSpan.FromMilliseconds(1400000.0)).ToLocalTime() - DateTime.Now);
-    }
+    internal static (PData.EurekaWeather weather, TimeSpan time) GetCurrentWeatherInfo((int, PData.EurekaWeather)[] weathers) =>
+        (Forecast(weathers, CalculateTarget(DateTime.Now.ToUniversalTime())), (EorzeaTime.GetNearestEarthInterval(DateTime.Now) + TimeSpan.FromMilliseconds(1400000.0)).ToLocalTime() - DateTime.Now);
+
 
     internal static List<(PData.EurekaWeather Weather, TimeSpan Time)> GetAllWeathers((int, PData.EurekaWeather)[] weathers) {
         var results = new List<(PData.EurekaWeather, TimeSpan)>();
@@ -54,7 +51,6 @@ internal static class EorzeaWeather {
 
     internal static (DateTime Start, DateTime End) GetWeatherUptime(PData.EurekaWeather targetWeather, (int, PData.EurekaWeather)[] weathers, DateTime start) {
         var dateTime = GetCountWeatherForecasts(targetWeather, 1, weathers, start)[0];
-        var timeEnd = dateTime + TimeSpan.FromMilliseconds(1400000.0);
-        return (Start: dateTime, End: timeEnd);
+        return (dateTime, dateTime + TimeSpan.FromMilliseconds(1400000.0));
     }
 }

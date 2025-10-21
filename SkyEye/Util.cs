@@ -21,14 +21,12 @@ internal static class Util {
         white = new(1, 1, 1, 0.4f),
         white_alt = new(1, 1, 1, 0.3f);
 
-    internal static void DrawText(this ImDrawListPtr drawList, Vector2 pos, string text, uint col, bool stroke, bool centerAlignX = true, uint strokecol = 4278190080u) {
-        if (centerAlignX) pos -= new Vector2(ImGui.CalcTextSize(text).X, 0f) / 2f;
-        if (stroke) {
-            drawList.AddText(pos + new Vector2(-1f, -1f), strokecol, text);
-            drawList.AddText(pos + new Vector2(-1f, 1f), strokecol, text);
-            drawList.AddText(pos + new Vector2(1f, -1f), strokecol, text);
-            drawList.AddText(pos + new Vector2(1f, 1f), strokecol, text);
-        }
+    internal static void DrawText(this ImDrawListPtr drawList, Vector2 pos, string text, uint col, uint strokecol = 0xFF000000) {
+        pos -= new Vector2(ImGui.CalcTextSize(text).X, 0f) / 2f;
+        drawList.AddText(pos + new Vector2(-1f, -1f), strokecol, text);
+        drawList.AddText(pos + new Vector2(-1f, 1f), strokecol, text);
+        drawList.AddText(pos + new Vector2(1f, -1f), strokecol, text);
+        drawList.AddText(pos + new Vector2(1f, 1f), strokecol, text);
         drawList.AddText(pos, col, text);
     }
 
