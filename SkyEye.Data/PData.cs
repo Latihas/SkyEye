@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
-using Lumina.Excel.Sheets;
 
 namespace SkyEye.SkyEye.Data;
 
@@ -327,17 +326,17 @@ internal static class PData {
         new(714.3189f, -630.0619f, -321.2806f),
         new(735.9999f, -629.8334f, -274.5996f)
     ];
-    internal static readonly Dictionary<int, (int, float, float)> MapInfo = new() {
-        {
-            732, (Plugin.DataManager.GetExcelSheet<Map>().GetRow(732).SizeFactor, 0.75f, 1.25f)
-        }, {
-            763, (Plugin.DataManager.GetExcelSheet<Map>().GetRow(763).SizeFactor, 15.75f, 16.25f)
-        }, {
-            795, (Plugin.DataManager.GetExcelSheet<Map>().GetRow(795).SizeFactor, 16, 16.25f)
-        }, {
-            827, (Plugin.DataManager.GetExcelSheet<Map>().GetRow(827).SizeFactor, 11, 20.5f)
-        }
-    };
+    // internal static readonly Dictionary<int, (int, float, float)> ULKMapInfo = new() {
+    //     {
+    //         732, (200, 11, 11.25f)
+    //     }, {
+    //         763, (200, 11f, 11.25f)
+    //     }, {
+    //         795, (200, 11, 11.25f)
+    //     }, {
+    //         827, (200, 11, 11.25f)
+    //     }
+    // };
 
     internal static string ToFriendlyString(this EurekaWeather weather) {
         return weather switch {

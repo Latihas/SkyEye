@@ -6,7 +6,6 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using SkyEye.SkyEye.Data;
-using static SkyEye.SkyEye.Data.PData;
 using static SkyEye.SkyEye.MConfiguration;
 using static SkyEye.SkyEye.Plugin;
 using static SkyEye.SkyEye.Util;
@@ -112,6 +111,14 @@ public class ConfigWindow() : Window("SkyEye") {
                 ImGui.Text("无视周边的挂壁亲友（用竖线|隔开）");
                 if (ImGui.InputText("Friendly names", ref Configuration.SpeedUpFriendly, 114514)) Configuration.Save();
                 ImGui.Text($"周围人数：{(InArea() ? OtherPlayer.Count : "不在区域内")};区域id：{ClientState.TerritoryType}");
+                ImGui.Separator();
+                NewTable(["Id", "名称"], MapInfo, [
+                    i => ImGui.Text(i.RowId.ToString()),
+                    i => ImGui.Text(i.PlaceName)
+                ], [
+                    i => i.RowId.ToString(),
+                    i => i.PlaceName
+                ], "Territory");
             });
             NewTab("宝箱", () => {
                 if (ImGui.Checkbox("宝箱位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
@@ -227,7 +234,7 @@ public class ConfigWindow() : Window("SkyEye") {
                             if (InEureka()) {
                                 unsafe {
                                     AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId,
-                                        ToVector3(MapToWorld(i.FatePosition, MapInfo[ClientState.TerritoryType].Item1, MapInfo[ClientState.TerritoryType].Item2, MapInfo[ClientState.TerritoryType].Item3)));
+                                        ToVector3(MapToWorld(i.FatePosition, 200, 11, 11.25f)));
                                 }
                                 ChatBox.SendMessage("/vnav moveflag");
                             }

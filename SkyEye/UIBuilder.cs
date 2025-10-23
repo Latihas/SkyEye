@@ -62,11 +62,12 @@ internal class UiBuilder : IDisposable {
     }
 
     private void UiBuilder_OnBuildUi() {
+        if (!Configuration.PluginEnabled) return;
         if (InEureka() && !Condition[ConditionFlag.BetweenAreas] && !Condition[ConditionFlag.BetweenAreas51]) {
             _eorzeaTime = EorzeaTime.ToEorzeaTime(DateTime.Now);
             _bdl = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
             RefreshEureka();
-            if (Configuration.PluginEnabled) DrawMapOverlay();
+            DrawMapOverlay();
             if (Configuration.Overlay3DEnabled)
                 foreach (var pos in DetectedTreasurePositions)
                     if (Gui.WorldToScreen(pos, out var v))
@@ -167,7 +168,7 @@ internal class UiBuilder : IDisposable {
             _weatherDic.Add(o9.Weather, (o9.Time.ToString(timeFormat), timeLeft.ToString(timeFormat)));
         }
         foreach (var o10 in fates)
-            _eurekaList2D.Add((ToVector3(MapToWorld(o10.FatePosition, MapInfo[TerritoryType].Item1, MapInfo[TerritoryType].Item2, MapInfo[TerritoryType].Item3)),
+            _eurekaList2D.Add((ToVector3(MapToWorld(o10.FatePosition, 200, 11, 11.25f)),
                 uint.MaxValue, uint.MaxValue, o10.BossShortName, o10.FateId.ToString(), o10.SpawnRequiredWeather, o10.SpawnByRequiredNight));
     }
 
@@ -321,7 +322,7 @@ internal class UiBuilder : IDisposable {
     }
 
     private Vector2 WorldToMap(Vector2 origin, Vector3 worldVector3) =>
-        origin + ToVector2(worldVector3 - ClientState.LocalPlayer!.Position) * AreaMap.MapScale * MapInfo[ClientState.TerritoryType].Item1 / 200f * _globalUiScale;
+        origin + ToVector2(worldVector3 - ClientState.LocalPlayer!.Position) * AreaMap.MapScale * _globalUiScale;
 
 
     internal static void NmFound() {

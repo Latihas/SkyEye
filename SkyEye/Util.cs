@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Utility;
 
 namespace SkyEye.SkyEye;
 
@@ -63,15 +66,31 @@ internal static class Util {
         }
     }
 
-    internal static void NewTable<T>(string[] header, T[] data, Action<T>[] acts) {
+    internal static void NewTable<T>(string[] header, T[] data, Action<T>[] acts, Func<T, string>[]? filter = null, string? filterTag = null) {
+        var datax = (data.Clone() as T[])!;
         if (ImGui.BeginTable("Table", acts.Length, ImGuiTableFlag)) {
             foreach (var item in header) {
                 if (item == "") ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 24);
                 else if (item.Contains("序号")) ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthFixed, 96);
-                else ImGui.TableSetupColumn(item);
+                else ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthStretch);
             }
             ImGui.TableHeadersRow();
-            foreach (var res in data) {
+            if (filter != null && filterTag != null) {
+                var filterdata = new string[acts.Length];
+                for (var i = 0; i < filterdata.Length; i++) filterdata[i] = "";
+                ImGui.TableNextRow();
+                for (var i = 0; i < acts.Length; i++) {
+                    ImGui.TableSetColumnIndex(i);
+                    if (header[i].IsNullOrEmpty()) continue;
+                    if (ImGui.InputText($"##Filter{i}", ref filterdata[i])) {
+                        for (var j = 0; j < acts.Length; j++) {
+                            if (header[j].IsNullOrEmpty()) continue;
+                            datax = datax.Where(x => filter[j](x).Contains(filterdata[j])).ToArray();
+                        }
+                    }
+                }
+            }
+            foreach (var res in datax) {
                 ImGui.TableNextRow();
                 for (var i = 0; i < acts.Length; i++) {
                     ImGui.TableSetColumnIndex(i);

@@ -24,6 +24,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using Lumina.Excel.Sheets;
 using SkyEye.SkyEye.Data;
 using static System.StringComparison;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
@@ -48,11 +49,10 @@ public sealed class Plugin : IDalamudPlugin {
     private static readonly Lock KillingLock = new();
     internal static Vector3? lastFarmPos;
     internal static bool FarmFull;
-
     private static IntPtr? SpeedPtr;
-
     internal static MConfiguration.SpeedInfo? CurrentSpeedInfo = null;
 
+    internal static (string RowId, string PlaceName)[] MapInfo = null!;
     private readonly Timer _carrotTimer;
     private readonly ConfigWindow _configWindow;
     private readonly UiBuilder _uiBuilder;
@@ -92,6 +92,7 @@ public sealed class Plugin : IDalamudPlugin {
             Configuration.SpeedUp.Add(MConfiguration.SpeedInfo.Default());
             Configuration.SpeedUp.Add(new MConfiguration.SpeedInfo());
         }
+        MapInfo = DataManager.GetExcelSheet<TerritoryType>().Where(i => !i.PlaceNameRegion.Value.Name.IsEmpty).Select(i => (i.RowId.ToString(), $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}")).ToArray();
     }
 
     public static MConfiguration Configuration { get; private set; } = null!;
