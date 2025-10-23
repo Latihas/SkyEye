@@ -10,10 +10,10 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
 using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Excel.Sheets;
 using SkyEye.SkyEye.Data;
 using static System.Globalization.CultureInfo;
 using static SkyEye.SkyEye.Data.PData;
+using static SkyEye.SkyEye.Plugin;
 using static SkyEye.SkyEye.Util;
 
 namespace SkyEye.SkyEye;
@@ -21,10 +21,10 @@ namespace SkyEye.SkyEye;
 internal class UiBuilder : IDisposable {
     private const string timeFormat = @"hh\:mm\:ss";
     private static readonly SoundPlayer Player1 = new(), Player2 = new();
+    private static ushort lastTerritoryId;
     private readonly List<(Vector3 worldpos, uint fgcolor, uint bgcolor, string name, string fateId, EurekaWeather SpawnRequiredWeather, bool SpawnByRequiredNight)> _eurekaList2D = [];
     private readonly List<string> _eurekaLiveIdList2D = [], _eurekaLiveIdList2DOld = [];
     private readonly Vector2[] _mapPosSize = new Vector2[2];
-    private readonly Dictionary<uint, ushort> _sizeFactorDict;
     private readonly Dictionary<EurekaWeather, (string, string)> _weatherDic = new();
     private ImDrawListPtr _bdl;
     private EorzeaTime? _eorzeaTime;
@@ -33,41 +33,47 @@ internal class UiBuilder : IDisposable {
     private (EurekaWeather Weather, TimeSpan Time) _weatherNow;
 
     public UiBuilder() {
-        _sizeFactorDict = Plugin.DataManager.GetExcelSheet<TerritoryType>().ToDictionary(k => k.RowId, v => v.Map.Value.SizeFactor);
-        Plugin.ClientState.TerritoryChanged += TerritoryChanged;
-        Plugin.PluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
+        ClientState.TerritoryChanged += TerritoryChanged;
+        PluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
     }
 
     public void Dispose() {
-        Plugin.PluginInterface.UiBuilder.Draw -= UiBuilder_OnBuildUi;
-        Plugin.ClientState.TerritoryChanged -= TerritoryChanged;
+        PluginInterface.UiBuilder.Draw -= UiBuilder_OnBuildUi;
+        ClientState.TerritoryChanged -= TerritoryChanged;
     }
 
     private static void TerritoryChanged(ushort territoryId) {
-        Plugin.Log.Info($"territory changed to: {territoryId}");
-        foreach (var k in EurekaAnemos.DeadFateDic.Keys) EurekaAnemos.DeadFateDic[k] = "-1";
-        foreach (var k in EurekaPagos.DeadFateDic.Keys) EurekaPagos.DeadFateDic[k] = "-1";
-        foreach (var k in EurekaPyros.DeadFateDic.Keys) EurekaPyros.DeadFateDic[k] = "-1";
-        foreach (var k in EurekaHydatos.DeadFateDic.Keys) EurekaHydatos.DeadFateDic[k] = "-1";
-        Plugin.YlPositions.Clear();
-        Plugin.Yl.Clear();
-        Plugin.lastFarmPos = null;
-        Plugin.FarmFull = false;
+        if (InEureka(lastTerritoryId) || InEureka(territoryId)) {
+            YlPositions.Clear();
+            Yl.Clear();
+            lastFarmPos = null;
+            FarmFull = false;
+            foreach (var k in EurekaAnemos.DeadFateDic.Keys) EurekaAnemos.DeadFateDic[k] = "-1";
+            foreach (var k in EurekaPagos.DeadFateDic.Keys) EurekaPagos.DeadFateDic[k] = "-1";
+            foreach (var k in EurekaPyros.DeadFateDic.Keys) EurekaPyros.DeadFateDic[k] = "-1";
+            foreach (var k in EurekaHydatos.DeadFateDic.Keys) EurekaHydatos.DeadFateDic[k] = "-1";
+        }
+        lastTerritoryId = territoryId;
+        CurrentSpeedInfo = null;
+        foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(territoryId.ToString()))) {
+            CurrentSpeedInfo = s;
+            break;
+        }
     }
 
     private void UiBuilder_OnBuildUi() {
-        if (Plugin.InEureka() && !Plugin.Condition[ConditionFlag.BetweenAreas] && !Plugin.Condition[ConditionFlag.BetweenAreas51]) {
+        if (InEureka() && !Condition[ConditionFlag.BetweenAreas] && !Condition[ConditionFlag.BetweenAreas51]) {
             _eorzeaTime = EorzeaTime.ToEorzeaTime(DateTime.Now);
             _bdl = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
             RefreshEureka();
-            if (Plugin.Configuration.PluginEnabled) DrawMapOverlay();
-            if (Plugin.Configuration.Overlay3DEnabled)
-                foreach (var pos in Plugin.DetectedTreasurePositions)
-                    if (Plugin.Gui.WorldToScreen(pos, out var v))
+            if (Configuration.PluginEnabled) DrawMapOverlay();
+            if (Configuration.Overlay3DEnabled)
+                foreach (var pos in DetectedTreasurePositions)
+                    if (Gui.WorldToScreen(pos, out var v))
                         _bdl.DrawMapDot(v, 0xFF00FFFF, 0xFF00FFFF);
         }
-        if (Plugin.lastFarmPos != null)
-            if (Plugin.Gui.WorldToScreen(Plugin.lastFarmPos.Value, out var v))
+        if (lastFarmPos != null)
+            if (Gui.WorldToScreen(lastFarmPos.Value, out var v))
                 _bdl.DrawMapDot(v, 0xFFFF0000, 0xFF00FF00, 10f);
         _eurekaList2D.Clear();
         foreach (var item in _eurekaLiveIdList2D) _eurekaLiveIdList2DOld.Add(item);
@@ -75,13 +81,13 @@ internal class UiBuilder : IDisposable {
     }
 
     private void RefreshEureka() {
-        var TerritoryType = Plugin.ClientState.TerritoryType;
+        var TerritoryType = ClientState.TerritoryType;
         List<(EurekaWeather Weather, TimeSpan Time)> _weathers = null!;
         (int, EurekaWeather)[] regionWeather = null!;
         EurekaFate[] fates = null!;
         switch (TerritoryType) {
             case 732:
-                foreach (var o7 in Plugin.Fates) {
+                foreach (var o7 in Fates) {
                     _eurekaLiveIdList2D.Add(o7.FateId.ToString());
                     if (!_eurekaLiveIdList2DOld.Contains(o7.FateId.ToString())) NmFound();
                     EurekaAnemos.DeadFateDic[o7.FateId] = "1";
@@ -94,7 +100,7 @@ internal class UiBuilder : IDisposable {
                 fates = EurekaAnemos.AnemosFates;
                 break;
             case 763:
-                foreach (var o3 in Plugin.Fates) {
+                foreach (var o3 in Fates) {
                     _eurekaLiveIdList2D.Add(o3.FateId.ToString());
                     if (!_eurekaLiveIdList2DOld.Contains(o3.FateId.ToString())) {
                         if (o3.FateId is 1367 or 1368) TzFound();
@@ -114,7 +120,7 @@ internal class UiBuilder : IDisposable {
                 fates = EurekaPagos.PagosFates;
                 break;
             case 795:
-                foreach (var o5 in Plugin.Fates) {
+                foreach (var o5 in Fates) {
                     _eurekaLiveIdList2D.Add(o5.FateId.ToString());
                     if (!_eurekaLiveIdList2DOld.Contains(o5.FateId.ToString())) {
                         if (o5.FateId is 1407 or 1408) TzFound();
@@ -134,7 +140,7 @@ internal class UiBuilder : IDisposable {
                 fates = EurekaPyros.PyrosFates;
                 break;
             case 827:
-                foreach (var o in Plugin.Fates) {
+                foreach (var o in Fates) {
                     _eurekaLiveIdList2D.Add(o.FateId.ToString());
                     if (!_eurekaLiveIdList2DOld.Contains(o.FateId.ToString())) {
                         if (o.FateId == 1425) TzFound();
@@ -170,7 +176,7 @@ internal class UiBuilder : IDisposable {
         RefreshMapOrigin();
         if (_mapOrigin == null) return;
         var valueOrDefault = _mapOrigin.GetValueOrDefault();
-        if (valueOrDefault == Vector2.Zero || Plugin.ClientState.TerritoryType == 0) return;
+        if (valueOrDefault == Vector2.Zero || ClientState.TerritoryType == 0) return;
         _bdl.PushClipRect(_mapPosSize[0], _mapPosSize[1]);
         foreach (var item2 in _eurekaList2D) {
             var pos2 = WorldToMap(valueOrDefault, item2.worldpos);
@@ -181,7 +187,7 @@ internal class UiBuilder : IDisposable {
                 if (fateProgress > 97) {
                     var time = DateTime.Now.ToString(CurrentCulture).Replace("/", "-");
                     var fateId = ushort.Parse(item2.fateId);
-                    switch (Plugin.ClientState.TerritoryType) {
+                    switch (ClientState.TerritoryType) {
                         case 732:
                             EurekaAnemos.DeadFateDic[fateId] = time;
                             break;
@@ -197,9 +203,9 @@ internal class UiBuilder : IDisposable {
                     }
                 }
             }
-            else if (Plugin.ClientState.TerritoryType == 732 && EurekaAnemos.DeadFateDic[ushort.Parse(item2.fateId)].Contains(':') || Plugin.ClientState.TerritoryType == 763 && EurekaPagos.DeadFateDic[ushort.Parse(item2.fateId)].Contains(':') ||
-                     Plugin.ClientState.TerritoryType == 795 && EurekaPyros.DeadFateDic[ushort.Parse(item2.fateId)].Contains(':') || Plugin.ClientState.TerritoryType == 827 && EurekaHydatos.DeadFateDic[ushort.Parse(item2.fateId)].Contains(':')) {
-                var timeFromCanTriggered = Plugin.ClientState.TerritoryType switch {
+            else if (ClientState.TerritoryType == 732 && EurekaAnemos.DeadFateDic[ushort.Parse(item2.fateId)].Contains(':') || ClientState.TerritoryType == 763 && EurekaPagos.DeadFateDic[ushort.Parse(item2.fateId)].Contains(':') ||
+                     ClientState.TerritoryType == 795 && EurekaPyros.DeadFateDic[ushort.Parse(item2.fateId)].Contains(':') || ClientState.TerritoryType == 827 && EurekaHydatos.DeadFateDic[ushort.Parse(item2.fateId)].Contains(':')) {
+                var timeFromCanTriggered = ClientState.TerritoryType switch {
                     732 => new TimeSpan(2, 0, 0) - (DateTime.Now - Convert.ToDateTime(EurekaAnemos.DeadFateDic[ushort.Parse(item2.fateId)])),
                     763 => item2.fateId is not ("1367" or "1368")
                         ? new TimeSpan(2, 0, 0) - (DateTime.Now - Convert.ToDateTime(EurekaPagos.DeadFateDic[ushort.Parse(item2.fateId)]))
@@ -273,8 +279,8 @@ internal class UiBuilder : IDisposable {
                     }
                 }
         }
-        if (Plugin.Configuration.Overlay2DWeatherMapEnabled) DrawWeatherMap(valueOrDefault);
-        foreach (var yl in Plugin.YlPositions) _bdl.DrawText(WorldToMap(valueOrDefault, yl), "元灵", 0xFF0000FF);
+        if (Configuration.Overlay2DWeatherMapEnabled) DrawWeatherMap(valueOrDefault);
+        foreach (var yl in YlPositions) _bdl.DrawText(WorldToMap(valueOrDefault, yl), "元灵", 0xFF0000FF);
         _bdl.PopClipRect();
     }
 
@@ -315,19 +321,19 @@ internal class UiBuilder : IDisposable {
     }
 
     private Vector2 WorldToMap(Vector2 origin, Vector3 worldVector3) =>
-        origin + ToVector2(worldVector3 - Plugin.ClientState.LocalPlayer!.Position) * AreaMap.MapScale * _sizeFactorDict[Plugin.ClientState.TerritoryType] / 100f * _globalUiScale;
+        origin + ToVector2(worldVector3 - ClientState.LocalPlayer!.Position) * AreaMap.MapScale * MapInfo[ClientState.TerritoryType].Item1 / 200f * _globalUiScale;
 
 
     internal static void NmFound() {
         Player1.Stop();
-        Player1.SoundLocation = Path.Combine(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, "nm.wav");
+        Player1.SoundLocation = Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, "nm.wav");
         Player1.Load();
         Player1.Play();
     }
 
     private static void TzFound() {
         Player2.Stop();
-        Player2.SoundLocation = Path.Combine(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, "tz.wav");
+        Player2.SoundLocation = Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, "tz.wav");
         Player2.Load();
         Player2.Play();
     }
@@ -376,7 +382,7 @@ internal class UiBuilder : IDisposable {
             notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPyros.Weathers, DateTime.Now).End - DateTime.Now).ToString(timeFormat));
         notice.Append(')');
         var ns = notice.ToString();
-        _bdl.DrawText(WorldToMap(valueOrDefault, Plugin.ClientState.TerritoryType switch {
+        _bdl.DrawText(WorldToMap(valueOrDefault, ClientState.TerritoryType switch {
             732 or 763 => new Vector3(-9.1946f, 0f, 584.4f),
             795 => new Vector3(0.2181f, 0f, 865.32275f),
             827 => new Vector3(89.62729f, 0f, -1241.035f),

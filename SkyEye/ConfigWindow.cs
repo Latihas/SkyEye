@@ -7,6 +7,7 @@ using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using SkyEye.SkyEye.Data;
 using static SkyEye.SkyEye.Data.PData;
+using static SkyEye.SkyEye.MConfiguration;
 using static SkyEye.SkyEye.Plugin;
 using static SkyEye.SkyEye.Util;
 using Action = System.Action;
@@ -22,17 +23,31 @@ public class ConfigWindow() : Window("SkyEye") {
         "豆豆柴"
     ];
 
-    private static readonly string[] distAlgo = ["从第一个怪位置开始计算", "从指定点位开始计算"];
-
     private static void NewTab(string tabname, Action act) {
         if (!ImGui.BeginTabItem(tabname)) return;
         act();
         ImGui.EndTabItem();
     }
 
+    private static void ValidateSpeedInfo() {
+        SetSpeed(1);
+        Configuration.SpeedUp = Configuration.SpeedUp.Where(i => !i.SpeedUpTerritory.IsNullOrEmpty()).ToList();
+        if (Configuration.SpeedUp.Count == 0 || !Configuration.SpeedUp[^1].SpeedUpTerritory.IsNullOrEmpty())
+            Configuration.SpeedUp.Add(new SpeedInfo());
+        if (!Configuration.SpeedUp[0].Equals(SpeedInfo.Default()))
+            Configuration.SpeedUp[0] = SpeedInfo.Default();
+        Configuration.Save();
+        CurrentSpeedInfo = null;
+        foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
+            CurrentSpeedInfo = s;
+            break;
+        }
+        SetSpeed(1);
+    }
+
     public override void Draw() {
-        if (ImGui.Checkbox("开关", ref Plugin.Configuration.PluginEnabled)) Plugin.Configuration.Save();
-        if (!Plugin.Configuration.PluginEnabled) {
+        if (ImGui.Checkbox("开关", ref Configuration.PluginEnabled)) Configuration.Save();
+        if (!Configuration.PluginEnabled) {
             SetSpeed(1);
             lastFarmPos = null;
             FarmFull = false;
@@ -41,15 +56,15 @@ public class ConfigWindow() : Window("SkyEye") {
         }
         if (ImGui.BeginTabBar("tab")) {
             NewTab("基础", () => {
-                if (ImGui.Checkbox("稀有天气时间开关", ref Plugin.Configuration.Overlay2DWeatherMapEnabled)) Plugin.Configuration.Save();
-                if (ImGui.Checkbox("元灵位置绘制开关", ref Plugin.Configuration.Overlay3DEnabled)) Plugin.Configuration.Save();
+                if (ImGui.Checkbox("稀有天气时间开关", ref Configuration.Overlay2DWeatherMapEnabled)) Configuration.Save();
+                if (ImGui.Checkbox("元灵位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
                 if (!InEureka()) return;
                 ImGui.Separator();
                 ImGui.Text("NM开战时间喊话");
-                if (ImGui.InputText("输入NM开战时间", ref Plugin.Configuration.NmBattleTimeText, 128)) Plugin.Configuration.Save();
+                if (ImGui.InputText("输入NM开战时间", ref Configuration.NmBattleTimeText, 128)) Configuration.Save();
                 ImGui.SameLine();
-                if (ImGui.Button("发送至喊话频道") && !string.IsNullOrWhiteSpace(Plugin.Configuration.NmBattleTimeText))
-                    ChatBox.SendMessage($"/sh <pos>{Plugin.Configuration.NmBattleTimeText}");
+                if (ImGui.Button("发送至喊话频道") && !string.IsNullOrWhiteSpace(Configuration.NmBattleTimeText))
+                    ChatBox.SendMessage($"/sh <pos>{Configuration.NmBattleTimeText}");
                 ImGui.Separator();
                 for (var i = 0; i < YlPositions.Count; i++) {
                     var p = YlPositions[i];
@@ -64,31 +79,54 @@ public class ConfigWindow() : Window("SkyEye") {
                 }
             });
             NewTab("加速", () => {
-                if (ImGui.Checkbox("无人就加速", ref Plugin.Configuration.SpeedUpEnabled)) Plugin.Configuration.Save();
-                ImGui.SameLine();
-                if (ImGui.InputFloat("倍率", ref Plugin.Configuration.SpeedUpN)) Plugin.Configuration.Save();
+                ImGui.Text("提示：走路倍率6，坐骑倍率6*2。死亡会掉速，点击重置即可恢复。");
+                if (ImGui.Checkbox("无人就加速", ref Configuration.SpeedUpEnabled)) Configuration.Save();
                 ImGui.SameLine();
                 if (ImGui.Button("重置")) SetSpeed(1);
-                ImGui.Text("加速区域id（用竖线|隔开，默认支持732,763,795,827），最下方有显示当前地图");
-                if (ImGui.InputText("Territory ids", ref Plugin.Configuration.SpeedUpTerritory, 114514)) Plugin.Configuration.Save();
+                if (Configuration.SpeedUpEnabled) {
+                    string[] header = ["启用", "Id", "倍率", "最终速度上限(含乘算倍率)", "备注"];
+                    if (ImGui.BeginTable("TableSpeedInfo", header.Length, ImGuiTableFlag)) {
+                        foreach (var item in header)
+                            ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableHeadersRow();
+                        for (var i = 0; i < Configuration.SpeedUp.Count; i++) {
+                            ImGui.TableNextRow();
+                            ImGui.TableSetColumnIndex(0);
+                            if (ImGui.Checkbox($"##启用{i}", ref Configuration.SpeedUp[i].Enabled)) ValidateSpeedInfo();
+                            ImGui.TableSetColumnIndex(1);
+                            ImGui.SetNextItemWidth(-1);
+                            if (ImGui.InputText($"##地区{i}", ref Configuration.SpeedUp[i].SpeedUpTerritory)) ValidateSpeedInfo();
+                            ImGui.TableSetColumnIndex(2);
+                            ImGui.SetNextItemWidth(-1);
+                            if (ImGui.InputFloat($"##倍率{i}", ref Configuration.SpeedUp[i].SpeedUpN)) ValidateSpeedInfo();
+                            ImGui.TableSetColumnIndex(3);
+                            ImGui.SetNextItemWidth(-1);
+                            if (ImGui.InputFloat($"##最大{i}", ref Configuration.SpeedUp[i].SpeedUpMax)) ValidateSpeedInfo();
+                            ImGui.TableSetColumnIndex(4);
+                            ImGui.SetNextItemWidth(-1);
+                            if (ImGui.InputText($"##描述{i}", ref Configuration.SpeedUp[i].Desc)) ValidateSpeedInfo();
+                        }
+                        ImGui.EndTable();
+                    }
+                }
                 ImGui.Text("无视周边的挂壁亲友（用竖线|隔开）");
-                if (ImGui.InputText("Friendly names", ref Plugin.Configuration.SpeedUpFriendly, 114514)) Plugin.Configuration.Save();
+                if (ImGui.InputText("Friendly names", ref Configuration.SpeedUpFriendly, 114514)) Configuration.Save();
                 ImGui.Text($"周围人数：{(InArea() ? OtherPlayer.Count : "不在区域内")};区域id：{ClientState.TerritoryType}");
             });
             NewTab("宝箱", () => {
-                if (ImGui.Checkbox("宝箱位置绘制开关", ref Plugin.Configuration.Overlay3DEnabled)) Plugin.Configuration.Save();
-                if (ImGui.Checkbox("自动开宝箱", ref Plugin.Configuration.AutoRabbit)) Plugin.Configuration.Save();
-                if (Plugin.Configuration.AutoRabbit) {
-                    if (ImGui.Checkbox("自动开宝箱后回点位", ref Plugin.Configuration.AutoRabbitWait)) Plugin.Configuration.Save();
-                    if (Plugin.Configuration.AutoRabbitWait) {
-                        if (ImGui.InputFloat("RabbitWaitX", ref Plugin.Configuration.RabbitWaitX)) Plugin.Configuration.Save();
-                        if (ImGui.InputFloat("RabbitWaitY", ref Plugin.Configuration.RabbitWaitY)) Plugin.Configuration.Save();
-                        if (ImGui.InputFloat("RabbitWaitZ", ref Plugin.Configuration.RabbitWaitZ)) Plugin.Configuration.Save();
+                if (ImGui.Checkbox("宝箱位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
+                if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoRabbit)) Configuration.Save();
+                if (Configuration.AutoRabbit) {
+                    if (ImGui.Checkbox("自动开宝箱后回点位", ref Configuration.AutoRabbitWait)) Configuration.Save();
+                    if (Configuration.AutoRabbitWait) {
+                        if (ImGui.InputFloat("RabbitWaitX", ref Configuration.RabbitWaitX)) Configuration.Save();
+                        if (ImGui.InputFloat("RabbitWaitY", ref Configuration.RabbitWaitY)) Configuration.Save();
+                        if (ImGui.InputFloat("RabbitWaitZ", ref Configuration.RabbitWaitZ)) Configuration.Save();
                         if (ImGui.Button("设置兔子返回点为当前坐标") && ClientState.LocalPlayer != null) {
-                            Plugin.Configuration.RabbitWaitX = ClientState.LocalPlayer.Position.X;
-                            Plugin.Configuration.RabbitWaitY = ClientState.LocalPlayer.Position.Y;
-                            Plugin.Configuration.RabbitWaitZ = ClientState.LocalPlayer.Position.Z;
-                            Plugin.Configuration.Save();
+                            Configuration.RabbitWaitX = ClientState.LocalPlayer.Position.X;
+                            Configuration.RabbitWaitY = ClientState.LocalPlayer.Position.Y;
+                            Configuration.RabbitWaitZ = ClientState.LocalPlayer.Position.Z;
+                            Configuration.Save();
                         }
                     }
                 }
@@ -100,50 +138,51 @@ public class ConfigWindow() : Window("SkyEye") {
                 ImGui.SameLine();
                 if (ImGui.Button("永恒不灭的菲兰德副耀士")) ImGui.SetClipboardText("永恒不灭的菲兰德副耀士");
                 ImGui.Text("自动农怪可能在第一次开启时无反应，/xivplugins关闭打开一次SkeEye即可。");
-                if (ImGui.Checkbox("自动农怪", ref Plugin.Configuration.AutoFarm)) {
+                if (ImGui.Checkbox("自动农怪", ref Configuration.AutoFarm)) {
                     LastKill = DateTime.Now;
-                    Plugin.Configuration.Save();
+                    Configuration.Save();
                 }
-                if (ImGui.InputText("怪名称", ref Plugin.Configuration.FarmTarget, 114514)) Plugin.Configuration.Save();
-                if (ImGui.Combo("引仇距离计算方式", ref Plugin.Configuration.FarmDistAlgo, distAlgo)) {
-                    Plugin.Configuration.Save();
+                if (ImGui.InputText("怪名称", ref Configuration.FarmTarget, 114514)) Configuration.Save();
+                string[] distAlgo = ["从第一个怪位置开始计算", "从指定点位开始计算"];
+                if (ImGui.Combo("引仇距离计算方式", ref Configuration.FarmDistAlgo, distAlgo)) {
+                    Configuration.Save();
                     ImGui.EndCombo();
                 }
-                if (Plugin.Configuration.AutoFarm) {
-                    if (ImGui.InputText("开怪指令", ref Plugin.Configuration.FarmStartCommand, 114514)) Plugin.Configuration.Save();
-                    if (ImGui.InputInt("最大引仇目标", ref Plugin.Configuration.FarmTargetMax, 1)) Plugin.Configuration.Save();
-                    if (Plugin.Configuration.FarmDistAlgo == 1) {
-                        if (ImGui.InputFloat("FarmWaitX", ref Plugin.Configuration.FarmWaitX)) Plugin.Configuration.Save();
-                        if (ImGui.InputFloat("FarmWaitY", ref Plugin.Configuration.FarmWaitY)) Plugin.Configuration.Save();
-                        if (ImGui.InputFloat("FarmWaitZ", ref Plugin.Configuration.FarmWaitZ)) Plugin.Configuration.Save();
+                if (Configuration.AutoFarm) {
+                    if (ImGui.InputText("开怪指令", ref Configuration.FarmStartCommand, 114514)) Configuration.Save();
+                    if (ImGui.InputInt("最大引仇目标", ref Configuration.FarmTargetMax, 1)) Configuration.Save();
+                    if (Configuration.FarmDistAlgo == 1) {
+                        if (ImGui.InputFloat("FarmWaitX", ref Configuration.FarmWaitX)) Configuration.Save();
+                        if (ImGui.InputFloat("FarmWaitY", ref Configuration.FarmWaitY)) Configuration.Save();
+                        if (ImGui.InputFloat("FarmWaitZ", ref Configuration.FarmWaitZ)) Configuration.Save();
                         if (ImGui.Button("设置农怪返回点为当前坐标") && ClientState.LocalPlayer != null) {
-                            Plugin.Configuration.FarmWaitX = ClientState.LocalPlayer.Position.X;
-                            Plugin.Configuration.FarmWaitY = ClientState.LocalPlayer.Position.Y;
-                            Plugin.Configuration.FarmWaitZ = ClientState.LocalPlayer.Position.Z;
-                            Plugin.Configuration.Save();
-                            if (lastFarmPos != null) lastFarmPos = new Vector3(Plugin.Configuration.FarmWaitX, Plugin.Configuration.FarmWaitY, Plugin.Configuration.FarmWaitZ);
+                            Configuration.FarmWaitX = ClientState.LocalPlayer.Position.X;
+                            Configuration.FarmWaitY = ClientState.LocalPlayer.Position.Y;
+                            Configuration.FarmWaitZ = ClientState.LocalPlayer.Position.Z;
+                            Configuration.Save();
+                            if (lastFarmPos != null) lastFarmPos = new Vector3(Configuration.FarmWaitX, Configuration.FarmWaitY, Configuration.FarmWaitZ);
                         }
                     }
-                    if (ImGui.InputFloat("最大引仇距离", ref Plugin.Configuration.FarmMaxDistance, 1)) Plugin.Configuration.Save();
-                    if (ImGui.Checkbox("打完一波再拉下一波", ref Plugin.Configuration.FarmWait)) Plugin.Configuration.Save();
+                    if (ImGui.InputFloat("最大引仇距离", ref Configuration.FarmMaxDistance, 1)) Configuration.Save();
+                    if (ImGui.Checkbox("打完一波再拉下一波", ref Configuration.FarmWait)) Configuration.Save();
                 }
-                if (ClientState.TerritoryType == 147 && Plugin.Configuration.AutoFarm) ImGui.Text($"超时：{(DateTime.Now - LastKill).Seconds}/{FarmTimeout}");
+                if (ClientState.TerritoryType == 147 && Configuration.AutoFarm) ImGui.Text($"超时：{(DateTime.Now - LastKill).Seconds}/{FarmTimeout}");
             });
             NewTab("史书", () => {
-                if (ImGui.Checkbox("连接史书", ref Plugin.Configuration.EnableWss)) {
+                if (ImGui.Checkbox("连接史书", ref Configuration.EnableWss)) {
                     WebSocket.nmalive.Clear();
                     WebSocket.nmdead.Clear();
-                    Plugin.Configuration.Save();
+                    Configuration.Save();
                 }
-                if (ImGui.InputText("提醒(Fate原名，包含即可，用竖线|隔开)", ref Plugin.Configuration.WssNotify, 114514)) Plugin.Configuration.Save();
-                if (Plugin.Configuration.EnableWss) {
-                    if (ImGui.Combo("选择大区", ref Plugin.Configuration.WssRegion, regions)) {
-                        Plugin.Configuration.Save();
+                if (ImGui.InputText("提醒(Fate原名，包含即可，用竖线|隔开)", ref Configuration.WssNotify, 114514)) Configuration.Save();
+                if (Configuration.EnableWss) {
+                    if (ImGui.Combo("选择大区", ref Configuration.WssRegion, regions)) {
+                        Configuration.Save();
                         WebSocket.StopWss();
                         _ = WebSocket.StartWssService();
                         ImGui.EndCombo();
                     }
-                    if (Plugin.Configuration.WssRegion is < 1 or > 4) return;
+                    if (Configuration.WssRegion is < 1 or > 4) return;
                     if (!WebSocket._isWssRunning) _ = WebSocket.StartWssService();
                     var acts = new Action<WebSocket.NmInfo>[] {
                         info => {

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dalamud;
 using Dalamud.Game;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
@@ -49,9 +50,11 @@ public sealed class Plugin : IDalamudPlugin {
     internal static bool FarmFull;
 
     private static IntPtr? SpeedPtr;
+
+    internal static MConfiguration.SpeedInfo? CurrentSpeedInfo = null;
+
     private readonly Timer _carrotTimer;
     private readonly ConfigWindow _configWindow;
-    private readonly Lock _speedLock = new();
     private readonly UiBuilder _uiBuilder;
     // ReSharper disable once MemberCanBePrivate.Global
     public readonly WindowSystem WindowSystem = new("SkyEye");
@@ -59,7 +62,7 @@ public sealed class Plugin : IDalamudPlugin {
     public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager) {
         PluginInterface = pluginInterface;
         CommandManager = commandManager;
-        Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        Configuration = PluginInterface.GetPluginConfig() as MConfiguration ?? new MConfiguration();
         _uiBuilder = new UiBuilder();
         _configWindow = new ConfigWindow();
         WindowSystem.AddWindow(_configWindow);
@@ -74,33 +77,34 @@ public sealed class Plugin : IDalamudPlugin {
         };
         NavmeshIpc.Init();
         PluginInterface.UiBuilder.Draw += () => WindowSystem.Draw();
+        var mountState = Condition[ConditionFlag.Mounted];
         Framework.Update += UpdateRoundPlayers;
         Framework.Update += Farm;
         Framework.Update += FindYl;
+        Framework.Update += _ => {
+            if (!InArea() || Condition[ConditionFlag.Mounted] == mountState) return;
+            mountState = Condition[ConditionFlag.Mounted];
+            SetSpeed(1);
+        };
         PluginInterface.UiBuilder.OpenConfigUi += () => OnCommand(null, null);
         ChatGui.ChatMessageUnhandled += ChatRabbit;
+        if (Configuration.SpeedUp.Count == 0) {
+            Configuration.SpeedUp.Add(MConfiguration.SpeedInfo.Default());
+            Configuration.SpeedUp.Add(new MConfiguration.SpeedInfo());
+        }
     }
 
-    public static Configuration Configuration { get; private set; } = null!;
+    public static MConfiguration Configuration { get; private set; } = null!;
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] public static IClientState ClientState { get; private set; } = null!;
-
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
-
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
-
     [PluginService] internal static IGameGui Gui { get; private set; } = null!;
-
     [PluginService] private static IObjectTable Objects { get; set; } = null!;
-
     [PluginService] internal static IFateTable Fates { get; private set; } = null!;
-
     [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
-
     [PluginService] private static IChatGui ChatGui { get; set; } = null!;
-
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
 
@@ -110,6 +114,7 @@ public sealed class Plugin : IDalamudPlugin {
         Framework.Update -= UpdateRoundPlayers;
         Framework.Update -= Farm;
         Framework.Update -= FindYl;
+        SetSpeed(1);
         _uiBuilder.Dispose();
         CommandManager.RemoveHandler("/skyeye");
         _carrotTimer.Stop();
@@ -143,9 +148,9 @@ public sealed class Plugin : IDalamudPlugin {
         if (!NavmeshIpc.IsReady()) NavmeshIpc.Init();
         var playerPos = ClientState.LocalPlayer.Position;
         var playerName = ClientState.LocalPlayer.Name.ToString();
-        var allObjs=Objects.Where(obj =>
+        var allObjs = Objects.Where(obj =>
             obj is { ObjectKind: ObjectKind.BattleNpc, IsDead: false } && obj.Name.ToString().Contains(Configuration.FarmTarget)).ToList();
-        var validObjs = allObjs.Where(obj =>lastFarmPos is null || Vector3.Distance(lastFarmPos.Value, obj.Position) < Configuration.FarmMaxDistance).ToList();
+        var validObjs = allObjs.Where(obj => lastFarmPos is null || Vector3.Distance(lastFarmPos.Value, obj.Position) < Configuration.FarmMaxDistance).ToList();
         var attracted = allObjs.Where(obj => obj.TargetObject != null && obj.TargetObject.Name.ToString().Contains(playerName)).ToArray();
         if (attracted.Length >= Configuration.FarmTargetMax) {
             FarmFull = true;
@@ -271,10 +276,9 @@ public sealed class Plugin : IDalamudPlugin {
 
 
     internal static bool InEureka() => ClientState is { LocalPlayer: not null, TerritoryType: 732 or 763 or 795 or 827 };
+    internal static bool InEureka(ushort id) => id is 732 or 763 or 795 or 827;
 
-    internal static bool InArea()
-        => InEureka() || Configuration.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString());
-
+    internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
 
     private void ChatRabbit(XivChatType type, int timestamp, SeString sender, SeString message) {
         if (!InEureka()) return;
@@ -282,22 +286,19 @@ public sealed class Plugin : IDalamudPlugin {
         if (msg.StartsWith("找到了财宝，幸福兔心满意足地离去了。")) {
             DetectedTreasurePositions = [];
             StopCarrotTimer();
-            foreach (var obj in Objects)
-                try {
-                    if (obj is not { ObjectKind: ObjectKind.EventObj } || !obj.Name.ToString().Contains("财宝箱")) continue;
-                    unsafe {
-                        TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
-                    }
-                    if (!Configuration.AutoRabbitWait) continue;
-                    ChatBox.SendMessage("/e 等待7s后返回");
-                    Task.Run(async () => {
-                        await Task.Delay(7000);
-                        NavmeshIpc.PathfindAndMoveTo(new Vector3(Configuration.RabbitWaitX, Configuration.RabbitWaitY, Configuration.RabbitWaitZ), false);
-                    });
+            foreach (var obj in Objects) {
+                if (obj is not { ObjectKind: ObjectKind.EventObj } || !obj.Name.ToString().Contains("财宝箱")) continue;
+                unsafe {
+                    TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
                 }
-                catch (Exception) {
-                    Log.Error("error");
-                }
+                if (!Configuration.AutoRabbitWait) continue;
+                ChatBox.SendMessage("/e 等待7s后返回");
+                Task.Run(async () => {
+                    await Task.Delay(7000);
+                    NavmeshIpc.PathfindAndMoveTo(new Vector3(Configuration.RabbitWaitX, Configuration.RabbitWaitY, Configuration.RabbitWaitZ), false);
+                });
+            }
+
             return;
         }
         var result = Regex.Match(msg, "^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！");
@@ -339,7 +340,6 @@ public sealed class Plugin : IDalamudPlugin {
         else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
         else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
         else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
-
         if (Configuration.AutoRabbit) {
             float maxd = 114514;
             Vector3? point = null;
@@ -360,46 +360,35 @@ public sealed class Plugin : IDalamudPlugin {
         }
     }
 
-
-    private void UpdateRoundPlayers(IFramework framework) {
-        if (!Configuration.PluginEnabled) return;
-        if (ClientState.LocalPlayer == null) return;
-        if (!InArea()) {
-            lock (_speedLock) SetSpeed(1);
-            return;
+    private static void UpdateRoundPlayers(IFramework framework) {
+        if (!Configuration.PluginEnabled || ClientState.LocalPlayer == null || !InArea() || CurrentSpeedInfo == null) return;
+        OtherPlayer.Clear();
+        foreach (var obj in Objects)
+            if (obj.GameObjectId != ClientState.LocalPlayer.GameObjectId & obj.Address.ToInt64() != 0 && obj is IPlayerCharacter rcTemp)
+                OtherPlayer.Add(rcTemp);
+        if (Configuration.SpeedUpEnabled) {
+            var friends = Configuration.SpeedUpFriendly.Split('|');
+            _dspeed = OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ClientState.LocalPlayer.Position) < (110 ^ 2)) ? 1f : CurrentSpeedInfo.SpeedUpN;
         }
-        lock (OtherPlayer) {
-            OtherPlayer.Clear();
-            foreach (var obj in Objects)
-                try {
-                    if (obj.GameObjectId != ClientState.LocalPlayer.GameObjectId & obj.Address.ToInt64() != 0 && obj is IPlayerCharacter rcTemp) OtherPlayer.Add(rcTemp);
-                }
-                catch (Exception) {
-                    Log.Error("error");
-                }
-        }
-        lock (_speedLock) {
-            if (Configuration.SpeedUpEnabled) {
-                var friends = Configuration.SpeedUpFriendly.Split('|');
-                _dspeed = OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ClientState.LocalPlayer.Position) < (110 ^ 2)) ? 1f : Configuration.SpeedUpN;
-            }
-            else _dspeed = 1f;
-            SetSpeed(_dspeed);
-        }
+        else _dspeed = 1f;
+        SetSpeed(_dspeed);
     }
 
     // https://github.com/Jaksuhn/ffxiv-bundleoftweaks
     // https://github.com/MnFeN/Triggernometry
     [SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
     internal static void SetSpeed(float speedBase) {
+        if (CurrentSpeedInfo == null || !Configuration.SpeedUpEnabled) return;
+        var mounted = Condition[ConditionFlag.Mounted];
+        if (mounted) speedBase *= 2;
         if (_lSpeed == speedBase) return;
         _lSpeed = speedBase;
         if (SpeedPtr == null) {
             var ba = SigScanner.ScanText("48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 4F") + 3;
             SpeedPtr = ba + Marshal.ReadInt32(ba) + 4 + 0x58;
         }
-        var finalspeed = speedBase * 6;
+        var finalspeed = Math.Min(CurrentSpeedInfo.SpeedUpMax, speedBase * 6);
+        ChatBox.SendMessage($"/e SetSpeed({(mounted ? 12 : 6)}x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
         SafeMemory.Write(SpeedPtr.Value, finalspeed);
-        ChatBox.SendMessage($"/e SetSpeed(6x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
     }
 }

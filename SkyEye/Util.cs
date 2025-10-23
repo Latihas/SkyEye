@@ -6,7 +6,7 @@ using Dalamud.Bindings.ImGui;
 namespace SkyEye.SkyEye;
 
 internal static class Util {
-    private const ImGuiTableFlags ImGuiTableFlag = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg;
+    internal const ImGuiTableFlags ImGuiTableFlag = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp;
 
     internal static readonly Vector4 green = new(0, 1, 0, 0.4f),
         green_alt = new(0, 1, 0, 0.3f),
@@ -46,23 +46,19 @@ internal static class Util {
          - new Vector2(1024f, 1024f)) / SizeFactor * 100F;
 
     internal static long getT(string d) {
-        try {
-            var dateTime = DateTimeOffset.Parse(d, CultureInfo.InvariantCulture);
+        if (DateTimeOffset.TryParse(d, CultureInfo.InvariantCulture, out var dateTime))
             return DateTime.Now.Ticks - dateTime.Ticks;
+        try {
+            var dateTime1 = DateTime.ParseExact(d, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+            return DateTime.Now.Ticks - dateTime1.Ticks;
         }
         catch {
             try {
-                var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-                return DateTime.Now.Ticks - dateTime.Ticks;
+                var dateTime2 = DateTime.ParseExact(d, "yyyy-MM-dd H:mm:ss", CultureInfo.InvariantCulture);
+                return DateTime.Now.Ticks - dateTime2.Ticks;
             }
             catch {
-                try {
-                    var dateTime = DateTime.ParseExact(d, "yyyy-MM-dd H:mm:ss", CultureInfo.InvariantCulture);
-                    return DateTime.Now.Ticks - dateTime.Ticks;
-                }
-                catch {
-                    return 0;
-                }
+                return 0;
             }
         }
     }
