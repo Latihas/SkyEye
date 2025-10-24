@@ -101,9 +101,12 @@ public class ConfigWindow() : Window("SkyEye") {
                             if (ImGui.IsItemHovered()) {
                                 var sb = new StringBuilder();
                                 foreach (var t in Configuration.SpeedUp[i].SpeedUpTerritory.Split('|'))
-                                    sb.Append(t).Append('|').Append(MapInfo[t]).Append('\n');
-                                if (sb.Length != 0) sb.Remove(sb.Length - 1, 1);
-                                ImGui.SetTooltip(sb.ToString());
+                                    if (!t.IsNullOrEmpty())
+                                        sb.Append(t).Append('|').Append(MapInfo[t]).Append('\n');
+                                if (sb.Length != 0) {
+                                    sb.Remove(sb.Length - 1, 1);
+                                    ImGui.SetTooltip(sb.ToString());
+                                }
                             }
                             ImGui.TableSetColumnIndex(2);
                             ImGui.SetNextItemWidth(-1);

@@ -8,8 +8,7 @@ using Dalamud.Utility;
 namespace SkyEye.SkyEye;
 
 internal static class Util {
-    internal const ImGuiTableFlags ImGuiTableFlag = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp;
-
+    internal const ImGuiTableFlags ImGuiTableFlag = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg;
     internal static readonly Vector4 green = new(0, 1, 0, 0.4f),
         green_alt = new(0, 1, 0, 0.3f),
         red = new(1, 0, 0, 0.4f),
