@@ -1,5 +1,7 @@
 > 友情裤链: https://raw.githubusercontent.com/Latihas/dalamud-plugins/main/repo.json
 
+![](https://socialify.git.ci/Latihas/SkyEye/image?description=1&forks=1&issues=1&language=1&name=1&owner=1&pattern=Transparent&pulls=1&stargazers=1&theme=Auto)
+
 SkyEye的个人维护版，原作者0x，代码完全公开无后门，添加了许多实用功能，不在ULK也可以用（算是大改）
 
 支持功能如下：

@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <Configuration>Release</Configuration>
+    <OutputPath>bin</OutputPath>
     <AssemblyName>SkyEye</AssemblyName>
-    <TargetFramework>net9.0-windows</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <PlatformTarget>x64</PlatformTarget>
     <Optimize>true</Optimize>
     <DebugSymbols>false</DebugSymbols>

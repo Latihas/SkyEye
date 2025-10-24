@@ -101,8 +101,8 @@ public class ConfigWindow() : Window("SkyEye") {
                             if (ImGui.IsItemHovered()) {
                                 var sb = new StringBuilder();
                                 foreach (var t in Configuration.SpeedUp[i].SpeedUpTerritory.Split('|'))
-                                    if (!t.IsNullOrEmpty())
-                                        sb.Append(t).Append('|').Append(MapInfo[t]).Append('\n');
+                                    if (!t.IsNullOrEmpty() && MapInfo.TryGetValue(t, out var value))
+                                        sb.Append(t).Append('|').Append(value).Append('\n');
                                 if (sb.Length != 0) {
                                     sb.Remove(sb.Length - 1, 1);
                                     ImGui.SetTooltip(sb.ToString());
