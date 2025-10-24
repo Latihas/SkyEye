@@ -79,8 +79,9 @@ internal static class Util {
                 for (var i = 0; i < filterdata.Length; i++) filterdata[i] = "";
                 ImGui.TableNextRow();
                 for (var i = 0; i < acts.Length; i++) {
-                    ImGui.TableSetColumnIndex(i);
                     if (header[i].IsNullOrEmpty()) continue;
+                    ImGui.TableSetColumnIndex(i);
+                    ImGui.SetNextItemWidth(-1);
                     if (ImGui.InputText($"##Filter{i}", ref filterdata[i])) {
                         for (var j = 0; j < acts.Length; j++) {
                             if (header[j].IsNullOrEmpty()) continue;

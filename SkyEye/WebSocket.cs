@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Dalamud.Utility;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using static SkyEye.SkyEye.Plugin;
 using static SkyEye.SkyEye.Util;
 
 namespace SkyEye.SkyEye;
@@ -35,7 +36,6 @@ internal static class WebSocket {
         }
     }
 
-
     internal static void StopWss() {
         _wssCts?.Cancel();
         _wssCts?.Dispose();
@@ -43,19 +43,19 @@ internal static class WebSocket {
         _isWssRunning = false;
     }
 
-    private static bool InWssNotify(string name) => Plugin.Configuration.WssNotify.Split("|").Any(f => !f.IsNullOrEmpty() && name.Contains(f));
+    private static bool InWssNotify(string name) => Configuration.WssNotify.Split("|").Any(f => !f.IsNullOrEmpty() && name.Contains(f));
 
     private static void Notify(string name, bool sound = true) {
         if (!InWssNotify(name)) return;
-        Plugin.Framework.RunOnFrameworkThread(() => ChatBox.SendMessage($"/e 史书提醒：{name}"));
+        Framework.RunOnFrameworkThread(() => ChatBox.SendMessage($"/e 史书提醒：{name}"));
         if (sound) UiBuilder.NmFound();
     }
 
     private static async Task RunWebSocketClient(CancellationToken cancellationToken) {
         using var client = new ClientWebSocket();
         try {
-            Plugin.Log.Info($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Plugin.Configuration.WssRegion}/ws");
-            await client.ConnectAsync(new Uri($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Plugin.Configuration.WssRegion}/ws"), cancellationToken);
+            Log.Info($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Configuration.WssRegion}/ws");
+            await client.ConnectAsync(new Uri($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Configuration.WssRegion}/ws"), cancellationToken);
             var buffer = new byte[4096];
             while (client.State == WebSocketState.Open) {
                 using var ms = new MemoryStream();
@@ -72,7 +72,7 @@ internal static class WebSocket {
                 ms.Seek(0L, SeekOrigin.Begin);
                 using var reader = new StreamReader(ms, Encoding.UTF8);
                 var txt = await reader.ReadToEndAsync(cancellationToken);
-                Plugin.Log.Info(txt);
+                Log.Info(txt);
                 var val = (JObject)JsonConvert.DeserializeObject(txt)!;
                 lock (WssLock) {
                     var vt = val["type"]!.ToString();
@@ -99,7 +99,7 @@ internal static class WebSocket {
                                     nmdead.Add(ni);
                                 }
                             }
-                            Plugin.Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/e 史书初始化完成"));
+                            Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/e 史书初始化完成"));
                             break;
                         }
                         case "active.update": {

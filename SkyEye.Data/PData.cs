@@ -326,17 +326,6 @@ internal static class PData {
         new(714.3189f, -630.0619f, -321.2806f),
         new(735.9999f, -629.8334f, -274.5996f)
     ];
-    // internal static readonly Dictionary<int, (int, float, float)> ULKMapInfo = new() {
-    //     {
-    //         732, (200, 11, 11.25f)
-    //     }, {
-    //         763, (200, 11f, 11.25f)
-    //     }, {
-    //         795, (200, 11, 11.25f)
-    //     }, {
-    //         827, (200, 11, 11.25f)
-    //     }
-    // };
 
     internal static string ToFriendlyString(this EurekaWeather weather) {
         return weather switch {

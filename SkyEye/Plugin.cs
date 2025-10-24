@@ -51,8 +51,7 @@ public sealed class Plugin : IDalamudPlugin {
     internal static bool FarmFull;
     private static IntPtr? SpeedPtr;
     internal static MConfiguration.SpeedInfo? CurrentSpeedInfo = null;
-
-    internal static (string RowId, string PlaceName)[] MapInfo = null!;
+    internal static Dictionary<string, string> MapInfo = new();
     private readonly Timer _carrotTimer;
     private readonly ConfigWindow _configWindow;
     private readonly UiBuilder _uiBuilder;
@@ -69,8 +68,9 @@ public sealed class Plugin : IDalamudPlugin {
         CommandManager.AddHandler("/skyeye", new CommandInfo(OnCommand) {
             HelpMessage = "打开主界面"
         });
-        _carrotTimer = new Timer(7000);
-        _carrotTimer.AutoReset = true;
+        _carrotTimer = new Timer(7000) {
+            AutoReset = true
+        };
         _carrotTimer.Elapsed += (_, _) => {
             if (Configuration.AutoRabbit) UseCarrot();
             else StopCarrotTimer();
@@ -92,13 +92,15 @@ public sealed class Plugin : IDalamudPlugin {
             Configuration.SpeedUp.Add(MConfiguration.SpeedInfo.Default());
             Configuration.SpeedUp.Add(new MConfiguration.SpeedInfo());
         }
-        MapInfo = DataManager.GetExcelSheet<TerritoryType>().Where(i => !i.PlaceNameRegion.Value.Name.IsEmpty).Select(i => (i.RowId.ToString(), $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}")).ToArray();
+        MapInfo = DataManager.GetExcelSheet<TerritoryType>().Where(i => !i.PlaceNameRegion.Value.Name.IsEmpty)
+            .ToDictionary(i => i.RowId.ToString(), i => $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}");
     }
 
     public static MConfiguration Configuration { get; private set; } = null!;
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] public static IClientState ClientState { get; private set; } = null!;
-    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
+    [PluginService] public static INotificationManager NotificationManager { get; private set; } = null!;
+    [PluginService] private static IDataManager DataManager { get; set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IGameGui Gui { get; private set; } = null!;
@@ -263,9 +265,8 @@ public sealed class Plugin : IDalamudPlugin {
             return;
         }
         unsafe {
-            var inventoryManager = InventoryManager.Instance();
-            var itemCount = inventoryManager->GetInventoryItemCount(LuckyCarrotItemId);
-            if (itemCount > 0) ActionManager.Instance()->UseAction(ActionType.KeyItem, LuckyCarrotItemId, mode: ActionManager.UseActionMode.Queue);
+            if (InventoryManager.Instance()->GetInventoryItemCount(LuckyCarrotItemId) > 0)
+                ActionManager.Instance()->UseAction(ActionType.KeyItem, LuckyCarrotItemId, mode: ActionManager.UseActionMode.Queue);
             else {
                 Log.Warning("没有幸运胡萝卜可用，停止自动使用");
                 StopCarrotTimer();
@@ -274,7 +275,6 @@ public sealed class Plugin : IDalamudPlugin {
     }
 
     private void OnCommand(string? command, string? args) => _configWindow.Toggle();
-
 
     internal static bool InEureka() => ClientState is { LocalPlayer: not null, TerritoryType: 732 or 763 or 795 or 827 };
     internal static bool InEureka(ushort id) => id is 732 or 763 or 795 or 827;

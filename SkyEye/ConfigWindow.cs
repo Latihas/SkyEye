@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -78,15 +80,16 @@ public class ConfigWindow() : Window("SkyEye") {
                 }
             });
             NewTab("加速", () => {
-                ImGui.Text("提示：走路倍率6，坐骑倍率6*2。死亡会掉速，点击重置即可恢复。");
+                ImGui.Text("提示：");
+                ImGui.Text("走路倍率6，坐骑倍率6*2。死亡会掉速，点击重置即可恢复。");
+                ImGui.Text("地区id用竖线|隔开。");
                 if (ImGui.Checkbox("无人就加速", ref Configuration.SpeedUpEnabled)) Configuration.Save();
                 ImGui.SameLine();
                 if (ImGui.Button("重置")) SetSpeed(1);
                 if (Configuration.SpeedUpEnabled) {
                     string[] header = ["启用", "Id", "倍率", "最终速度上限(含乘算倍率)", "备注"];
                     if (ImGui.BeginTable("TableSpeedInfo", header.Length, ImGuiTableFlag)) {
-                        foreach (var item in header)
-                            ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthStretch);
+                        foreach (var item in header) ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthStretch);
                         ImGui.TableHeadersRow();
                         for (var i = 0; i < Configuration.SpeedUp.Count; i++) {
                             ImGui.TableNextRow();
@@ -95,6 +98,13 @@ public class ConfigWindow() : Window("SkyEye") {
                             ImGui.TableSetColumnIndex(1);
                             ImGui.SetNextItemWidth(-1);
                             if (ImGui.InputText($"##地区{i}", ref Configuration.SpeedUp[i].SpeedUpTerritory)) ValidateSpeedInfo();
+                            if (ImGui.IsItemHovered()) {
+                                var sb = new StringBuilder();
+                                foreach (var t in Configuration.SpeedUp[i].SpeedUpTerritory.Split('|'))
+                                    sb.Append(t).Append('|').Append(MapInfo[t]).Append('\n');
+                                if (sb.Length != 0) sb.Remove(sb.Length - 1, 1);
+                                ImGui.SetTooltip(sb.ToString());
+                            }
                             ImGui.TableSetColumnIndex(2);
                             ImGui.SetNextItemWidth(-1);
                             if (ImGui.InputFloat($"##倍率{i}", ref Configuration.SpeedUp[i].SpeedUpN)) ValidateSpeedInfo();
@@ -112,12 +122,12 @@ public class ConfigWindow() : Window("SkyEye") {
                 if (ImGui.InputText("Friendly names", ref Configuration.SpeedUpFriendly, 114514)) Configuration.Save();
                 ImGui.Text($"周围人数：{(InArea() ? OtherPlayer.Count : "不在区域内")};区域id：{ClientState.TerritoryType}");
                 ImGui.Separator();
-                NewTable(["Id", "名称"], MapInfo, [
-                    i => ImGui.Text(i.RowId.ToString()),
-                    i => ImGui.Text(i.PlaceName)
+                NewTable(["Id", "名称"], MapInfo.Select(p => (p.Key, p.Value)).ToArray(), [
+                    i => ImGui.Text(i.Key),
+                    i => ImGui.Text(i.Value)
                 ], [
-                    i => i.RowId.ToString(),
-                    i => i.PlaceName
+                    i => i.Key,
+                    i => i.Value
                 ], "Territory");
             });
             NewTab("宝箱", () => {
@@ -141,9 +151,15 @@ public class ConfigWindow() : Window("SkyEye") {
             NewTab("农怪", () => {
                 ImGui.Text("提示：");
                 ImGui.Text("该功能会占用Vnav寻路功能");
-                ImGui.Text("移动到北萨那兰会自动切换为刷B怪,名称为永恒不灭的菲兰德副耀士");
+                ImGui.Text("移动到北萨那兰会自动切换为刷B怪,名称为");
                 ImGui.SameLine();
-                if (ImGui.Button("永恒不灭的菲兰德副耀士")) ImGui.SetClipboardText("永恒不灭的菲兰德副耀士");
+                if (ImGui.Button("永恒不灭的菲兰德副耀士")) {
+                    ImGui.SetClipboardText("永恒不灭的菲兰德副耀士");
+                    NotificationManager.AddNotification(new Notification {
+                        Title = "已复制",
+                        Content = "永恒不灭的菲兰德副耀士"
+                    });
+                }
                 ImGui.Text("自动农怪可能在第一次开启时无反应，/xivplugins关闭打开一次SkeEye即可。");
                 if (ImGui.Checkbox("自动农怪", ref Configuration.AutoFarm)) {
                     LastKill = DateTime.Now;
@@ -231,6 +247,10 @@ public class ConfigWindow() : Window("SkyEye") {
                     i => ImGui.Text(i.Lv), i => {
                         if (ImGui.Button(i.Name)) {
                             ImGui.SetClipboardText(i.Name);
+                            NotificationManager.AddNotification(new Notification {
+                                Title = "已复制",
+                                Content = i.Name
+                            });
                             if (InEureka()) {
                                 unsafe {
                                     AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId,
@@ -242,7 +262,13 @@ public class ConfigWindow() : Window("SkyEye") {
                     },
                     i => {
                         if (i.Trigger.IsNullOrEmpty()) ImGui.Text("");
-                        else if (ImGui.Button(i.Trigger)) ImGui.SetClipboardText(i.Trigger);
+                        else if (ImGui.Button(i.Trigger)) {
+                            ImGui.SetClipboardText(i.Trigger);
+                            NotificationManager.AddNotification(new Notification {
+                                Title = "已复制",
+                                Content = i.Trigger
+                            });
+                        }
                     },
                     i => ImGui.Text(i.TriggerLv), i => ImGui.Text(i.SpawnRequiredWeather.ToFriendlyString()), i => ImGui.Text(i.SpawnByRequiredNight ? "是" : "")
                 };
