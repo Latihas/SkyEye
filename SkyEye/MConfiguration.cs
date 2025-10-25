@@ -22,11 +22,12 @@ public class MConfiguration : IPluginConfiguration {
         public float SpeedUpMax = 20f;
         public float SpeedUpN = 3.5f;
         public string SpeedUpTerritory = "";
-
-        public static SpeedInfo Default() => new() {
-            Desc = "ULK",
+        private static readonly SpeedInfo _default = new() {
+            Desc = "ULK, 该行地区Id与描述不可修改",
             SpeedUpTerritory = "732|763|795|827",
             Enabled = true
         };
+
+        public static SpeedInfo Default() => _default;
     }
 }

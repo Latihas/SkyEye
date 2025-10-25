@@ -30,13 +30,17 @@ public class ConfigWindow() : Window("SkyEye") {
         ImGui.EndTabItem();
     }
 
+
     private static void ValidateSpeedInfo() {
         SetSpeed(1);
-        Configuration.SpeedUp = Configuration.SpeedUp.Where(i => !i.SpeedUpTerritory.IsNullOrEmpty()).ToList();
-        if (Configuration.SpeedUp.Count == 0 || !Configuration.SpeedUp[^1].SpeedUpTerritory.IsNullOrEmpty())
+        if (!Configuration.SpeedUp[0].SpeedUpTerritory.Equals(SpeedInfo.Default().SpeedUpTerritory))
+            Configuration.SpeedUp[0].SpeedUpTerritory = SpeedInfo.Default().SpeedUpTerritory;
+        if (!Configuration.SpeedUp[0].Desc.Equals(SpeedInfo.Default().Desc))
+            Configuration.SpeedUp[0].Desc = SpeedInfo.Default().Desc;
+        if (Configuration.SpeedUp[^2].SpeedUpTerritory.IsNullOrEmpty())
+            Configuration.SpeedUp.Remove(Configuration.SpeedUp[^2]);
+        if (!Configuration.SpeedUp[^1].SpeedUpTerritory.IsNullOrEmpty())
             Configuration.SpeedUp.Add(new SpeedInfo());
-        if (!Configuration.SpeedUp[0].Equals(SpeedInfo.Default()))
-            Configuration.SpeedUp[0] = SpeedInfo.Default();
         Configuration.Save();
         CurrentSpeedInfo = null;
         foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
@@ -86,8 +90,12 @@ public class ConfigWindow() : Window("SkyEye") {
                 if (ImGui.Checkbox("无人就加速", ref Configuration.SpeedUpEnabled)) Configuration.Save();
                 ImGui.SameLine();
                 if (ImGui.Button("重置")) SetSpeed(1);
+                if (ImGui.Button("清空null项目")) {
+                    Configuration.SpeedUp = Configuration.SpeedUp.Where(i => !i.SpeedUpTerritory.IsNullOrEmpty()).ToList();
+                    ValidateSpeedInfo();
+                }
                 if (Configuration.SpeedUpEnabled) {
-                    string[] header = ["启用", "Id", "倍率", "最终速度上限(含乘算倍率)", "备注"];
+                    string[] header = ["启用", "地区Id", "倍率", "最终速度上限(含乘算倍率)", "备注"];
                     if (ImGui.BeginTable("TableSpeedInfo", header.Length, ImGuiTableFlag)) {
                         foreach (var item in header) ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthStretch);
                         ImGui.TableHeadersRow();
