@@ -90,6 +90,8 @@ public class ConfigWindow() : Window("SkyEye") {
                 if (ImGui.Checkbox("无人就加速", ref Configuration.SpeedUpEnabled)) Configuration.Save();
                 ImGui.SameLine();
                 if (ImGui.Button("重置")) SetSpeed(1);
+                ImGui.Text("从下往上删没问题，从中间删会导致null项目，点击即可清除");
+                ImGui.SameLine();
                 if (ImGui.Button("清空null项目")) {
                     Configuration.SpeedUp = Configuration.SpeedUp.Where(i => !i.SpeedUpTerritory.IsNullOrEmpty()).ToList();
                     ValidateSpeedInfo();
