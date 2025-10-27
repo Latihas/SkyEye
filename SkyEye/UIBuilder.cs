@@ -42,8 +42,8 @@ internal class UiBuilder : IDisposable {
         ClientState.TerritoryChanged -= TerritoryChanged;
     }
 
-    private static void TerritoryChanged(ushort territoryId) {
-        if (InEureka(lastTerritoryId) || InEureka(territoryId)) {
+    private static void TerritoryChanged(ushort _) {
+        if (InEureka(lastTerritoryId) || InEureka(ClientState.TerritoryType)) {
             YlPositions.Clear();
             Yl.Clear();
             lastFarmPos = null;
@@ -53,12 +53,13 @@ internal class UiBuilder : IDisposable {
             foreach (var k in EurekaPyros.DeadFateDic.Keys) EurekaPyros.DeadFateDic[k] = "-1";
             foreach (var k in EurekaHydatos.DeadFateDic.Keys) EurekaHydatos.DeadFateDic[k] = "-1";
         }
-        lastTerritoryId = territoryId;
+        lastTerritoryId = ClientState.TerritoryType;
         CurrentSpeedInfo = null;
-        foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(territoryId.ToString()))) {
+        foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains( ClientState.TerritoryType.ToString()))) {
             CurrentSpeedInfo = s;
             break;
         }
+        SetSpeed(1);
     }
 
     private void UiBuilder_OnBuildUi() {

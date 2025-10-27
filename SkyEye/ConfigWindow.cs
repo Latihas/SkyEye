@@ -41,13 +41,13 @@ public class ConfigWindow() : Window("SkyEye") {
             Configuration.SpeedUp.Remove(Configuration.SpeedUp[^2]);
         if (!Configuration.SpeedUp[^1].SpeedUpTerritory.IsNullOrEmpty())
             Configuration.SpeedUp.Add(new SpeedInfo());
-        Configuration.Save();
         CurrentSpeedInfo = null;
         foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
             CurrentSpeedInfo = s;
             break;
         }
         SetSpeed(1);
+        Configuration.Save();
     }
 
     public override void Draw() {
@@ -89,7 +89,13 @@ public class ConfigWindow() : Window("SkyEye") {
                 ImGui.Text("地区id用竖线|隔开。");
                 if (ImGui.Checkbox("无人就加速", ref Configuration.SpeedUpEnabled)) Configuration.Save();
                 ImGui.SameLine();
-                if (ImGui.Button("重置")) SetSpeed(1);
+                if (ImGui.Button("重置")) {
+                    foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
+                        CurrentSpeedInfo = s;
+                        break;
+                    }
+                    SetSpeed(1);
+                }
                 ImGui.Text("从下往上删没问题，从中间删会导致null项目，点击即可清除");
                 ImGui.SameLine();
                 if (ImGui.Button("清空null项目")) {

@@ -94,6 +94,11 @@ public sealed class Plugin : IDalamudPlugin {
         }
         MapInfo = DataManager.GetExcelSheet<TerritoryType>().Where(i => !i.PlaceNameRegion.Value.Name.IsEmpty)
             .ToDictionary(i => i.RowId.ToString(), i => $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}");
+        foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains( ClientState.TerritoryType.ToString()))) {
+            CurrentSpeedInfo = s;
+            break;
+        }
+        SetSpeed(1);
     }
 
     public static MConfiguration Configuration { get; private set; } = null!;
