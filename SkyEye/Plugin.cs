@@ -271,7 +271,7 @@ public sealed class Plugin : IDalamudPlugin {
         }
         unsafe {
             if (InventoryManager.Instance()->GetInventoryItemCount(LuckyCarrotItemId) > 0)
-                ActionManager.Instance()->UseAction(ActionType.KeyItem, LuckyCarrotItemId, mode: ActionManager.UseActionMode.Queue);
+                ActionManager.Instance()->UseAction(ActionType.EventItem, LuckyCarrotItemId, mode: ActionManager.UseActionMode.Queue);
             else {
                 Log.Warning("没有幸运胡萝卜可用，停止自动使用");
                 StopCarrotTimer();

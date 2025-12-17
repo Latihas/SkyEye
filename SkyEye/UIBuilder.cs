@@ -55,7 +55,7 @@ internal class UiBuilder : IDisposable {
         }
         lastTerritoryId = ClientState.TerritoryType;
         CurrentSpeedInfo = null;
-        foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains( ClientState.TerritoryType.ToString()))) {
+        foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
             CurrentSpeedInfo = s;
             break;
         }
@@ -169,7 +169,7 @@ internal class UiBuilder : IDisposable {
             _weatherDic.Add(o9.Weather, (o9.Time.ToString(timeFormat), timeLeft.ToString(timeFormat)));
         }
         foreach (var o10 in fates)
-            _eurekaList2D.Add((ToVector3(MapToWorld(o10.FatePosition, 200, 11, 11.25f)),
+            _eurekaList2D.Add((ToVector3(MapToWorld(o10.FatePosition, 200, 11, TerritoryType == 827 ? 20.25f : 11.25f)),
                 uint.MaxValue, uint.MaxValue, o10.BossShortName, o10.FateId.ToString(), o10.SpawnRequiredWeather, o10.SpawnByRequiredNight));
     }
 

@@ -3,13 +3,14 @@
     <Configuration>Release</Configuration>
     <OutputPath>bin</OutputPath>
     <AssemblyName>SkyEye</AssemblyName>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <PlatformTarget>x64</PlatformTarget>
     <Optimize>true</Optimize>
     <DebugSymbols>false</DebugSymbols>
     <DebugType>none</DebugType>
     <Nullable>enable</Nullable>
+    <GenerateSatelliteAssembliesForCore>false</GenerateSatelliteAssembliesForCore>
   </PropertyGroup>
   <PropertyGroup>
     <LangVersion>Latest</LangVersion>
@@ -20,40 +21,43 @@
   <ItemGroup>
     <Reference Include="System.Windows.Extensions">
       <HintPath>System.Windows.Extensions.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Lumina">
       <HintPath>$(DalamudPath)\Lumina.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="Lumina.Excel">
       <HintPath>$(DalamudPath)\Lumina.Excel.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="Dalamud">
       <HintPath>$(DalamudPath)\Dalamud.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="FFXIVClientStructs">
       <HintPath>$(DalamudPath)\FFXIVClientStructs.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="InteropGenerator.Runtime">
       <HintPath>$(DalamudPath)\InteropGenerator.Runtime.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="SharpDX.Mathematics">
       <HintPath>$(DalamudPath)\SharpDX.Mathematics.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="ImGui.NET">
       <HintPath>$(DalamudPath)\Dalamud.Bindings.ImGui.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(DalamudPath)\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="SkyEye.json" CopyToOutputDirectory="PreserveNewest"/>
     <Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
-  <Target Name="DeleteFiles" AfterTargets="Build">
-    <ItemGroup>
-      <FilesToDelete Include="$(OutputPath)/*" Exclude="$(OutputPath)/SkyEye*;$(OutputPath)/*.wav;$(OutputPath)/System.Windows.Extensions.dll;"/>
-    </ItemGroup>
-    <Delete Files="@(FilesToDelete)"/>
-  </Target>
 </Project>
