@@ -98,9 +98,9 @@ internal static class NavmeshIpc {
 			_divetp.InvokeAction(pos);
 			return;
 		}
-		if (!NavmeshIpc.IsEnabled || !IsReady()) {
+		if (!IsEnabled || !IsReady()) {
 			Plugin.Log.Error("vnavmesh插件异常，尝试重新初始化");
-			NavmeshIpc.Init();
+			Init();
 			return;
 		}
 		Execute(() => _pathfindAndMoveTo?.InvokeFunc(pos, fly));

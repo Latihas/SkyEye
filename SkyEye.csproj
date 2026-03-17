@@ -11,8 +11,6 @@
     <DebugType>none</DebugType>
     <Nullable>enable</Nullable>
     <GenerateSatelliteAssembliesForCore>false</GenerateSatelliteAssembliesForCore>
-  </PropertyGroup>
-  <PropertyGroup>
     <LangVersion>Latest</LangVersion>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <DalamudPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudPath>
@@ -41,10 +39,6 @@
     </Reference>
     <Reference Include="InteropGenerator.Runtime">
       <HintPath>$(DalamudPath)\InteropGenerator.Runtime.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="SharpDX.Mathematics">
-      <HintPath>$(DalamudPath)\SharpDX.Mathematics.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="ImGui.NET">

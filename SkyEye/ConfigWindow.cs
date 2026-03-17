@@ -153,17 +153,9 @@ public class ConfigWindow() : Window("SkyEye") {
 				if (ImGui.Checkbox("宝箱位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
 				if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoRabbit)) Configuration.Save();
 				if (Configuration.AutoRabbit) {
-					if (ImGui.Checkbox("自动开宝箱后回点位", ref Configuration.AutoRabbitWait)) Configuration.Save();
+					if (ImGui.Checkbox("自动开宝箱后每过一段时间自动导航到兔子", ref Configuration.AutoRabbitWait)) Configuration.Save();
 					if (Configuration.AutoRabbitWait) {
-						if (ImGui.InputFloat("RabbitWaitX", ref Configuration.RabbitWaitX)) Configuration.Save();
-						if (ImGui.InputFloat("RabbitWaitY", ref Configuration.RabbitWaitY)) Configuration.Save();
-						if (ImGui.InputFloat("RabbitWaitZ", ref Configuration.RabbitWaitZ)) Configuration.Save();
-						if (ImGui.Button("设置兔子返回点为当前坐标") && ObjectTable.LocalPlayer != null) {
-							Configuration.RabbitWaitX = ObjectTable.LocalPlayer.Position.X;
-							Configuration.RabbitWaitY = ObjectTable.LocalPlayer.Position.Y;
-							Configuration.RabbitWaitZ = ObjectTable.LocalPlayer.Position.Z;
-							Configuration.Save();
-						}
+						if (ImGui.InputFloat("时间(分)", ref Configuration.RabbitWaitTime)) Configuration.Save();
 					}
 				}
 			});
@@ -271,11 +263,7 @@ public class ConfigWindow() : Window("SkyEye") {
 								Content = i.Name
 							});
 							if (InEureka()) {
-								unsafe {
-									AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId,
-										ToVector3(MapToWorld(i.FatePosition, 200, 11, 11.25f)));
-									NavmeshIpc.PathfindAndMoveTo(NavmeshIpc.FlagToPoint().Value, false);
-								}
+								SetFlagAndMove(i.FatePosition);
 							}
 						}
 					},
