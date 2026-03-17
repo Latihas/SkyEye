@@ -26,6 +26,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 using SkyEye.SkyEye.Data;
 using static System.StringComparison;
+using static SkyEye.SkyEye.Util;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 using Timer = System.Timers.Timer;
 
@@ -80,6 +81,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update += Farm;
 		Framework.Update += FindYl;
 		Framework.Update += CheckState;
+		Framework.Update += FindRabbit;
 		PluginInterface.UiBuilder.OpenConfigUi += OnCommand;
 		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
 		ChatGui.ChatMessageUnhandled += ChatRabbit;
@@ -128,6 +130,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update -= Farm;
 		Framework.Update -= FindYl;
 		Framework.Update -= CheckState;
+		Framework.Update -= FindRabbit;
 		SetSpeed(1);
 		_uiBuilder.Dispose();
 		CommandManager.RemoveHandler("/skyeye");
@@ -136,7 +139,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		WebSocket.StopWss();
 	}
 
-	private static void FindYl(IFramework framework) {
+	private static void FindYl(IFramework _) {
 		if (!Configuration.PluginEnabled) return;
 		if (ObjectTable.LocalPlayer is null || !InEureka()) return;
 		IGameObject yls;
@@ -153,6 +156,12 @@ public sealed partial class Plugin : IDalamudPlugin {
 			AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
 		}
 		ChatBox.SendMessage("/e 找到元灵<se.1>");
+	}
+
+	private static void FindRabbit(IFramework _) {
+		if (!((DateTime.Now - LastRabbitWait).TotalMinutes > Configuration.RabbitWaitTime)) return;
+		LastRabbitWait = DateTime.Now;
+		Move2RabbitPos();
 	}
 
 
@@ -269,6 +278,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 		_carrotTimer.Stop();
 	}
 
+	private static DateTime LastRabbitWait = DateTime.MinValue;
+
 	private void UseCarrot() {
 		if (!Configuration.AutoRabbit) return;
 		if (!InEureka()) {
@@ -292,6 +303,42 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
 
+	internal static void SetFlagAndMove(Vector2 pos) {
+		unsafe {
+			AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId,
+				ToVector3(MapToWorld(pos, 200, 11, ClientState.TerritoryType == 827 ? 20.25f : 11.25f)));
+			var p = NavmeshIpc.FlagToPoint();
+			if (p.HasValue) NavmeshIpc.PathfindAndMoveTo(p.Value, false);
+		}
+	}
+
+	private static void Move2RabbitPos() {
+		if (!InEureka()) return;
+		foreach (var fateid in UiBuilder._eurekaList2D.Select(item2 => item2.fateId).Where(fateid => UiBuilder._eurekaLiveIdList2D.Contains(fateid))) {
+			if (ClientState.TerritoryType == 763 && fateid is 1367 or 1368) {
+				var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateid);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
+				}
+			}
+			if (ClientState.TerritoryType == 795 && fateid is 1407 or 1408) {
+				var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateid);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
+				}
+			}
+			if (ClientState.TerritoryType == 827 && fateid is 1425) {
+				var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateid);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
+				}
+			}
+		}
+	}
+
 	private void ChatRabbit(XivChatType type, int timestamp, SeString sender, SeString message) {
 		if (!InEureka()) return;
 		var msg = message.TextValue.Trim();
@@ -304,10 +351,11 @@ public sealed partial class Plugin : IDalamudPlugin {
 					TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
 				}
 				if (!Configuration.AutoRabbitWait) continue;
-				ChatBox.SendMessage("/e 等待7s后返回");
+				ChatBox.SendMessage("/e 等待7s后寻找下一个兔子");
 				Task.Run(async () => {
 					await Task.Delay(7000);
-					NavmeshIpc.PathfindAndMoveTo(new Vector3(Configuration.RabbitWaitX, Configuration.RabbitWaitY, Configuration.RabbitWaitZ), false);
+					LastRabbitWait = DateTime.Now;
+					Move2RabbitPos();
 				});
 			}
 			return;
@@ -352,7 +400,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 
-	private static void UpdateRoundPlayers(IFramework framework) {
+	private static void UpdateRoundPlayers(IFramework _) {
 		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null || !InArea() || CurrentSpeedInfo == null) return;
 		OtherPlayer.Clear();
 		foreach (var obj in ObjectTable)
@@ -384,6 +432,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 		SafeMemory.Write(SpeedPtr.Value, finalspeed);
 	}
 
-    [GeneratedRegex("^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！")]
-    private static partial Regex MyRegex();
+	[GeneratedRegex("^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！")]
+	private static partial Regex MyRegex();
 }
