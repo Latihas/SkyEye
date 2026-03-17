@@ -8,7 +8,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud;
-using Dalamud.Game;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -34,367 +33,357 @@ namespace SkyEye.SkyEye;
 
 [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")]
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-public sealed class Plugin : IDalamudPlugin {
-    private const uint LuckyCarrotItemId = 2002482;
-    internal const int FarmTimeout = 50;
-    private static float _lSpeed = 1f, _dspeed = 1f;
-    internal static List<Vector3> DetectedTreasurePositions = [];
-    internal static readonly List<IPlayerCharacter> OtherPlayer = [];
-    internal static readonly List<Vector3> YlPositions = [];
-    internal static readonly HashSet<uint> Yl = [];
-    private static IGameObject? _farmGameObject;
-    internal static DateTime LastKill = DateTime.Now;
-    private static readonly uint[] Loc = [21, 22];
-    private static bool _locIter, _killing;
-    private static readonly Lock KillingLock = new();
-    internal static Vector3? lastFarmPos;
-    internal static bool FarmFull;
-    private static IntPtr? SpeedPtr;
-    internal static MConfiguration.SpeedInfo? CurrentSpeedInfo = null;
-    internal static Dictionary<string, string> MapInfo = new();
-    private readonly Timer _carrotTimer;
-    private readonly ConfigWindow _configWindow;
-    private readonly UiBuilder _uiBuilder;
-    // ReSharper disable once MemberCanBePrivate.Global
-    public readonly WindowSystem WindowSystem = new("SkyEye");
+public sealed partial class Plugin : IDalamudPlugin {
+	private const uint LuckyCarrotItemId = 2002482;
+	internal const int FarmTimeout = 50;
+	private static float _lSpeed = 1f, _dspeed = 1f;
+	internal static List<Vector3> DetectedTreasurePositions = [];
+	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
+	internal static readonly List<Vector3> YlPositions = [];
+	internal static readonly HashSet<uint> Yl = [];
+	private static IGameObject? _farmGameObject;
+	internal static DateTime LastKill = DateTime.Now;
+	private static readonly uint[] Loc = [21, 22];
+	private static bool _locIter, _killing;
+	private static readonly Lock KillingLock = new();
+	internal static Vector3? lastFarmPos;
+	internal static bool FarmFull;
+	private static IntPtr? SpeedPtr;
+	internal static MConfiguration.SpeedInfo? CurrentSpeedInfo;
+	internal static Dictionary<string, string> MapInfo = new();
+	private readonly Timer _carrotTimer;
+	private readonly ConfigWindow _configWindow;
+	private readonly UiBuilder _uiBuilder;
+	private bool mountState;
+	// ReSharper disable once MemberCanBePrivate.Global
+	public readonly WindowSystem WindowSystem = new("SkyEye");
 
-    public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager) {
-        PluginInterface = pluginInterface;
-        CommandManager = commandManager;
-        Configuration = PluginInterface.GetPluginConfig() as MConfiguration ?? new MConfiguration();
-        _uiBuilder = new UiBuilder();
-        _configWindow = new ConfigWindow();
-        WindowSystem.AddWindow(_configWindow);
-        CommandManager.AddHandler("/skyeye", new CommandInfo(OnCommand) {
-            HelpMessage = "打开主界面"
-        });
-        _carrotTimer = new Timer(7000) {
-            AutoReset = true
-        };
-        _carrotTimer.Elapsed += (_, _) => {
-            if (Configuration.AutoRabbit) UseCarrot();
-            else StopCarrotTimer();
-        };
-        NavmeshIpc.Init();
-        PluginInterface.UiBuilder.Draw += () => WindowSystem.Draw();
-        var mountState = Condition[ConditionFlag.Mounted];
-        Framework.Update += UpdateRoundPlayers;
-        Framework.Update += Farm;
-        Framework.Update += FindYl;
-        Framework.Update += _ => {
-            if (!InArea() || Condition[ConditionFlag.Mounted] == mountState) return;
-            mountState = Condition[ConditionFlag.Mounted];
-            SetSpeed(1);
-        };
-        PluginInterface.UiBuilder.OpenConfigUi += () => OnCommand(null, null);
-        ChatGui.ChatMessageUnhandled += ChatRabbit;
-        if (Configuration.SpeedUp.Count == 0) {
-            Configuration.SpeedUp.Add(MConfiguration.SpeedInfo.Default());
-            Configuration.SpeedUp.Add(new MConfiguration.SpeedInfo());
-        }
-        MapInfo = DataManager.GetExcelSheet<TerritoryType>().Where(i => !i.PlaceNameRegion.Value.Name.IsEmpty)
-            .ToDictionary(i => i.RowId.ToString(), i => $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}");
-        foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains( ClientState.TerritoryType.ToString()))) {
-            CurrentSpeedInfo = s;
-            break;
-        }
-        SetSpeed(1);
-    }
-
-    public static MConfiguration Configuration { get; private set; } = null!;
-    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] public static IClientState ClientState { get; private set; } = null!;
-    [PluginService] public static INotificationManager NotificationManager { get; private set; } = null!;
-    [PluginService] private static IDataManager DataManager { get; set; } = null!;
-    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-    [PluginService] internal static ICondition Condition { get; private set; } = null!;
-    [PluginService] internal static IGameGui Gui { get; private set; } = null!;
-    [PluginService] private static IObjectTable Objects { get; set; } = null!;
-    [PluginService] internal static IFateTable Fates { get; private set; } = null!;
-    [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
-    [PluginService] private static IChatGui ChatGui { get; set; } = null!;
-    [PluginService] internal static IFramework Framework { get; private set; } = null!;
-    [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
-
-    public void Dispose() {
-        WindowSystem.RemoveAllWindows();
-        ChatGui.ChatMessageUnhandled -= ChatRabbit;
-        Framework.Update -= UpdateRoundPlayers;
-        Framework.Update -= Farm;
-        Framework.Update -= FindYl;
-        SetSpeed(1);
-        _uiBuilder.Dispose();
-        CommandManager.RemoveHandler("/skyeye");
-        _carrotTimer.Stop();
-        _carrotTimer.Dispose();
-        WebSocket.StopWss();
-    }
-
-    private static void FindYl(IFramework framework) {
-        if (!Configuration.PluginEnabled) return;
-        if (ClientState.LocalPlayer is null || !InEureka()) return;
-        IGameObject yls;
-        try {
-            yls = Objects.First(obj => obj.Name.ToString().Contains("元灵") && obj.ObjectKind != ObjectKind.Player);
-        }
-        catch (Exception) {
-            return;
-        }
-        if (!Yl.Add(yls.EntityId)) return;
-        var p = yls.Position;
-        YlPositions.Add(p);
-        unsafe {
-            AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
-        }
-        ChatBox.SendMessage("/e 找到元灵<se.1>");
-    }
+	public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager) {
+		PluginInterface = pluginInterface;
+		CommandManager = commandManager;
+		Configuration = PluginInterface.GetPluginConfig() as MConfiguration ?? new MConfiguration();
+		_uiBuilder = new UiBuilder();
+		_configWindow = new ConfigWindow();
+		WindowSystem.AddWindow(_configWindow);
+		CommandManager.AddHandler("/skyeye", new CommandInfo(OnCommand) {
+			HelpMessage = "打开主界面"
+		});
+		_carrotTimer = new Timer(7000) {
+			AutoReset = true
+		};
+		_carrotTimer.Elapsed += (_, _) => {
+			if (Configuration.AutoRabbit) UseCarrot();
+			else StopCarrotTimer();
+		};
+		NavmeshIpc.Init();
+		Framework.Update += UpdateRoundPlayers;
+		Framework.Update += Farm;
+		Framework.Update += FindYl;
+		Framework.Update += CheckState;
+		PluginInterface.UiBuilder.OpenConfigUi += OnCommand;
+		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
+		ChatGui.ChatMessageUnhandled += ChatRabbit;
+		if (Configuration.SpeedUp.Count == 0) {
+			Configuration.SpeedUp.Add(MConfiguration.SpeedInfo.Default());
+			Configuration.SpeedUp.Add(new MConfiguration.SpeedInfo());
+		}
+		MapInfo = DataManager.GetExcelSheet<TerritoryType>().Where(i => !i.PlaceNameRegion.Value.Name.IsEmpty)
+			.ToDictionary(i => i.RowId.ToString(), i => $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}");
+		foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
+			CurrentSpeedInfo = s;
+			break;
+		}
+		SetSpeed(1);
+	}
 
 
-    private static void Farm(IFramework framework) {
-        if (!Configuration.PluginEnabled) return;
-        if (ClientState.LocalPlayer is null || !Configuration.AutoFarm) return;
-        if (!NavmeshIpc.IsReady()) NavmeshIpc.Init();
-        var playerPos = ClientState.LocalPlayer.Position;
-        var playerName = ClientState.LocalPlayer.Name.ToString();
-        var allObjs = Objects.Where(obj =>
-            obj is { ObjectKind: ObjectKind.BattleNpc, IsDead: false } && obj.Name.ToString().Contains(Configuration.FarmTarget)).ToList();
-        var validObjs = allObjs.Where(obj => lastFarmPos is null || Vector3.Distance(lastFarmPos.Value, obj.Position) < Configuration.FarmMaxDistance).ToList();
-        var attracted = allObjs.Where(obj => obj.TargetObject != null && obj.TargetObject.Name.ToString().Contains(playerName)).ToArray();
-        if (attracted.Length >= Configuration.FarmTargetMax) {
-            FarmFull = true;
-            NavmeshIpc.Stop();
-            return;
-        }
-        if (attracted.Length == 0) {
-            lastFarmPos = null;
-            FarmFull = false;
-        }
-        if (Configuration.FarmWait && FarmFull) return;
-        if (_farmGameObject != null) {
-            if (!_farmGameObject.IsValid()) _farmGameObject = null;
-            else if (_farmGameObject.IsDead) {
-                LastKill = DateTime.Now;
-                _farmGameObject = null;
-            }
-        }
-        if (ClientState.TerritoryType == 147 && (DateTime.Now - LastKill).Seconds > FarmTimeout) {
-            _locIter = !_locIter;
-            var targ = Loc[_locIter ? 1 : 0];
-            NavmeshIpc.Stop();
-            ChatBox.SendMessage($"/e 检测超时，正在尝试移动到{targ}");
-            unsafe {
-                Telepo.Instance()->Teleport(targ, 0);
-            }
-            LastKill = DateTime.Now;
-        }
-        var ieu = InEureka();
-        foreach (var obj in validObjs.OrderBy(c => Vector3.Distance(playerPos, c.Position))) {
-            if (obj.TargetObject != null) continue;
-            if (ieu) {
-                if (Vector3.Distance(playerPos, obj.Position) < 15) {
-                    unsafe {
-                        TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
-                    }
-                    ChatBox.SendMessage(Configuration.FarmStartCommand);
-                    if (attracted.Length == 0 || lastFarmPos == null)
-                        lastFarmPos = Configuration.FarmDistAlgo == 0 ? obj.Position : new Vector3(Configuration.FarmWaitX, Configuration.FarmWaitY, Configuration.FarmWaitZ);
-                    NavmeshIpc.Stop();
-                    break;
-                }
-                if (!NavmeshIpc.IsRunning()) NavmeshIpc.PathfindAndMoveTo(obj.Position, false);
-            }
-            else {
-                if (NavmeshIpc.IsRunning()) {
-                    if ((DateTime.Now - LastKill).Seconds % 15 == 14) {
-                        NavmeshIpc.Stop();
-                        NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
-                        if (!ClientState.LocalPlayer!.CurrentMount.HasValue) ChatBox.SendMessage("/ac 随机坐骑");
-                        LastKill = DateTime.Now;
-                    }
-                }
-                bool nk;
-                lock (KillingLock) nk = _killing;
-                if (nk) break;
-                if (Vector3.Distance(playerPos, obj.Position) < 2) {
-                    lock (KillingLock) _killing = true;
-                    _farmGameObject = obj;
-                    unsafe {
-                        TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
-                    }
-                    new Task(Startkill).Start();
-                    break;
-                }
-                if (!ClientState.LocalPlayer!.CurrentMount.HasValue) ChatBox.SendMessage("/ac 随机坐骑");
-                if (!NavmeshIpc.IsRunning()) {
-                    NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
-                    LastKill = DateTime.Now;
-                }
-            }
-        }
-    }
+	private void CheckState(IFramework _) {
+		if (!InArea() || Condition[ConditionFlag.Mounted] == mountState) return;
+		mountState = Condition[ConditionFlag.Mounted];
+		SetSpeed(1);
+	}
 
-    private static async void Startkill() {
-        try {
-            NavmeshIpc.Stop();
-            await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/e NewTask"));
-            if (ClientState.LocalPlayer!.CurrentMount.HasValue) {
-                await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/ac 随机坐骑"));
-                await Task.Delay(1000);
-            }
-            await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage(Configuration.FarmStartCommand));
-            await Task.Delay(500);
-        }
-        catch (Exception e) {
-            Log.Error(e.ToString());
-        }
-        finally {
-            lock (KillingLock) _killing = false;
-        }
-    }
+	private void OnCommand() => OnCommand(null, null);
+	public static MConfiguration Configuration { get; private set; } = null!;
+	[PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
+	[PluginService] public static IClientState ClientState { get; private set; } = null!;
+	[PluginService] public static INotificationManager NotificationManager { get; private set; } = null!;
+	[PluginService] private static IDataManager DataManager { get; set; } = null!;
+	[PluginService] internal static IPluginLog Log { get; private set; } = null!;
+	[PluginService] internal static ICondition Condition { get; private set; } = null!;
+	[PluginService] internal static IGameGui Gui { get; private set; } = null!;
+	[PluginService] public static IObjectTable ObjectTable { get; set; } = null!;
+	[PluginService] internal static IFateTable Fates { get; private set; } = null!;
+	[PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
+	[PluginService] private static IChatGui ChatGui { get; set; } = null!;
+	[PluginService] internal static IFramework Framework { get; private set; } = null!;
+	[PluginService] private static ICommandManager CommandManager { get; set; } = null!;
 
-    private void StartCarrotTimer() {
-        if (_carrotTimer.Enabled || !Configuration.AutoRabbit) return;
-        UseCarrot();
-        _carrotTimer.Start();
-    }
+	public void Dispose() {
+		PluginInterface.UiBuilder.OpenConfigUi -= OnCommand;
+		PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+		WindowSystem.RemoveAllWindows();
+		ChatGui.ChatMessageUnhandled -= ChatRabbit;
+		Framework.Update -= UpdateRoundPlayers;
+		Framework.Update -= Farm;
+		Framework.Update -= FindYl;
+		Framework.Update -= CheckState;
+		SetSpeed(1);
+		_uiBuilder.Dispose();
+		CommandManager.RemoveHandler("/skyeye");
+		_carrotTimer.Stop();
+		_carrotTimer.Dispose();
+		WebSocket.StopWss();
+	}
 
-    private void StopCarrotTimer() {
-        if (_carrotTimer is not { Enabled: true }) return;
-        _carrotTimer.Stop();
-    }
+	private static void FindYl(IFramework framework) {
+		if (!Configuration.PluginEnabled) return;
+		if (ObjectTable.LocalPlayer is null || !InEureka()) return;
+		IGameObject yls;
+		try {
+			yls = ObjectTable.First(obj => obj.Name.ToString().Contains("元灵") && obj.ObjectKind != ObjectKind.Player);
+		}
+		catch (Exception) {
+			return;
+		}
+		if (!Yl.Add(yls.EntityId)) return;
+		var p = yls.Position;
+		YlPositions.Add(p);
+		unsafe {
+			AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
+		}
+		ChatBox.SendMessage("/e 找到元灵<se.1>");
+	}
 
-    private void UseCarrot() {
-        if (!Configuration.AutoRabbit) return;
-        if (!InEureka()) {
-            StopCarrotTimer();
-            return;
-        }
-        unsafe {
-            if (InventoryManager.Instance()->GetInventoryItemCount(LuckyCarrotItemId) > 0)
-                ActionManager.Instance()->UseAction(ActionType.EventItem, LuckyCarrotItemId, mode: ActionManager.UseActionMode.Queue);
-            else {
-                Log.Warning("没有幸运胡萝卜可用，停止自动使用");
-                StopCarrotTimer();
-            }
-        }
-    }
 
-    private void OnCommand(string? command, string? args) => _configWindow.Toggle();
+	private static void Farm(IFramework framework) {
+		if (!Configuration.PluginEnabled) return;
+		if (ObjectTable.LocalPlayer is null || !Configuration.AutoFarm) return;
+		if (!NavmeshIpc.IsReady()) NavmeshIpc.Init();
+		var playerPos = ObjectTable.LocalPlayer.Position;
+		var playerName = ObjectTable.LocalPlayer.Name.ToString();
+		var allObjs = ObjectTable.Where(obj =>
+			obj is { ObjectKind: ObjectKind.BattleNpc, IsDead: false } && obj.Name.ToString().Contains(Configuration.FarmTarget)).ToList();
+		var validObjs = allObjs.Where(obj => lastFarmPos is null || Vector3.Distance(lastFarmPos.Value, obj.Position) < Configuration.FarmMaxDistance).ToList();
+		var attracted = allObjs.Where(obj => obj.TargetObject != null && obj.TargetObject.Name.ToString().Contains(playerName)).ToArray();
+		if (attracted.Length >= Configuration.FarmTargetMax) {
+			FarmFull = true;
+			NavmeshIpc.Stop();
+			return;
+		}
+		if (attracted.Length == 0) {
+			lastFarmPos = null;
+			FarmFull = false;
+		}
+		if (Configuration.FarmWait && FarmFull) return;
+		if (_farmGameObject != null) {
+			if (!_farmGameObject.IsValid()) _farmGameObject = null;
+			else if (_farmGameObject.IsDead) {
+				LastKill = DateTime.Now;
+				_farmGameObject = null;
+			}
+		}
+		if (ClientState.TerritoryType == 147 && (DateTime.Now - LastKill).Seconds > FarmTimeout) {
+			_locIter = !_locIter;
+			var targ = Loc[_locIter ? 1 : 0];
+			NavmeshIpc.Stop();
+			ChatBox.SendMessage($"/e 检测超时，正在尝试移动到{targ}");
+			unsafe {
+				Telepo.Instance()->Teleport(targ, 0);
+			}
+			LastKill = DateTime.Now;
+		}
+		var ieu = InEureka();
+		foreach (var obj in validObjs.OrderBy(c => Vector3.Distance(playerPos, c.Position))) {
+			if (obj.TargetObject != null) continue;
+			if (ieu) {
+				if (Vector3.Distance(playerPos, obj.Position) < 15) {
+					unsafe {
+						TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
+					}
+					ChatBox.SendMessage(Configuration.FarmStartCommand);
+					if (attracted.Length == 0 || lastFarmPos == null)
+						lastFarmPos = Configuration.FarmDistAlgo == 0 ? obj.Position : new Vector3(Configuration.FarmWaitX, Configuration.FarmWaitY, Configuration.FarmWaitZ);
+					NavmeshIpc.Stop();
+					break;
+				}
+				if (!NavmeshIpc.IsRunning()) NavmeshIpc.PathfindAndMoveTo(obj.Position, false);
+			}
+			else {
+				if (NavmeshIpc.IsRunning()) {
+					if ((DateTime.Now - LastKill).Seconds % 15 == 14) {
+						NavmeshIpc.Stop();
+						NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
+						if (!ObjectTable.LocalPlayer!.CurrentMount.HasValue) ChatBox.SendMessage("/ac 随机坐骑");
+						LastKill = DateTime.Now;
+					}
+				}
+				bool nk;
+				lock (KillingLock) nk = _killing;
+				if (nk) break;
+				if (Vector3.Distance(playerPos, obj.Position) < 2) {
+					lock (KillingLock) _killing = true;
+					_farmGameObject = obj;
+					unsafe {
+						TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
+					}
+					new Task(Startkill).Start();
+					break;
+				}
+				if (!ObjectTable.LocalPlayer!.CurrentMount.HasValue) ChatBox.SendMessage("/ac 随机坐骑");
+				if (!NavmeshIpc.IsRunning()) {
+					NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
+					LastKill = DateTime.Now;
+				}
+			}
+		}
+	}
 
-    internal static bool InEureka() => ClientState is { LocalPlayer: not null, TerritoryType: 732 or 763 or 795 or 827 };
-    internal static bool InEureka(ushort id) => id is 732 or 763 or 795 or 827;
+	private static async void Startkill() {
+		try {
+			NavmeshIpc.Stop();
+			await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/e NewTask"));
+			if (ObjectTable.LocalPlayer!.CurrentMount.HasValue) {
+				await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/ac 随机坐骑"));
+				await Task.Delay(1000);
+			}
+			await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage(Configuration.FarmStartCommand));
+			await Task.Delay(500);
+		}
+		catch (Exception e) {
+			Log.Error(e.ToString());
+		}
+		finally {
+			lock (KillingLock) _killing = false;
+		}
+	}
 
-    internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
+	private void StartCarrotTimer() {
+		if (_carrotTimer.Enabled || !Configuration.AutoRabbit) return;
+		UseCarrot();
+		_carrotTimer.Start();
+	}
 
-    private void ChatRabbit(XivChatType type, int timestamp, SeString sender, SeString message) {
-        if (!InEureka()) return;
-        var msg = message.TextValue.Trim();
-        if (msg.StartsWith("找到了财宝，幸福兔心满意足地离去了。")) {
-            DetectedTreasurePositions = [];
-            StopCarrotTimer();
-            foreach (var obj in Objects) {
-                if (obj is not { ObjectKind: ObjectKind.EventObj } || !obj.Name.ToString().Contains("财宝箱")) continue;
-                unsafe {
-                    TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
-                }
-                if (!Configuration.AutoRabbitWait) continue;
-                ChatBox.SendMessage("/e 等待7s后返回");
-                Task.Run(async () => {
-                    await Task.Delay(7000);
-                    NavmeshIpc.PathfindAndMoveTo(new Vector3(Configuration.RabbitWaitX, Configuration.RabbitWaitY, Configuration.RabbitWaitZ), false);
-                });
-            }
+	private void StopCarrotTimer() {
+		if (_carrotTimer is not { Enabled: true }) return;
+		_carrotTimer.Stop();
+	}
 
-            return;
-        }
-        var result = Regex.Match(msg, "^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！");
-        if (!(result.Success || msg.StartsWith("幸福兔看起来很喜欢你。"))) return;
-        StartCarrotTimer();
-        var direction = result.Groups["direction"].Value;
-        int minDistance, maxDistance;
-        switch (result.Groups["distance"].Value) {
-            case "很远":
-                minDistance = 200;
-                maxDistance = int.MaxValue;
-                break;
-            case "稍远":
-                minDistance = 100;
-                maxDistance = 200;
-                break;
-            case "不远":
-                minDistance = 25;
-                maxDistance = 100;
-                break;
-            default:
-                minDistance = 0;
-                maxDistance = 25;
-                break;
-        }
-        var playerPos = ClientState.LocalPlayer!.Position;
-        if (DetectedTreasurePositions.Count == 0)
-            DetectedTreasurePositions = PData.RabbitTreasurePositions[ClientState.TerritoryType]
-                .Where(delegate(Vector3 c) {
-                    var num = Vector3.Distance(playerPos, c);
-                    return num >= minDistance && num <= maxDistance;
-                })
-                .OrderBy(c => Vector3.Distance(playerPos, c)).ToList();
-        if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
-        else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
-        else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
-        else if (direction.Equals("正西", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X < playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
-        else if (direction.Equals("东南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X >= playerPos.X).ToList();
-        else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
-        else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
-        else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
-        if (Configuration.AutoRabbit) {
-            float maxd = 114514;
-            Vector3? point = null;
-            foreach (var treasure in DetectedTreasurePositions) {
-                var d = Vector3.Distance(ClientState.LocalPlayer.Position, treasure);
-                if (d > maxd) continue;
-                maxd = d;
-                point = treasure;
-            }
-            if (point != null) {
-                if (!NavmeshIpc.IsEnabled || !NavmeshIpc.IsReady()) {
-                    Log.Error("vnavmesh插件异常，尝试重新初始化");
-                    NavmeshIpc.Init();
-                    return;
-                }
-                NavmeshIpc.PathfindAndMoveTo(point.Value, false);
-            }
-        }
-    }
+	private void UseCarrot() {
+		if (!Configuration.AutoRabbit) return;
+		if (!InEureka()) {
+			StopCarrotTimer();
+			return;
+		}
+		unsafe {
+			if (InventoryManager.Instance()->GetInventoryItemCount(LuckyCarrotItemId) > 0)
+				ActionManager.Instance()->UseAction(ActionType.EventItem, LuckyCarrotItemId, mode: ActionManager.UseActionMode.Queue);
+			else {
+				Log.Warning("没有幸运胡萝卜可用，停止自动使用");
+				StopCarrotTimer();
+			}
+		}
+	}
 
-    private static void UpdateRoundPlayers(IFramework framework) {
-        if (!Configuration.PluginEnabled || ClientState.LocalPlayer == null || !InArea() || CurrentSpeedInfo == null) return;
-        OtherPlayer.Clear();
-        foreach (var obj in Objects)
-            if (obj.GameObjectId != ClientState.LocalPlayer.GameObjectId & obj.Address.ToInt64() != 0 && obj is IPlayerCharacter rcTemp)
-                OtherPlayer.Add(rcTemp);
-        if (Configuration.SpeedUpEnabled) {
-            var friends = Configuration.SpeedUpFriendly.Split('|');
-            _dspeed = OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ClientState.LocalPlayer.Position) < (110 ^ 2)) ? 1f : CurrentSpeedInfo.SpeedUpN;
-        }
-        else _dspeed = 1f;
-        SetSpeed(_dspeed);
-    }
+	private void OnCommand(string? command, string? args) => _configWindow.Toggle();
 
-    // https://github.com/Jaksuhn/ffxiv-bundleoftweaks
-    // https://github.com/MnFeN/Triggernometry
-    [SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
-    internal static void SetSpeed(float speedBase) {
-        if (CurrentSpeedInfo == null || !Configuration.SpeedUpEnabled) return;
-        var mounted = Condition[ConditionFlag.Mounted];
-        if (mounted) speedBase *= 2;
-        if (_lSpeed == speedBase) return;
-        _lSpeed = speedBase;
-        if (SpeedPtr == null) {
-            var ba = SigScanner.ScanText("48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 4F") + 3;
-            SpeedPtr = ba + Marshal.ReadInt32(ba) + 4 + 0x58;
-        }
-        var finalspeed = Math.Min(CurrentSpeedInfo.SpeedUpMax, speedBase * 6);
-        ChatBox.SendMessage($"/e SetSpeed({(mounted ? 12 : 6)}x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
-        SafeMemory.Write(SpeedPtr.Value, finalspeed);
-    }
+	internal static bool InEureka() => ObjectTable.LocalPlayer != null && ClientState.TerritoryType is 732 or 763 or 795 or 827;
+	internal static bool InEureka(ushort id) => id is 732 or 763 or 795 or 827;
+
+	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
+
+	private void ChatRabbit(XivChatType type, int timestamp, SeString sender, SeString message) {
+		if (!InEureka()) return;
+		var msg = message.TextValue.Trim();
+		if (msg.StartsWith("找到了财宝，幸福兔心满意足地离去了。")) {
+			DetectedTreasurePositions = [];
+			StopCarrotTimer();
+			foreach (var obj in ObjectTable) {
+				if (obj is not { ObjectKind: ObjectKind.EventObj } || !obj.Name.ToString().Contains("财宝箱")) continue;
+				unsafe {
+					TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
+				}
+				if (!Configuration.AutoRabbitWait) continue;
+				ChatBox.SendMessage("/e 等待7s后返回");
+				Task.Run(async () => {
+					await Task.Delay(7000);
+					NavmeshIpc.PathfindAndMoveTo(new Vector3(Configuration.RabbitWaitX, Configuration.RabbitWaitY, Configuration.RabbitWaitZ), false);
+				});
+			}
+			return;
+		}
+		var result = MyRegex().Match(msg);
+		if (!(result.Success || msg.StartsWith("幸福兔看起来很喜欢你。"))) return;
+		StartCarrotTimer();
+		var direction = result.Groups["direction"].Value;
+		int minDistance, maxDistance;
+		switch (result.Groups["distance"].Value) {
+			case "很远":
+				minDistance = 200;
+				maxDistance = int.MaxValue;
+				break;
+			case "稍远":
+				minDistance = 100;
+				maxDistance = 200;
+				break;
+			case "不远":
+				minDistance = 25;
+				maxDistance = 100;
+				break;
+			default:
+				minDistance = 0;
+				maxDistance = 25;
+				break;
+		}
+		var playerPos = ObjectTable.LocalPlayer!.Position;
+		DetectedTreasurePositions = PData.RabbitTreasurePositions[ClientState.TerritoryType]
+			.Select(i => (i, Vector3.Distance(playerPos, i)))
+			.Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance)
+			.OrderBy(c => c.Item2).Select(i => i.i).ToList();
+		if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("正西", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X < playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("东南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X >= playerPos.X).ToList();
+		else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
+		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
+		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
+		if (Configuration.AutoRabbit && !NavmeshIpc.IsRunning()) NavmeshIpc.PathfindAndMoveTo(DetectedTreasurePositions.First(), false);
+	}
+
+
+	private static void UpdateRoundPlayers(IFramework framework) {
+		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null || !InArea() || CurrentSpeedInfo == null) return;
+		OtherPlayer.Clear();
+		foreach (var obj in ObjectTable)
+			if (obj.GameObjectId != ObjectTable.LocalPlayer.GameObjectId & obj.Address.ToInt64() != 0 && obj is IPlayerCharacter rcTemp)
+				OtherPlayer.Add(rcTemp);
+		if (Configuration.SpeedUpEnabled) {
+			var friends = Configuration.SpeedUpFriendly.Split('|');
+			_dspeed = OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ObjectTable.LocalPlayer.Position) < (110 ^ 2)) ? 1f : CurrentSpeedInfo.SpeedUpN;
+		}
+		else _dspeed = 1f;
+		SetSpeed(_dspeed);
+	}
+
+	// https://github.com/Jaksuhn/ffxiv-bundleoftweaks
+	// https://github.com/MnFeN/Triggernometry
+	[SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
+	internal static void SetSpeed(float speedBase) {
+		if (CurrentSpeedInfo == null || !Configuration.SpeedUpEnabled) return;
+		var mounted = Condition[ConditionFlag.Mounted];
+		if (mounted) speedBase *= 2;
+		if (_lSpeed == speedBase) return;
+		_lSpeed = speedBase;
+		if (SpeedPtr == null) {
+			var ba = SigScanner.ScanText("48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 4F") + 3;
+			SpeedPtr = ba + Marshal.ReadInt32(ba) + 4 + 0x58;
+		}
+		var finalspeed = Math.Min(CurrentSpeedInfo.SpeedUpMax, speedBase * 6);
+		ChatBox.SendMessage($"/e SetSpeed({(mounted ? 12 : 6)}x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
+		SafeMemory.Write(SpeedPtr.Value, finalspeed);
+	}
+
+    [GeneratedRegex("^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！")]
+    private static partial Regex MyRegex();
 }

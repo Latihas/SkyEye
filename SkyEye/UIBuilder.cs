@@ -323,7 +323,7 @@ internal class UiBuilder : IDisposable {
     }
 
     private Vector2 WorldToMap(Vector2 origin, Vector3 worldVector3) =>
-        origin + ToVector2(worldVector3 - ClientState.LocalPlayer!.Position) * AreaMap.MapScale * _globalUiScale;
+        origin + ToVector2(worldVector3 - ObjectTable.LocalPlayer!.Position) * AreaMap.MapScale * _globalUiScale;
 
 
     internal static void NmFound() {
