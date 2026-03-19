@@ -56,7 +56,7 @@ public class ConfigWindow() : Window("SkyEye") {
 			SetSpeed(1);
 			lastFarmPos = null;
 			FarmFull = false;
-			NavmeshIpc.Stop();
+			Ipcs.Stop();
 			return;
 		}
 		if (ImGui.BeginTabBar("tab")) {
@@ -353,10 +353,15 @@ public class ConfigWindow() : Window("SkyEye") {
 				}
 				ImGui.PopStyleColor(2);
 			});
-			// NewTab("测试", () => {
-			//     if (ImGui.Button("测试")) {
-			//     }
-			// });
+			
+			if (Ipcs.HasCore())
+				NewTab("Core", () => {
+					if (ImGui.Button("潜水无敌")) Ipcs.Dive();
+					if (ImGui.Button("潜水Tp到flag")) {
+						var p = Ipcs.FlagToPoint();
+						if (p.HasValue) Ipcs.DiveTp(p.Value);
+					}
+				});
 		}
 	}
 

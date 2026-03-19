@@ -5,7 +5,7 @@ using Dalamud.Plugin.Ipc;
 
 namespace SkyEye.SkyEye;
 
-internal static class NavmeshIpc {
+internal static class Ipcs {
 	private const string Name = "vnavmesh";
 	private static bool _hasLoggedInitSuccess, _hasLoggedPluginNotFound;
 	private static ICallGateSubscriber<bool>? _navIsReady, _pathIsRunning;
@@ -90,12 +90,31 @@ internal static class NavmeshIpc {
 	}
 
 	private static ICallGateSubscriber<Vector3, bool>? _divetp;
+	private static ICallGateSubscriber<bool>? _dive;
 
+	internal static void DiveTp(Vector3 pos) {
+		_divetp ??= Plugin.PluginInterface.GetIpcSubscriber<Vector3, bool>("LatihasDalamudCore.DiveTp");
+		_divetp.InvokeAction(pos);
+	}
+
+	internal static void Dive() {
+		_dive ??= Plugin.PluginInterface.GetIpcSubscriber<bool>("LatihasDalamudCore.Dive");
+		_dive.InvokeAction();
+	}
+
+	internal static bool HasCore() {
+		try {
+			return Plugin.PluginInterface.InstalledPlugins.Any(p => p is { Name: "LatihasDalamudCore", IsLoaded: true })
+			       && Plugin.PluginInterface.GetIpcSubscriber<bool>("LatihasDalamudCore.WAS_HERE").InvokeFunc();
+		}
+		catch (Exception) {
+			return false;
+		}
+	}
 
 	internal static void PathfindAndMoveTo(Vector3 pos, bool fly) {
-		if (Plugin.PluginInterface.InstalledPlugins.Any(p => p is { Name: "LatihasDalamudCore", IsLoaded: true })) {
-			_divetp ??= Plugin.PluginInterface.GetIpcSubscriber<Vector3, bool>("LatihasDalamudCore.DiveTp");
-			_divetp.InvokeAction(pos);
+		if (HasCore()) {
+			DiveTp(pos);
 			return;
 		}
 		if (!IsEnabled || !IsReady()) {

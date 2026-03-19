@@ -52,7 +52,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static IntPtr? SpeedPtr;
 	internal static MConfiguration.SpeedInfo? CurrentSpeedInfo;
 	internal static Dictionary<string, string> MapInfo = new();
-	private static Timer _carrotTimer=null!;
+	private static Timer _carrotTimer = null!;
 	private readonly ConfigWindow _configWindow;
 	private readonly UiBuilder _uiBuilder;
 	private bool mountState;
@@ -76,7 +76,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			if (Configuration.AutoRabbit) UseCarrot();
 			else StopCarrotTimer();
 		};
-		NavmeshIpc.Init();
+		Ipcs.Init();
 		Framework.Update += UpdateRoundPlayers;
 		Framework.Update += Farm;
 		Framework.Update += FindYl;
@@ -158,8 +158,12 @@ public sealed partial class Plugin : IDalamudPlugin {
 		ChatBox.SendMessage("/e 找到元灵<se.1>");
 	}
 
-	private static void FindRabbit(IFramework _) {
-		if (!((DateTime.Now - LastRabbitWait).TotalMinutes > Configuration.RabbitWaitTime) || _carrotTimer is { Enabled: true }) return;
+	private static void FindRabbit(IFramework? _ = null) {
+		if (!((DateTime.Now - LastRabbitWait).TotalMinutes > Configuration.RabbitWaitTime)) return;
+		if (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat]) {
+			LastRabbitWait = DateTime.Now;
+			return;
+		}
 		LastRabbitWait = DateTime.Now;
 		Move2RabbitPos();
 	}
@@ -168,7 +172,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static void Farm(IFramework framework) {
 		if (!Configuration.PluginEnabled) return;
 		if (ObjectTable.LocalPlayer is null || !Configuration.AutoFarm) return;
-		if (!NavmeshIpc.IsReady()) NavmeshIpc.Init();
+		if (!Ipcs.IsReady()) Ipcs.Init();
 		var playerPos = ObjectTable.LocalPlayer.Position;
 		var playerName = ObjectTable.LocalPlayer.Name.ToString();
 		var allObjs = ObjectTable.Where(obj =>
@@ -177,7 +181,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		var attracted = allObjs.Where(obj => obj.TargetObject != null && obj.TargetObject.Name.ToString().Contains(playerName)).ToArray();
 		if (attracted.Length >= Configuration.FarmTargetMax) {
 			FarmFull = true;
-			NavmeshIpc.Stop();
+			Ipcs.Stop();
 			return;
 		}
 		if (attracted.Length == 0) {
@@ -195,7 +199,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (ClientState.TerritoryType == 147 && (DateTime.Now - LastKill).Seconds > FarmTimeout) {
 			_locIter = !_locIter;
 			var targ = Loc[_locIter ? 1 : 0];
-			NavmeshIpc.Stop();
+			Ipcs.Stop();
 			ChatBox.SendMessage($"/e 检测超时，正在尝试移动到{targ}");
 			unsafe {
 				Telepo.Instance()->Teleport(targ, 0);
@@ -213,16 +217,16 @@ public sealed partial class Plugin : IDalamudPlugin {
 					ChatBox.SendMessage(Configuration.FarmStartCommand);
 					if (attracted.Length == 0 || lastFarmPos == null)
 						lastFarmPos = Configuration.FarmDistAlgo == 0 ? obj.Position : new Vector3(Configuration.FarmWaitX, Configuration.FarmWaitY, Configuration.FarmWaitZ);
-					NavmeshIpc.Stop();
+					Ipcs.Stop();
 					break;
 				}
-				if (!NavmeshIpc.IsRunning()) NavmeshIpc.PathfindAndMoveTo(obj.Position, false);
+				if (!Ipcs.IsRunning()) Ipcs.PathfindAndMoveTo(obj.Position, false);
 			}
 			else {
-				if (NavmeshIpc.IsRunning()) {
+				if (Ipcs.IsRunning()) {
 					if ((DateTime.Now - LastKill).Seconds % 15 == 14) {
-						NavmeshIpc.Stop();
-						NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
+						Ipcs.Stop();
+						Ipcs.PathfindAndMoveTo(obj.Position, true);
 						if (!ObjectTable.LocalPlayer!.CurrentMount.HasValue) ChatBox.SendMessage("/ac 随机坐骑");
 						LastKill = DateTime.Now;
 					}
@@ -240,8 +244,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 					break;
 				}
 				if (!ObjectTable.LocalPlayer!.CurrentMount.HasValue) ChatBox.SendMessage("/ac 随机坐骑");
-				if (!NavmeshIpc.IsRunning()) {
-					NavmeshIpc.PathfindAndMoveTo(obj.Position, true);
+				if (!Ipcs.IsRunning()) {
+					Ipcs.PathfindAndMoveTo(obj.Position, true);
 					LastKill = DateTime.Now;
 				}
 			}
@@ -250,7 +254,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	private static async void Startkill() {
 		try {
-			NavmeshIpc.Stop();
+			Ipcs.Stop();
 			await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/e NewTask"));
 			if (ObjectTable.LocalPlayer!.CurrentMount.HasValue) {
 				await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/ac 随机坐骑"));
@@ -308,8 +312,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 		unsafe {
 			AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId,
 				ToVector3(MapToWorld(pos, 200, 11, ClientState.TerritoryType == 827 ? 20.25f : 11.25f)));
-			var p = NavmeshIpc.FlagToPoint();
-			if (p.HasValue) NavmeshIpc.PathfindAndMoveTo(p.Value, false);
+			var p = Ipcs.FlagToPoint();
+			if (p.HasValue) Ipcs.PathfindAndMoveTo(p.Value, false);
 		}
 	}
 
@@ -355,8 +359,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 				ChatBox.SendMessage("/e 等待7s后寻找下一个兔子");
 				Task.Run(async () => {
 					await Task.Delay(7000);
-					LastRabbitWait = DateTime.Now;
-					Move2RabbitPos();
+					LastRabbitWait = DateTime.MinValue;
+					FindRabbit();
 				});
 			}
 			return;
@@ -397,7 +401,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
 		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
 		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
-		if (Configuration.AutoRabbit && !NavmeshIpc.IsRunning()) NavmeshIpc.PathfindAndMoveTo(DetectedTreasurePositions.First(), false);
+		if (Configuration.AutoRabbit && !Ipcs.IsRunning()) Ipcs.PathfindAndMoveTo(DetectedTreasurePositions.First(), false);
 	}
 
 

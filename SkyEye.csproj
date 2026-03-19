@@ -15,12 +15,9 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <DalamudPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudPath>
     <NoWarn>CA1416;</NoWarn>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System.Windows.Extensions">
-      <HintPath>System.Windows.Extensions.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
     <Reference Include="Lumina">
       <HintPath>$(DalamudPath)\Lumina.dll</HintPath>
       <Private>false</Private>
@@ -53,5 +50,8 @@
   <ItemGroup>
     <Content Include="SkyEye.json" CopyToOutputDirectory="PreserveNewest"/>
     <Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Windows.Extensions" Version="10.0.5"/>
   </ItemGroup>
 </Project>
