@@ -1,7 +1,7 @@
 using System;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
-namespace SkyEye.SkyEye;
+namespace SkyEye;
 
 internal static class AreaMap {
 	internal static unsafe AtkUnitBase* AreaMapAddon => (AtkUnitBase*)Plugin.Gui.GetAddonByName("AreaMap").Address;

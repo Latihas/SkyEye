@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace SkyEye.SkyEye.Data;
+namespace SkyEye.Data;
 
 internal static class EurekaHydatos {
 	internal static readonly (int, PData.EurekaWeather)[] Weathers = [

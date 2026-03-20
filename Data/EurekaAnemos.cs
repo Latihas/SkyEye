@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using static SkyEye.SkyEye.Data.PData.EurekaWeather;
+using static SkyEye.Data.PData.EurekaWeather;
 
-namespace SkyEye.SkyEye.Data;
+namespace SkyEye.Data;
 
 internal static class EurekaAnemos {
 	internal static readonly (int, PData.EurekaWeather)[] Weathers = [

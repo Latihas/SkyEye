@@ -10,13 +10,13 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
 using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using SkyEye.SkyEye.Data;
+using SkyEye.Data;
 using static System.Globalization.CultureInfo;
-using static SkyEye.SkyEye.Data.PData;
-using static SkyEye.SkyEye.Plugin;
-using static SkyEye.SkyEye.Util;
+using static SkyEye.Data.PData;
+using static SkyEye.Plugin;
+using static SkyEye.Util;
 
-namespace SkyEye.SkyEye;
+namespace SkyEye;
 
 internal class UiBuilder : IDisposable {
 	private const string timeFormat = @"hh\:mm\:ss";
@@ -106,16 +106,18 @@ internal class UiBuilder : IDisposable {
 				foreach (var o3 in Fates) {
 					_eurekaLiveIdList2D.Add(o3.FateId);
 					if (!_eurekaLiveIdList2DOld.Contains(o3.FateId)) {
-						if (o3.FateId is 1367 or 1368) TzFound();
+						if (o3.FateId is 1367 or 1368) TzFound(o3.FateId);
 						else NmFound();
 					}
 					EurekaPagos.DeadFateDic[o3.FateId] = "1";
 				}
-				foreach (var o4 in from o4 in EurekaPagos.DeadFateDic
-				         where o4.Value.Contains(':')
-				         let minuteSpan2 = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o4.Value).Ticks)
-				         where o4.Key is 1367 or 1368 && minuteSpan2.Minutes >= 7 || minuteSpan2.Hours >= 2
-				         select o4)
+				foreach (var o4 in EurekaPagos.DeadFateDic.Where(o4 => o4.Value.Contains(':'))
+					         .Select(o4 => new {
+						         o4,
+						         minuteSpan2 = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o4.Value).Ticks)
+					         })
+					         .Where(t => t.o4.Key is 1367 or 1368 && t.minuteSpan2.Minutes >= 7 || t.minuteSpan2.Hours >= 2)
+					         .Select(t => t.o4))
 					EurekaPagos.DeadFateDic[o4.Key] = "-1";
 				_weathers = EurekaPagos.GetAllNextWeatherTime();
 				_weatherNow = EurekaPagos.GetCurrentWeatherInfo();
@@ -126,16 +128,18 @@ internal class UiBuilder : IDisposable {
 				foreach (var o5 in Fates) {
 					_eurekaLiveIdList2D.Add(o5.FateId);
 					if (!_eurekaLiveIdList2DOld.Contains(o5.FateId)) {
-						if (o5.FateId is 1407 or 1408) TzFound();
+						if (o5.FateId is 1407 or 1408) TzFound(o5.FateId);
 						else NmFound();
 					}
 					EurekaPyros.DeadFateDic[o5.FateId] = "1";
 				}
-				foreach (var o6 in from o6 in EurekaPyros.DeadFateDic
-				         where o6.Value.Contains(':')
-				         let minuteSpan3 = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o6.Value).Ticks)
-				         where o6.Key is 1407 or 1408 && minuteSpan3.Minutes >= 7 || minuteSpan3.Hours >= 2
-				         select o6)
+				foreach (var o6 in EurekaPyros.DeadFateDic.Where(o6 => o6.Value.Contains(':'))
+					         .Select(o6 => new {
+						         o6,
+						         minuteSpan3 = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o6.Value).Ticks)
+					         })
+					         .Where(t => t.o6.Key is 1407 or 1408 && t.minuteSpan3.Minutes >= 7 || t.minuteSpan3.Hours >= 2)
+					         .Select(t => t.o6))
 					EurekaPyros.DeadFateDic[o6.Key] = "-1";
 				_weathers = EurekaPyros.GetAllNextWeatherTime();
 				_weatherNow = EurekaPyros.GetCurrentWeatherInfo();
@@ -146,16 +150,18 @@ internal class UiBuilder : IDisposable {
 				foreach (var o in Fates) {
 					_eurekaLiveIdList2D.Add(o.FateId);
 					if (!_eurekaLiveIdList2DOld.Contains(o.FateId)) {
-						if (o.FateId == 1425) TzFound();
+						if (o.FateId == 1425) TzFound(o.FateId);
 						else NmFound();
 					}
 					EurekaHydatos.DeadFateDic[o.FateId] = "1";
 				}
-				foreach (var o2 in from o2 in EurekaHydatos.DeadFateDic
-				         where o2.Value.Contains(':')
-				         let minuteSpan = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o2.Value).Ticks)
-				         where o2.Key == 1425 && minuteSpan.Minutes >= 7 || minuteSpan.Hours >= 2
-				         select o2)
+				foreach (var o2 in EurekaHydatos.DeadFateDic.Where(o2 => o2.Value.Contains(':'))
+					         .Select(o2 => new {
+						         o2,
+						         minuteSpan = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o2.Value).Ticks)
+					         })
+					         .Where(t => t.o2.Key == 1425 && t.minuteSpan.Minutes >= 7 || t.minuteSpan.Hours >= 2)
+					         .Select(t => t.o2))
 					EurekaHydatos.DeadFateDic[o2.Key] = "-1";
 				_weathers = EurekaHydatos.GetAllNextWeatherTime();
 				_weatherNow = EurekaHydatos.GetCurrentWeatherInfo();
@@ -334,11 +340,12 @@ internal class UiBuilder : IDisposable {
 		Player1.Play();
 	}
 
-	private static void TzFound() {
+	private static void TzFound(int fateid) {
 		Player2.Stop();
 		Player2.SoundLocation = Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, "tz.wav");
 		Player2.Load();
 		Player2.Play();
+		Instance.FindRabbit(fateid);
 	}
 
 	private void DrawWeatherMap(Vector2 valueOrDefault) {

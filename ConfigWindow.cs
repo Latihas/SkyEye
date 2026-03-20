@@ -7,13 +7,13 @@ using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using SkyEye.SkyEye.Data;
-using static SkyEye.SkyEye.MConfiguration;
-using static SkyEye.SkyEye.Plugin;
-using static SkyEye.SkyEye.Util;
+using SkyEye.Data;
+using static SkyEye.MConfiguration;
+using static SkyEye.Plugin;
+using static SkyEye.Util;
 using Action = System.Action;
 
-namespace SkyEye.SkyEye;
+namespace SkyEye;
 
 public class ConfigWindow() : Window("SkyEye") {
 	private static readonly string[] regions = [
@@ -50,7 +50,7 @@ public class ConfigWindow() : Window("SkyEye") {
 		Configuration.Save();
 	}
 
-	public override void Draw() {
+	public override unsafe void Draw() {
 		if (ImGui.Checkbox("开关", ref Configuration.PluginEnabled)) Configuration.Save();
 		if (!Configuration.PluginEnabled) {
 			SetSpeed(1);
@@ -76,9 +76,7 @@ public class ConfigWindow() : Window("SkyEye") {
 					ImGui.Text($"元灵{i}({p.X},{p.Y},{p.Z})");
 					ImGui.SameLine();
 					if (ImGui.Button($"发送位置{i}")) {
-						unsafe {
-							AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
-						}
+						AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
 						ChatBox.SendMessage($"/sh 元灵位置{i}: <flag>");
 					}
 				}
@@ -153,10 +151,15 @@ public class ConfigWindow() : Window("SkyEye") {
 				if (ImGui.Checkbox("宝箱位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
 				if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoRabbit)) Configuration.Save();
 				if (Configuration.AutoRabbit) {
-					if (ImGui.Checkbox("自动开宝箱后每过一段时间自动导航到兔子", ref Configuration.AutoRabbitWait)) Configuration.Save();
-					if (Configuration.AutoRabbitWait) {
-						if (ImGui.InputFloat("时间(分)", ref Configuration.RabbitWaitTime)) Configuration.Save();
-					}
+					if (ImGui.Checkbox("自动开宝箱后自动导航到兔子", ref Configuration.AutoRabbitWait)) Configuration.Save();
+				}
+				ImGui.Separator();
+				ImGui.Text("统计");
+				foreach (var p in Configuration.TotalChest) 
+					ImGui.Text($"{p.Key}:{p.Value}");
+				if (ImGui.Button("清空统计")) {
+					Configuration.TotalChest = [];
+					Configuration.Save();
 				}
 			});
 			NewTab("农怪", () => {
@@ -210,46 +213,53 @@ public class ConfigWindow() : Window("SkyEye") {
 				}
 				if (ImGui.InputText("提醒(Fate原名，包含即可，用竖线|隔开)", ref Configuration.WssNotify, 114514)) Configuration.Save();
 				if (Configuration.EnableWss) {
-					if (ImGui.Combo("选择大区", ref Configuration.WssRegion, regions)) {
-						Configuration.Save();
-						WebSocket.StopWss();
-						_ = WebSocket.StartWssService();
-						ImGui.EndCombo();
+					try {
+						if (ImGui.Combo("选择大区", ref Configuration.WssRegion, regions)) {
+							Configuration.Save();
+							if (Configuration.WssRegion is >= 1 and <= 4) WebSocket.StartWssService();
+							ImGui.EndCombo();
+						}
+						if (Configuration.WssRegion is < 1 or > 4) return;
+						if (!WebSocket.inited) {
+							WebSocket.StartWssService();
+							WebSocket.inited = true;
+						}
+						var acts = new Action<WebSocket.NmInfo>[] {
+							info => {
+								switch (info.territory_id) {
+									case 1:
+										ImGui.PushStyleColor(ImGuiCol.TableRowBg, green);
+										ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, green_alt);
+										break;
+									case 2:
+										ImGui.PushStyleColor(ImGuiCol.TableRowBg, cyan);
+										ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, cyan_alt);
+										break;
+									case 3:
+										ImGui.PushStyleColor(ImGuiCol.TableRowBg, red);
+										ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, red_alt);
+										break;
+									case 4:
+										ImGui.PushStyleColor(ImGuiCol.TableRowBg, blue);
+										ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, blue_alt);
+										break;
+								}
+								ImGui.Text(info.territory_name_ori);
+							},
+							info => ImGui.Text(info.oriname), info => ImGui.Text(info.hp.ToString()), info => ImGui.Text(getDeltaMin(info.appeared_at).ToString()), info => { ImGui.Text(getDeltaMin(info.defeated_at).ToString()); }
+						};
+						ImGui.Text("活着的");
+						var data = WebSocket.nmalive.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray();
+						NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"], data, acts);
+						ImGui.PopStyleColor(2 * data.Length);
+						ImGui.Text("已死亡");
+						var data2 = WebSocket.nmdead.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray();
+						NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"], data2, acts);
+						ImGui.PopStyleColor(2 * data2.Length);
 					}
-					if (Configuration.WssRegion is < 1 or > 4) return;
-					if (!WebSocket._isWssRunning) _ = WebSocket.StartWssService();
-					var acts = new Action<WebSocket.NmInfo>[] {
-						info => {
-							switch (info.territory_id) {
-								case 1:
-									ImGui.PushStyleColor(ImGuiCol.TableRowBg, green);
-									ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, green_alt);
-									break;
-								case 2:
-									ImGui.PushStyleColor(ImGuiCol.TableRowBg, cyan);
-									ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, cyan_alt);
-									break;
-								case 3:
-									ImGui.PushStyleColor(ImGuiCol.TableRowBg, red);
-									ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, red_alt);
-									break;
-								case 4:
-									ImGui.PushStyleColor(ImGuiCol.TableRowBg, blue);
-									ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, blue_alt);
-									break;
-							}
-							ImGui.Text(info.territory_name_ori);
-						},
-						info => ImGui.Text(info.oriname), info => ImGui.Text(info.hp.ToString()), info => ImGui.Text(getDeltaMin(info.appeared_at).ToString()), info => { ImGui.Text(getDeltaMin(info.defeated_at).ToString()); }
-					};
-					ImGui.Text("活着的");
-					var data = WebSocket.nmalive.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray();
-					NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"], data, acts);
-					ImGui.PopStyleColor(2 * data.Length);
-					ImGui.Text("已死亡");
-					var data2 = WebSocket.nmdead.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray();
-					NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"], data2, acts);
-					ImGui.PopStyleColor(2 * data2.Length);
+					catch (Exception e) {
+						Log.Error(e.ToString());
+					}
 				}
 				else WebSocket.StopWss();
 			});
@@ -353,7 +363,7 @@ public class ConfigWindow() : Window("SkyEye") {
 				}
 				ImGui.PopStyleColor(2);
 			});
-			
+
 			if (Ipcs.HasCore())
 				NewTab("Core", () => {
 					if (ImGui.Button("潜水无敌")) Ipcs.Dive();

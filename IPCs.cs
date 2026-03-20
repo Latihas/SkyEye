@@ -3,7 +3,7 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Plugin.Ipc;
 
-namespace SkyEye.SkyEye;
+namespace SkyEye;
 
 internal static class Ipcs {
 	private const string Name = "vnavmesh";
@@ -28,13 +28,11 @@ internal static class Ipcs {
 		if (IsPluginLoaded()) {
 			try {
 				var pi = Plugin.PluginInterface;
-				_navIsReady = pi.GetIpcSubscriber<bool>($"{Name}.Nav.IsReady"); // 检查导航网格是否已准备就绪
-				// pi.GetIpcSubscriber<float>($"{Name}.Nav.BuildProgress"); // 获取导航网格构建进度（0.0-1.0）
-				_pathStop = pi.GetIpcSubscriber<object>($"{Name}.Path.Stop"); // 停止当前移动
-				_pathIsRunning = pi.GetIpcSubscriber<bool>($"{Name}.Path.IsRunning"); // 检查是否正在移动中
-				_pathfindAndMoveTo = pi.GetIpcSubscriber<Vector3, bool, bool>($"{Name}.SimpleMove.PathfindAndMoveTo"); // 计算路径并移动到目标位置（组合了寻路和移动功能）
-				_flagToPoint = pi.GetIpcSubscriber<Vector3>($"{Name}.Query.Mesh.FlagToPoint"); // 计算路径并移动到目标位置（组合了寻路和移动功能）
-				// pi.GetIpcSubscriber<bool>($"{Name}.SimpleMove.PathfindInProgress"); // 检查寻路过程是否正在进行中
+				_navIsReady = pi.GetIpcSubscriber<bool>($"{Name}.Nav.IsReady");
+				_pathStop = pi.GetIpcSubscriber<object>($"{Name}.Path.Stop");
+				_pathIsRunning = pi.GetIpcSubscriber<bool>($"{Name}.Path.IsRunning");
+				_pathfindAndMoveTo = pi.GetIpcSubscriber<Vector3, bool, bool>($"{Name}.SimpleMove.PathfindAndMoveTo");
+				_flagToPoint = pi.GetIpcSubscriber<Vector3>($"{Name}.Query.Mesh.FlagToPoint");
 				if (_hasLoggedInitSuccess) return;
 				Plugin.Log.Information("NavmeshIPC初始化成功");
 				_hasLoggedInitSuccess = true;

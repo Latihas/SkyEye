@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace SkyEye.SkyEye.Data;
+namespace SkyEye.Data;
 
 internal class EurekaFate(ushort fateId, int lv, string name, string bossShortName, string trigger, int triggerLv, Vector2 fatePosition, PData.EurekaWeather spawnRequiredWeather = PData.EurekaWeather.None, bool spawnByRequiredNight = false) {
 	internal ushort FateId { get; private set; } = fateId;

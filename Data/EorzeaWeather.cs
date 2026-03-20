@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SkyEye.SkyEye.Data;
+namespace SkyEye.Data;
 
 internal static class EorzeaWeather {
 	private static int CalculateTarget(DateTime dateTime) {

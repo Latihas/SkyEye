@@ -9,52 +9,63 @@ using System.Threading.Tasks;
 using Dalamud.Utility;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using static SkyEye.SkyEye.Plugin;
-using static SkyEye.SkyEye.Util;
+using static SkyEye.Plugin;
+using static SkyEye.Util;
 
-namespace SkyEye.SkyEye;
+namespace SkyEye;
 
 internal static class WebSocket {
-	internal static bool _isWssRunning;
 	private static CancellationTokenSource? _wssCts;
-
+	internal static bool inited;
 	private static readonly Lock WssLock = new();
 	internal static readonly List<NmInfo> nmalive = [];
 	internal static readonly List<NmInfo> nmdead = [];
 
-	internal static async Task StartWssService() {
-		if (_isWssRunning) return;
-		_wssCts ??= new CancellationTokenSource();
-		_isWssRunning = true;
-		nmalive.Clear();
-		nmdead.Clear();
-		try {
+	internal static void StartWssService() {
+		_wssCts = new CancellationTokenSource();
+		Task.Run(async () => {
+			nmalive.Clear();
+			nmdead.Clear();
 			await RunWebSocketClient(_wssCts.Token);
-		}
-		finally {
-			_isWssRunning = false;
-		}
+		}, _wssCts.Token);
 	}
 
+
 	internal static void StopWss() {
-		_wssCts?.Cancel();
-		_wssCts?.Dispose();
-		_wssCts = null;
-		_isWssRunning = false;
+		try {
+			_wssCts?.Cancel();
+			_wssCts?.Dispose();
+		}
+		catch (Exception) {
+			//
+		}
+		try {
+			client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None).Wait();
+		}
+		catch (Exception) {
+			//
+		}
 	}
 
 	private static bool InWssNotify(string name) => Configuration.WssNotify.Split("|").Any(f => !f.IsNullOrEmpty() && name.Contains(f));
 
 	private static void Notify(string name, bool sound = true) {
 		if (!InWssNotify(name)) return;
-		Framework.RunOnFrameworkThread(() => ChatBox.SendMessage($"/e 史书提醒：{name}"));
+		ChatBox.SendMessage($"/e 史书提醒：{name}");
 		if (sound) UiBuilder.NmFound();
 	}
 
+	private static ClientWebSocket client = new();
+
 	private static async Task RunWebSocketClient(CancellationToken cancellationToken) {
-		using var client = new ClientWebSocket();
 		try {
-			Log.Info($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Configuration.WssRegion}/ws");
+			try {
+				await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None);
+			}
+			catch (Exception) {
+				//
+			}
+			client = new ClientWebSocket();
 			await client.ConnectAsync(new Uri($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Configuration.WssRegion}/ws"), cancellationToken);
 			var buffer = new byte[4096];
 			while (client.State == WebSocketState.Open) {
@@ -63,7 +74,12 @@ internal static class WebSocket {
 				do {
 					result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
 					if (result.MessageType == WebSocketMessageType.Close) {
-						await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by server", CancellationToken.None);
+						try {
+							await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None);
+						}
+						catch (Exception) {
+							//
+						}
 						break;
 					}
 					ms.Write(buffer, 0, result.Count);
@@ -99,7 +115,7 @@ internal static class WebSocket {
 									nmdead.Add(ni);
 								}
 							}
-							Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/e 史书初始化完成"));
+							ChatBox.SendMessage("/e 史书初始化完成");
 							break;
 						}
 						case "active.update": {
@@ -139,8 +155,12 @@ internal static class WebSocket {
 			}
 		}
 		finally {
-			if (client.State == WebSocketState.Open)
+			try {
 				await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None);
+			}
+			catch (Exception) {
+				//
+			}
 		}
 	}
 

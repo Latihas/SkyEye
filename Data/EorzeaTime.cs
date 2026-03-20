@@ -1,6 +1,6 @@
 using System;
 
-namespace SkyEye.SkyEye.Data;
+namespace SkyEye.Data;
 
 internal class EorzeaTime(DateTime dateTime) {
 	internal static readonly DateTime Zero = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);

@@ -24,13 +24,13 @@ using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
-using SkyEye.SkyEye.Data;
+using SkyEye.Data;
 using static System.StringComparison;
-using static SkyEye.SkyEye.Util;
+using static SkyEye.Util;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 using Timer = System.Timers.Timer;
 
-namespace SkyEye.SkyEye;
+namespace SkyEye;
 
 [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Local")]
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
@@ -55,13 +55,13 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static Timer _carrotTimer = null!;
 	private readonly ConfigWindow _configWindow;
 	private readonly UiBuilder _uiBuilder;
+	internal static Plugin Instance = null!;
 	private bool mountState;
 	// ReSharper disable once MemberCanBePrivate.Global
 	public readonly WindowSystem WindowSystem = new("SkyEye");
 
-	public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commandManager) {
-		PluginInterface = pluginInterface;
-		CommandManager = commandManager;
+	public Plugin() {
+		Instance = this;
 		Configuration = PluginInterface.GetPluginConfig() as MConfiguration ?? new MConfiguration();
 		_uiBuilder = new UiBuilder();
 		_configWindow = new ConfigWindow();
@@ -81,7 +81,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update += Farm;
 		Framework.Update += FindYl;
 		Framework.Update += CheckState;
-		Framework.Update += FindRabbit;
 		PluginInterface.UiBuilder.OpenConfigUi += OnCommand;
 		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
 		ChatGui.ChatMessageUnhandled += ChatRabbit;
@@ -108,13 +107,13 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private void OnCommand() => OnCommand(null, null);
 	public static MConfiguration Configuration { get; private set; } = null!;
 	[PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-	[PluginService] public static IClientState ClientState { get; private set; } = null!;
-	[PluginService] public static INotificationManager NotificationManager { get; private set; } = null!;
+	[PluginService] internal static IClientState ClientState { get; private set; } = null!;
+	[PluginService] internal static INotificationManager NotificationManager { get; private set; } = null!;
 	[PluginService] private static IDataManager DataManager { get; set; } = null!;
 	[PluginService] internal static IPluginLog Log { get; private set; } = null!;
 	[PluginService] internal static ICondition Condition { get; private set; } = null!;
 	[PluginService] internal static IGameGui Gui { get; private set; } = null!;
-	[PluginService] public static IObjectTable ObjectTable { get; set; } = null!;
+	[PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
 	[PluginService] internal static IFateTable Fates { get; private set; } = null!;
 	[PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
 	[PluginService] private static IChatGui ChatGui { get; set; } = null!;
@@ -130,7 +129,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update -= Farm;
 		Framework.Update -= FindYl;
 		Framework.Update -= CheckState;
-		Framework.Update -= FindRabbit;
 		SetSpeed(1);
 		_uiBuilder.Dispose();
 		CommandManager.RemoveHandler("/skyeye");
@@ -139,7 +137,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		WebSocket.StopWss();
 	}
 
-	private static void FindYl(IFramework _) {
+	private static unsafe void FindYl(IFramework _) {
 		if (!Configuration.PluginEnabled) return;
 		if (ObjectTable.LocalPlayer is null || !InEureka()) return;
 		IGameObject yls;
@@ -152,24 +150,62 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (!Yl.Add(yls.EntityId)) return;
 		var p = yls.Position;
 		YlPositions.Add(p);
-		unsafe {
-			AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
-		}
+		AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
 		ChatBox.SendMessage("/e 找到元灵<se.1>");
 	}
 
-	private static void FindRabbit(IFramework? _ = null) {
-		if (!((DateTime.Now - LastRabbitWait).TotalMinutes > Configuration.RabbitWaitTime)) return;
-		if (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat]) {
-			LastRabbitWait = DateTime.Now;
-			return;
+	internal void FindRabbit(int fateidx = -1) {
+		if (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat]) return;
+		if (fateidx != -1) {
+			if (ClientState.TerritoryType == 763 && fateidx is 1367 or 1368) {
+				var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateidx);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
+				}
+			}
+			if (ClientState.TerritoryType == 795 && fateidx is 1407 or 1408) {
+				var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateidx);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
+				}
+			}
+			if (ClientState.TerritoryType == 827 && fateidx is 1425) {
+				var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateidx);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
+				}
+			}
 		}
-		LastRabbitWait = DateTime.Now;
-		Move2RabbitPos();
+		foreach (var fateid in UiBuilder._eurekaLiveIdList2DOld) {
+			if (ClientState.TerritoryType == 763 && fateid is 1367 or 1368) {
+				var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateid);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
+				}
+			}
+			if (ClientState.TerritoryType == 795 && fateid is 1407 or 1408) {
+				var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateid);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
+				}
+			}
+			if (ClientState.TerritoryType == 827 && fateid is 1425) {
+				var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateid);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
+				}
+			}
+		}
 	}
 
 
-	private static void Farm(IFramework framework) {
+	private static unsafe void Farm(IFramework framework) {
 		if (!Configuration.PluginEnabled) return;
 		if (ObjectTable.LocalPlayer is null || !Configuration.AutoFarm) return;
 		if (!Ipcs.IsReady()) Ipcs.Init();
@@ -201,9 +237,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			var targ = Loc[_locIter ? 1 : 0];
 			Ipcs.Stop();
 			ChatBox.SendMessage($"/e 检测超时，正在尝试移动到{targ}");
-			unsafe {
-				Telepo.Instance()->Teleport(targ, 0);
-			}
+			Telepo.Instance()->Teleport(targ, 0);
 			LastKill = DateTime.Now;
 		}
 		var ieu = InEureka();
@@ -211,9 +245,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			if (obj.TargetObject != null) continue;
 			if (ieu) {
 				if (Vector3.Distance(playerPos, obj.Position) < 15) {
-					unsafe {
-						TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
-					}
+					TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
 					ChatBox.SendMessage(Configuration.FarmStartCommand);
 					if (attracted.Length == 0 || lastFarmPos == null)
 						lastFarmPos = Configuration.FarmDistAlgo == 0 ? obj.Position : new Vector3(Configuration.FarmWaitX, Configuration.FarmWaitY, Configuration.FarmWaitZ);
@@ -237,9 +269,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 				if (Vector3.Distance(playerPos, obj.Position) < 2) {
 					lock (KillingLock) _killing = true;
 					_farmGameObject = obj;
-					unsafe {
-						TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
-					}
+					TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
 					new Task(Startkill).Start();
 					break;
 				}
@@ -255,12 +285,12 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static async void Startkill() {
 		try {
 			Ipcs.Stop();
-			await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/e NewTask"));
+			ChatBox.SendMessage("/e NewTask");
 			if (ObjectTable.LocalPlayer!.CurrentMount.HasValue) {
-				await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage("/ac 随机坐骑"));
+				ChatBox.SendMessage("/ac 随机坐骑");
 				await Task.Delay(1000);
 			}
-			await Framework.RunOnFrameworkThread(() => ChatBox.SendMessage(Configuration.FarmStartCommand));
+			ChatBox.SendMessage(Configuration.FarmStartCommand);
 			await Task.Delay(500);
 		}
 		catch (Exception e) {
@@ -279,25 +309,20 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	private void StopCarrotTimer() {
 		if (_carrotTimer is not { Enabled: true }) return;
-		LastRabbitWait = DateTime.Now;
 		_carrotTimer.Stop();
 	}
 
-	private static DateTime LastRabbitWait = DateTime.MinValue;
-
-	private void UseCarrot() {
+	private unsafe void UseCarrot() {
 		if (!Configuration.AutoRabbit) return;
 		if (!InEureka()) {
 			StopCarrotTimer();
 			return;
 		}
-		unsafe {
-			if (InventoryManager.Instance()->GetInventoryItemCount(LuckyCarrotItemId) > 0)
-				ActionManager.Instance()->UseAction(ActionType.EventItem, LuckyCarrotItemId, mode: ActionManager.UseActionMode.Queue);
-			else {
-				Log.Warning("没有幸运胡萝卜可用，停止自动使用");
-				StopCarrotTimer();
-			}
+		if (InventoryManager.Instance()->GetInventoryItemCount(LuckyCarrotItemId) > 0)
+			ActionManager.Instance()->UseAction(ActionType.EventItem, LuckyCarrotItemId, mode: ActionManager.UseActionMode.Queue);
+		else {
+			Log.Warning("没有幸运胡萝卜可用，停止自动使用");
+			StopCarrotTimer();
 		}
 	}
 
@@ -308,40 +333,11 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
 
-	internal static void SetFlagAndMove(Vector2 pos) {
-		unsafe {
-			AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId,
-				ToVector3(MapToWorld(pos, 200, 11, ClientState.TerritoryType == 827 ? 20.25f : 11.25f)));
-			var p = Ipcs.FlagToPoint();
-			if (p.HasValue) Ipcs.PathfindAndMoveTo(p.Value, false);
-		}
-	}
-
-	private static void Move2RabbitPos() {
-		if (!InEureka()) return;
-		foreach (var fateid in UiBuilder._eurekaLiveIdList2DOld) {
-			if (ClientState.TerritoryType == 763 && fateid is 1367 or 1368) {
-				var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateid);
-				if (ret != null) {
-					SetFlagAndMove(ret.FatePosition);
-					return;
-				}
-			}
-			if (ClientState.TerritoryType == 795 && fateid is 1407 or 1408) {
-				var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateid);
-				if (ret != null) {
-					SetFlagAndMove(ret.FatePosition);
-					return;
-				}
-			}
-			if (ClientState.TerritoryType == 827 && fateid is 1425) {
-				var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateid);
-				if (ret != null) {
-					SetFlagAndMove(ret.FatePosition);
-					return;
-				}
-			}
-		}
+	internal static unsafe void SetFlagAndMove(Vector2 pos) {
+		AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId,
+			ToVector3(MapToWorld(pos, 200, 11, ClientState.TerritoryType == 827 ? 20.25f : 11.25f)));
+		var p = Ipcs.FlagToPoint();
+		if (p.HasValue) Ipcs.PathfindAndMoveTo(p.Value, false);
 	}
 
 	private void ChatRabbit(XivChatType type, int timestamp, SeString sender, SeString message) {
@@ -355,11 +351,14 @@ public sealed partial class Plugin : IDalamudPlugin {
 				unsafe {
 					TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
 				}
+				var name = obj.Name.ToString();
+				Configuration.TotalChest.TryAdd(name, 0);
+				Configuration.TotalChest[name]++;
+				Configuration.Save();
 				if (!Configuration.AutoRabbitWait) continue;
 				ChatBox.SendMessage("/e 等待7s后寻找下一个兔子");
 				Task.Run(async () => {
 					await Task.Delay(7000);
-					LastRabbitWait = DateTime.MinValue;
 					FindRabbit();
 				});
 			}

@@ -1,18 +1,19 @@
 using System;
 using System.Collections.Generic;
 using Dalamud.Configuration;
-using static SkyEye.SkyEye.Plugin;
+using static SkyEye.Plugin;
 
-namespace SkyEye.SkyEye;
+namespace SkyEye;
 
 [Serializable]
 public class MConfiguration : IPluginConfiguration {
-	public float FarmMaxDistance = 100, RabbitWaitTime = 1, FarmWaitX, FarmWaitY, FarmWaitZ;
+	public float FarmMaxDistance = 100, FarmWaitX, FarmWaitY, FarmWaitZ;
 	public int FarmTargetMax = 1, WssRegion, FarmDistAlgo;
 	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay3DEnabled = true, AutoRabbit = true, AutoRabbitWait = true, AutoFarm, FarmWait, EnableWss;
 	public List<SpeedInfo> SpeedUp = [];
 	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "";
 	public int Version { get; set; }
+	public Dictionary<string, int> TotalChest = [];
 
 	public void Save() => PluginInterface.SavePluginConfig(this);
 

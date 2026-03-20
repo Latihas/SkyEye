@@ -5,7 +5,7 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Utility;
 
-namespace SkyEye.SkyEye;
+namespace SkyEye;
 
 internal static class Util {
 	internal const ImGuiTableFlags ImGuiTableFlag = ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.RowBg;
