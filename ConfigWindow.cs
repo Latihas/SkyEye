@@ -150,12 +150,10 @@ public class ConfigWindow() : Window("SkyEye") {
 			NewTab("宝箱", () => {
 				if (ImGui.Checkbox("宝箱位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
 				if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoRabbit)) Configuration.Save();
-				if (Configuration.AutoRabbit) {
-					if (ImGui.Checkbox("自动开宝箱后自动导航到兔子", ref Configuration.AutoRabbitWait)) Configuration.Save();
-				}
+				if (ImGui.Checkbox("自动开宝箱后自动导航到兔子", ref Configuration.AutoRabbitWait)) Configuration.Save();
 				ImGui.Separator();
 				ImGui.Text("统计");
-				foreach (var p in Configuration.TotalChest) 
+				foreach (var p in Configuration.TotalChest)
 					ImGui.Text($"{p.Key}:{p.Value}");
 				if (ImGui.Button("清空统计")) {
 					Configuration.TotalChest = [];
