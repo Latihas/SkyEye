@@ -20,6 +20,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -55,13 +56,11 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static Timer _carrotTimer = null!;
 	private readonly ConfigWindow _configWindow;
 	private readonly UiBuilder _uiBuilder;
-	internal static Plugin Instance = null!;
 	private bool mountState;
 	// ReSharper disable once MemberCanBePrivate.Global
 	public readonly WindowSystem WindowSystem = new("SkyEye");
 
 	public Plugin() {
-		Instance = this;
 		Configuration = PluginInterface.GetPluginConfig() as MConfiguration ?? new MConfiguration();
 		_uiBuilder = new UiBuilder();
 		_configWindow = new ConfigWindow();
@@ -143,8 +142,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		IGameObject yls;
 		try {
 			yls = ObjectTable.First(obj => obj.Name.ToString().Contains("元灵") && obj.ObjectKind != ObjectKind.Player);
-		}
-		catch (Exception) {
+		} catch (Exception) {
 			return;
 		}
 		if (!Yl.Add(yls.EntityId)) return;
@@ -154,8 +152,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 		ChatBox.SendMessage("/e 找到元灵<se.1>");
 	}
 
-	internal void FindRabbit(int fateidx = -1) {
-		if (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat]) return;
+	internal static unsafe void FindRabbit(int fateidx = -1, bool force = false) {
+		if (!force && (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || FateManager.Instance()->SyncedFateId != 0)) return;
 		if (fateidx != -1) {
 			if (ClientState.TerritoryType == 763 && fateidx is 1367 or 1368) {
 				var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateidx);
@@ -205,7 +203,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 
-	private static unsafe void Farm(IFramework framework) {
+	private static unsafe void Farm(IFramework _) {
 		if (!Configuration.PluginEnabled) return;
 		if (ObjectTable.LocalPlayer is null || !Configuration.AutoFarm) return;
 		if (!Ipcs.IsReady()) Ipcs.Init();
@@ -253,8 +251,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 					break;
 				}
 				if (!Ipcs.IsRunning()) Ipcs.PathfindAndMoveTo(obj.Position, false);
-			}
-			else {
+			} else {
 				if (Ipcs.IsRunning()) {
 					if ((DateTime.Now - LastKill).Seconds % 15 == 14) {
 						Ipcs.Stop();
@@ -292,11 +289,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 			}
 			ChatBox.SendMessage(Configuration.FarmStartCommand);
 			await Task.Delay(500);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			Log.Error(e.ToString());
-		}
-		finally {
+		} finally {
 			lock (KillingLock) _killing = false;
 		}
 	}
@@ -332,10 +327,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 	internal static bool InEureka(ushort id) => id is 732 or 763 or 795 or 827;
 
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
+	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, ClientState.TerritoryType == 827 ? 20.25f : 11.25f));
 
 	internal static unsafe void SetFlagAndMove(Vector2 pos) {
-		AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId,
-			ToVector3(MapToWorld(pos, 200, 11, ClientState.TerritoryType == 827 ? 20.25f : 11.25f)));
+		AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, Pos2Map(pos));
 		var p = Ipcs.FlagToPoint();
 		if (p.HasValue) Ipcs.PathfindAndMoveTo(p.Value, false);
 	}
@@ -359,7 +354,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 				ChatBox.SendMessage("/e 等待7s后寻找下一个兔子");
 				Task.Run(async () => {
 					await Task.Delay(7000);
-					FindRabbit();
+					FindRabbit(force: true);
 				});
 			}
 			return;
@@ -388,25 +383,26 @@ public sealed partial class Plugin : IDalamudPlugin {
 				break;
 		}
 		var playerPos = ObjectTable.LocalPlayer!.Position;
-		var tmpo = PData.RabbitTreasurePositions[ClientState.TerritoryType]
-			.Select(i => (i, Vector3.Distance(playerPos, i)))
-			.OrderBy(c => c.Item2).ToList();
-		var tmp = tmpo.Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).ToList();
-		Vector3 pos;
-		if (tmp.Count == 0) DetectedTreasurePositions = [pos = tmpo.First().Item1];
-		else {
-			DetectedTreasurePositions = tmp.Select(i => i.i).ToList();
-			if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
-			else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
-			else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
-			else if (direction.Equals("正西", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X < playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
-			else if (direction.Equals("东南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X >= playerPos.X).ToList();
-			else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
-			else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
-			else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
-			pos = DetectedTreasurePositions.First();
-		}
-		if (Configuration.AutoRabbit && !Ipcs.IsRunning()) Ipcs.PathfindAndMoveTo(pos, false);
+		if (Configuration.RabbitDistVec2) {
+			var playerPos2D = new Vector2(playerPos.X, playerPos.Z);
+			DetectedTreasurePositions = PData.RabbitTreasurePositions[ClientState.TerritoryType]
+				.Select(i => (i, Vector2.Distance(playerPos2D, new Vector2(i.X, i.Z))))
+				.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
+		} else
+			DetectedTreasurePositions = PData.RabbitTreasurePositions[ClientState.TerritoryType]
+				.Select(i => (i, Vector3.Distance(playerPos, i)))
+				.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
+		if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("正西", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X < playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("东南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X >= playerPos.X).ToList();
+		else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
+		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
+		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
+		var pos = DetectedTreasurePositions.FirstOrDefault();
+		if (pos == default) Log.Error("无可用点位");
+		else if (Configuration.AutoRabbit && !Ipcs.IsRunning()) Ipcs.PathfindAndMoveTo(pos, false);
 	}
 
 
@@ -419,8 +415,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (Configuration.SpeedUpEnabled) {
 			var friends = Configuration.SpeedUpFriendly.Split('|');
 			_dspeed = OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ObjectTable.LocalPlayer.Position) < (110 ^ 2)) ? 1f : CurrentSpeedInfo.SpeedUpN;
-		}
-		else _dspeed = 1f;
+		} else _dspeed = 1f;
 		SetSpeed(_dspeed);
 	}
 

@@ -9,9 +9,9 @@ namespace SkyEye;
 public class MConfiguration : IPluginConfiguration {
 	public float FarmMaxDistance = 100, FarmWaitX, FarmWaitY, FarmWaitZ;
 	public int FarmTargetMax = 1, WssRegion, FarmDistAlgo;
-	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay3DEnabled = true, AutoRabbit = true, AutoRabbitWait = true, AutoFarm, FarmWait, EnableWss;
+	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay3DEnabled = true, AutoRabbit = true, AutoRabbitWait = true, AutoFarm, FarmWait, EnableWss, RabbitDistVec2 = true;
 	public List<SpeedInfo> SpeedUp = [];
-	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "";
+	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "";
 	public int Version { get; set; }
 	public Dictionary<string, int> TotalChest = [];
 

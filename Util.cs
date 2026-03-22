@@ -36,6 +36,10 @@ internal static class Util {
 			drawList.AddCircleFilled(pos, radius, fgcolor);
 			drawList.AddCircle(pos, radius / 2, bgcolor, 0, radius / 2);
 		}
+
+		internal void DrawLine(Vector2 pos, Vector2 pos2, uint fgcolor) {
+			drawList.AddLine(pos, pos2, fgcolor, 4);
+		}
 	}
 
 	internal static Vector2 ToVector2(Vector3 v) => new(v.X, v.Z);
@@ -54,13 +58,11 @@ internal static class Util {
 		try {
 			var dateTime1 = DateTime.ParseExact(d, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
 			return DateTime.Now.Ticks - dateTime1.Ticks;
-		}
-		catch {
+		} catch {
 			try {
 				var dateTime2 = DateTime.ParseExact(d, "yyyy-MM-dd H:mm:ss", CultureInfo.InvariantCulture);
 				return DateTime.Now.Ticks - dateTime2.Ticks;
-			}
-			catch {
+			} catch {
 				return 0;
 			}
 		}

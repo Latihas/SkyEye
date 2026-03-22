@@ -17,8 +17,7 @@ internal static class Ipcs {
 	private static bool IsPluginLoaded() {
 		try {
 			return Plugin.PluginInterface.InstalledPlugins.Any(p => p is { Name: Name, IsLoaded: true });
-		}
-		catch (Exception ex) {
+		} catch (Exception ex) {
 			Plugin.Log.Error($"检查插件加载状态时发生错误: {ex.Message}");
 			return false;
 		}
@@ -36,12 +35,10 @@ internal static class Ipcs {
 				if (_hasLoggedInitSuccess) return;
 				Plugin.Log.Information("NavmeshIPC初始化成功");
 				_hasLoggedInitSuccess = true;
-			}
-			catch (Exception ex) {
+			} catch (Exception ex) {
 				Plugin.Log.Error($"NavmeshIPC初始化失败: {ex}");
 			}
-		}
-		else {
+		} else {
 			if (_hasLoggedPluginNotFound) return;
 			Plugin.Log.Warning($"未找到 {Name} 插件，导航功能不可用");
 			_hasLoggedPluginNotFound = true;
@@ -52,8 +49,7 @@ internal static class Ipcs {
 		if (!IsPluginLoaded()) return default;
 		try {
 			return func();
-		}
-		catch (Exception ex) {
+		} catch (Exception ex) {
 			Plugin.Log.Error($"IPC执行错误: {ex}");
 		}
 		return default;
@@ -63,8 +59,7 @@ internal static class Ipcs {
 		if (!IsPluginLoaded()) return;
 		try {
 			action();
-		}
-		catch (Exception ex) {
+		} catch (Exception ex) {
 			Plugin.Log.Error($"IPC执行错误: {ex}");
 		}
 	}
@@ -104,8 +99,7 @@ internal static class Ipcs {
 		try {
 			return Plugin.PluginInterface.InstalledPlugins.Any(p => p is { Name: "LatihasDalamudCore", IsLoaded: true })
 			       && Plugin.PluginInterface.GetIpcSubscriber<bool>("LatihasDalamudCore.WAS_HERE").InvokeFunc();
-		}
-		catch (Exception) {
+		} catch (Exception) {
 			return false;
 		}
 	}

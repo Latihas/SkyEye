@@ -35,14 +35,12 @@ internal static class WebSocket {
 		try {
 			_wssCts?.Cancel();
 			_wssCts?.Dispose();
-		}
-		catch (Exception) {
+		} catch (Exception) {
 			//
 		}
 		try {
 			client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None).Wait();
-		}
-		catch (Exception) {
+		} catch (Exception) {
 			//
 		}
 	}
@@ -61,8 +59,7 @@ internal static class WebSocket {
 		try {
 			try {
 				await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None);
-			}
-			catch (Exception) {
+			} catch (Exception) {
 				//
 			}
 			client = new ClientWebSocket();
@@ -76,8 +73,7 @@ internal static class WebSocket {
 					if (result.MessageType == WebSocketMessageType.Close) {
 						try {
 							await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None);
-						}
-						catch (Exception) {
+						} catch (Exception) {
 							//
 						}
 						break;
@@ -142,8 +138,7 @@ internal static class WebSocket {
 							if (x == null) {
 								nmalive.Add(ni);
 								Notify($"{ni.oriname}已触发");
-							}
-							else if (getT(ni.defeated_at) > getT(x.defeated_at)) {
+							} else if (getT(ni.defeated_at) > getT(x.defeated_at)) {
 								nmalive.Remove(x);
 								nmalive.Add(ni);
 								Notify($"{ni.oriname}已触发");
@@ -153,12 +148,10 @@ internal static class WebSocket {
 					}
 				}
 			}
-		}
-		finally {
+		} finally {
 			try {
 				await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None);
-			}
-			catch (Exception) {
+			} catch (Exception) {
 				//
 			}
 		}

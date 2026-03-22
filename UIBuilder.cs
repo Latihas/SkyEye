@@ -64,10 +64,10 @@ internal class UiBuilder : IDisposable {
 	}
 
 	private void UiBuilder_OnBuildUi() {
-		if (!Configuration.PluginEnabled) return;
+		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null) return;
+		_bdl = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
 		if (InEureka() && !Condition[ConditionFlag.BetweenAreas] && !Condition[ConditionFlag.BetweenAreas51]) {
 			_eorzeaTime = EorzeaTime.ToEorzeaTime(DateTime.Now);
-			_bdl = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
 			RefreshEureka();
 			DrawMapOverlay();
 			if (Configuration.Overlay3DEnabled)
@@ -81,6 +81,12 @@ internal class UiBuilder : IDisposable {
 		_eurekaList2D.Clear();
 		foreach (var item in _eurekaLiveIdList2D) _eurekaLiveIdList2DOld.Add(item);
 		_eurekaLiveIdList2D.Clear();
+		if (!string.IsNullOrEmpty(Configuration.FindEntity)) {
+			foreach (var en in ObjectTable.Where(i => i.Name.ToString().Contains(Configuration.FindEntity))) {
+				if (Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var v) && Gui.WorldToScreen(en.Position, out var v2))
+					_bdl.DrawLine(v, v2, 0x7F0000FF);
+			}
+		}
 	}
 
 	private void RefreshEureka() {
@@ -176,7 +182,7 @@ internal class UiBuilder : IDisposable {
 			_weatherDic.Add(o9.Weather, (o9.Time.ToString(timeFormat), timeLeft.ToString(timeFormat)));
 		}
 		foreach (var o10 in fates)
-			_eurekaList2D.Add((ToVector3(MapToWorld(o10.FatePosition, 200, 11, TerritoryType == 827 ? 20.25f : 11.25f)),
+			_eurekaList2D.Add((Pos2Map(o10.FatePosition),
 				uint.MaxValue, uint.MaxValue, o10.BossShortName, o10.FateId, o10.SpawnRequiredWeather, o10.SpawnByRequiredNight));
 	}
 
@@ -211,9 +217,8 @@ internal class UiBuilder : IDisposable {
 							break;
 					}
 				}
-			}
-			else if (ClientState.TerritoryType == 732 && EurekaAnemos.DeadFateDic[fateid].Contains(':') || ClientState.TerritoryType == 763 && EurekaPagos.DeadFateDic[fateid].Contains(':') ||
-			         ClientState.TerritoryType == 795 && EurekaPyros.DeadFateDic[fateid].Contains(':') || ClientState.TerritoryType == 827 && EurekaHydatos.DeadFateDic[fateid].Contains(':')) {
+			} else if (ClientState.TerritoryType == 732 && EurekaAnemos.DeadFateDic[fateid].Contains(':') || ClientState.TerritoryType == 763 && EurekaPagos.DeadFateDic[fateid].Contains(':') ||
+			           ClientState.TerritoryType == 795 && EurekaPyros.DeadFateDic[fateid].Contains(':') || ClientState.TerritoryType == 827 && EurekaHydatos.DeadFateDic[fateid].Contains(':')) {
 				var timeFromCanTriggered = ClientState.TerritoryType switch {
 					732 => new TimeSpan(2, 0, 0) - (DateTime.Now - Convert.ToDateTime(EurekaAnemos.DeadFateDic[fateid])),
 					763 => fateid is not (1367 or 1368)
@@ -240,12 +245,10 @@ internal class UiBuilder : IDisposable {
 					var timeFromNight = _eorzeaTime.TimeUntilNight();
 					if (timeFromNight < timeFromCanTriggered) _bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(timeFormat), 0xFF808080);
 					else _bdl.DrawText(pos2, item2.name + "\n" + timeFromNight.ToString(timeFormat), 0xFF808080);
-				}
-				else if (!_weatherDic.TryGetValue(item2.SpawnRequiredWeather, out var value) || _weatherNow.Weather == item2.SpawnRequiredWeather || TimeSpan.Parse(value.Item1) < timeFromCanTriggered)
+				} else if (!_weatherDic.TryGetValue(item2.SpawnRequiredWeather, out var value) || _weatherNow.Weather == item2.SpawnRequiredWeather || TimeSpan.Parse(value.Item1) < timeFromCanTriggered)
 					_bdl.DrawText(pos2, item2.name + "\n" + timeFromCanTriggered.ToString(timeFormat), 0xFF808080);
 				else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 0xFF808080);
-			}
-			else
+			} else
 				switch (item2) {
 					case { SpawnRequiredWeather: EurekaWeather.None, SpawnByRequiredNight: false }:
 						_bdl.DrawText(pos2, item2.name, item2.fgcolor);
@@ -257,8 +260,7 @@ internal class UiBuilder : IDisposable {
 						if (etimeHour2 is < 6 or >= 18) {
 							var timeFromDay = _eorzeaTime.TimeUntilDay();
 							_bdl.DrawText(pos2, item2.name + "\n" + timeFromDay.ToString(timeFormat), item2.fgcolor);
-						}
-						else {
+						} else {
 							var timeFromNight2 = _eorzeaTime.TimeUntilNight();
 							_bdl.DrawText(pos2, item2.name + "\n" + timeFromNight2.ToString(timeFormat), 0xFF808080);
 						}
@@ -268,8 +270,7 @@ internal class UiBuilder : IDisposable {
 						if (item2.SpawnRequiredWeather != EurekaWeather.None && !item2.SpawnByRequiredNight) {
 							if (!_weatherDic.TryGetValue(item2.SpawnRequiredWeather, out var value) || _weatherNow.Weather == item2.SpawnRequiredWeather) _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item2, item2.fgcolor);
 							else _bdl.DrawText(pos2, item2.name + "\n" + value.Item1, 0xFF808080);
-						}
-						else {
+						} else {
 							if (item2.SpawnRequiredWeather == EurekaWeather.None || !item2.SpawnByRequiredNight || _eorzeaTime == null) continue;
 							var etimeHour3 = int.Parse(_eorzeaTime.EorzeaDateTime.ToString("%H"));
 							var weatherLeftTime = _weatherDic[item2.SpawnRequiredWeather].Item2;
@@ -277,12 +278,10 @@ internal class UiBuilder : IDisposable {
 								var timeFromDay2 = _eorzeaTime.TimeUntilDay();
 								if (timeFromDay2.Ticks < TimeSpan.Parse(weatherLeftTime).Ticks) _bdl.DrawText(pos2, item2.name + "\n" + timeFromDay2.ToString(timeFormat), item2.fgcolor);
 								else _bdl.DrawText(pos2, item2.name + "\n" + weatherLeftTime, item2.fgcolor);
-							}
-							else if (etimeHour3 is >= 6 and < 18) {
+							} else if (etimeHour3 is >= 6 and < 18) {
 								var timeFromNight3 = _eorzeaTime.TimeUntilNight();
 								_bdl.DrawText(pos2, item2.name + "\n" + timeFromNight3.ToString(timeFormat), 0xFF808080);
-							}
-							else _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item1, 0xFF808080);
+							} else _bdl.DrawText(pos2, item2.name + "\n" + _weatherDic[item2.SpawnRequiredWeather].Item1, 0xFF808080);
 						}
 						break;
 					}
@@ -315,7 +314,7 @@ internal class UiBuilder : IDisposable {
 			string? text = null;
 			var ptr3PartsList = ptr3->PartsList;
 			if (ptr3PartsList != null && ptr3->PartId <= ptr3PartsList->PartCount) {
-				var AtkTexture = ((AtkUldPart*)((byte*)ptr3PartsList->Parts + ptr3->PartId * (nint)Unsafe.SizeOf<AtkUldPart>()))->UldAsset->AtkTexture;
+				var AtkTexture = (ptr3PartsList->Parts + ptr3->PartId * Unsafe.SizeOf<AtkUldPart>())->UldAsset->AtkTexture;
 				if (AtkTexture.TextureType == TextureType.Resource)
 					text = Path.GetFileName(AtkTexture.Resource->TexFileResourceHandle->ResourceHandle.FileName.ToString());
 			}
@@ -345,7 +344,7 @@ internal class UiBuilder : IDisposable {
 		Player2.SoundLocation = Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, "tz.wav");
 		Player2.Load();
 		Player2.Play();
-		Instance.FindRabbit(fateid);
+		FindRabbit(fateid);
 	}
 
 	private void DrawWeatherMap(Vector2 valueOrDefault) {

@@ -151,6 +151,7 @@ public class ConfigWindow() : Window("SkyEye") {
 				if (ImGui.Checkbox("宝箱位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
 				if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoRabbit)) Configuration.Save();
 				if (ImGui.Checkbox("自动开宝箱后自动导航到兔子", ref Configuration.AutoRabbitWait)) Configuration.Save();
+				if (ImGui.Checkbox("[实验性] 距离计算使用2D(原地卡住时可尝试开启)", ref Configuration.RabbitDistVec2)) Configuration.Save();
 				ImGui.Separator();
 				ImGui.Text("统计");
 				foreach (var p in Configuration.TotalChest)
@@ -202,6 +203,8 @@ public class ConfigWindow() : Window("SkyEye") {
 					if (ImGui.Checkbox("打完一波再拉下一波", ref Configuration.FarmWait)) Configuration.Save();
 				}
 				if (ClientState.TerritoryType == 147 && Configuration.AutoFarm) ImGui.Text($"超时：{(DateTime.Now - LastKill).Seconds}/{FarmTimeout}");
+				ImGui.Separator();
+				if (ImGui.InputText("连线查找怪", ref Configuration.FindEntity, 114514)) Configuration.Save();
 			});
 			NewTab("史书", () => {
 				if (ImGui.Checkbox("连接史书", ref Configuration.EnableWss)) {
@@ -254,12 +257,10 @@ public class ConfigWindow() : Window("SkyEye") {
 						var data2 = WebSocket.nmdead.OrderBy(a => a.territory_id).ThenBy(a => getDeltaMin(a.defeated_at)).ToArray();
 						NewTable(["地点", "名称", "血量", "触发时间(min)", "击杀时间(min)"], data2, acts);
 						ImGui.PopStyleColor(2 * data2.Length);
-					}
-					catch (Exception e) {
+					} catch (Exception e) {
 						Log.Error(e.ToString());
 					}
-				}
-				else WebSocket.StopWss();
+				} else WebSocket.StopWss();
 			});
 			NewTab("Fate", () => {
 				var acts = new Action<EurekaFate>[] {
@@ -376,8 +377,7 @@ public class ConfigWindow() : Window("SkyEye") {
 	private static int getDeltaMin(string d) {
 		try {
 			return (int)new TimeSpan(getT(d)).TotalMinutes;
-		}
-		catch {
+		} catch {
 			return 0;
 		}
 	}

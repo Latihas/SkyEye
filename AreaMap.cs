@@ -1,12 +1,9 @@
-using System;
-using FFXIVClientStructs.FFXIV.Component.GUI;
+using FFXIVClientStructs.FFXIV.Client.UI;
 
 namespace SkyEye;
 
 internal static class AreaMap {
-	internal static unsafe AtkUnitBase* AreaMapAddon => (AtkUnitBase*)Plugin.Gui.GetAddonByName("AreaMap").Address;
-
-	internal static unsafe bool MapVisible => AreaMapAddon != (AtkUnitBase*)IntPtr.Zero && AreaMapAddon->IsVisible;
-
-	internal static unsafe ref float MapScale => ref *(float*)((byte*)AreaMapAddon + 0x3D4);
+	internal static unsafe AddonAreaMap* AreaMapAddon => Plugin.Gui.GetAddonByName<AddonAreaMap>("AreaMap");
+	internal static unsafe bool MapVisible => AreaMapAddon->IsVisible;
+	internal static unsafe float MapScale => AreaMapAddon->AreaMap.MapScale;
 }
