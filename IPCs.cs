@@ -70,15 +70,18 @@ internal static class Ipcs {
 	}
 
 	internal static void Stop() {
+		if (!IsReady()) Init();
 		Execute(() => _pathStop?.InvokeAction());
 	}
 
 	internal static bool IsRunning() {
+		if (!IsReady()) Init();
 		var result = Execute(() => _pathIsRunning?.InvokeFunc());
 		return result.HasValue && result.Value;
 	}
 
 	internal static Vector3? FlagToPoint() {
+		if (!IsReady()) Init();
 		return Execute(() => _flagToPoint?.InvokeFunc());
 	}
 
@@ -86,11 +89,13 @@ internal static class Ipcs {
 	private static ICallGateSubscriber<bool>? _dive;
 
 	internal static void DiveTp(Vector3 pos) {
+		if (!IsReady()) Init();
 		_divetp ??= Plugin.PluginInterface.GetIpcSubscriber<Vector3, bool>("LatihasDalamudCore.DiveTp");
 		_divetp.InvokeAction(pos);
 	}
 
 	internal static void Dive() {
+		if (!IsReady()) Init();
 		_dive ??= Plugin.PluginInterface.GetIpcSubscriber<bool>("LatihasDalamudCore.Dive");
 		_dive.InvokeAction();
 	}
@@ -105,6 +110,7 @@ internal static class Ipcs {
 	}
 
 	internal static void PathfindAndMoveTo(Vector3 pos, bool fly) {
+		if (!IsReady()) Init();
 		if (HasCore()) {
 			DiveTp(pos);
 			return;

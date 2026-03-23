@@ -27,6 +27,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Lumina.Excel.Sheets;
 using SkyEye.Data;
 using static System.StringComparison;
+using static SkyEye.Data.PData;
 using static SkyEye.Util;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 using Timer = System.Timers.Timer;
@@ -141,62 +142,82 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (ObjectTable.LocalPlayer is null || !InEureka()) return;
 		IGameObject yls;
 		try {
-			yls = ObjectTable.First(obj => obj.Name.ToString().Contains("元灵") && obj.ObjectKind != ObjectKind.Player);
+			yls = ObjectTable.First(obj => {
+				if (obj.ObjectKind == ObjectKind.Player) return false;
+				var s = obj.Name.ToString();
+				return s.Contains("风元灵") || s.Contains("冰元灵") || s.Contains("火元灵") || s.Contains("水元灵");
+			});
 		} catch (Exception) {
 			return;
 		}
 		if (!Yl.Add(yls.EntityId)) return;
 		var p = yls.Position;
 		YlPositions.Add(p);
+		if (!ElementalPositions[(Territory)ClientState.TerritoryType].Contains(p)) {
+			if (!Configuration.AllYlPositions.ContainsKey(ClientState.TerritoryType)) Configuration.AllYlPositions[ClientState.TerritoryType] = [];
+			Configuration.AllYlPositions[ClientState.TerritoryType].Add(p);
+			Configuration.Save();
+		}
 		AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
 		ChatBox.SendMessage("/e 找到元灵<se.1>");
 	}
 
 	internal static unsafe void FindRabbit(int fateidx = -1, bool force = false) {
-		if (!force && (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || FateManager.Instance()->SyncedFateId != 0)) return;
+		if (!force && (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || FateManager.Instance()->SyncedFateId != 0 || wait4chest)) return;
+		var territory = (Territory)ClientState.TerritoryType;
 		if (fateidx != -1) {
-			if (ClientState.TerritoryType == 763 && fateidx is 1367 or 1368) {
-				var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateidx);
-				if (ret != null) {
-					SetFlagAndMove(ret.FatePosition);
-					return;
+			switch (territory) {
+				case Territory.Pagos when fateidx is 1367 or 1368: {
+					var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateidx);
+					if (ret != null) {
+						SetFlagAndMove(ret.FatePosition);
+						return;
+					}
+					break;
 				}
-			}
-			if (ClientState.TerritoryType == 795 && fateidx is 1407 or 1408) {
-				var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateidx);
-				if (ret != null) {
-					SetFlagAndMove(ret.FatePosition);
-					return;
+				case Territory.Pyros when fateidx is 1407 or 1408: {
+					var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateidx);
+					if (ret != null) {
+						SetFlagAndMove(ret.FatePosition);
+						return;
+					}
+					break;
 				}
-			}
-			if (ClientState.TerritoryType == 827 && fateidx is 1425) {
-				var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateidx);
-				if (ret != null) {
-					SetFlagAndMove(ret.FatePosition);
-					return;
+				case Territory.Hydatos when fateidx is 1425: {
+					var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateidx);
+					if (ret != null) {
+						SetFlagAndMove(ret.FatePosition);
+						return;
+					}
+					break;
 				}
 			}
 		}
 		foreach (var fateid in UiBuilder._eurekaLiveIdList2DOld) {
-			if (ClientState.TerritoryType == 763 && fateid is 1367 or 1368) {
-				var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateid);
-				if (ret != null) {
-					SetFlagAndMove(ret.FatePosition);
-					return;
+			switch (territory) {
+				case Territory.Pagos when fateid is 1367 or 1368: {
+					var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateid);
+					if (ret != null) {
+						SetFlagAndMove(ret.FatePosition);
+						return;
+					}
+					break;
 				}
-			}
-			if (ClientState.TerritoryType == 795 && fateid is 1407 or 1408) {
-				var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateid);
-				if (ret != null) {
-					SetFlagAndMove(ret.FatePosition);
-					return;
+				case Territory.Pyros when fateid is 1407 or 1408: {
+					var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateid);
+					if (ret != null) {
+						SetFlagAndMove(ret.FatePosition);
+						return;
+					}
+					break;
 				}
-			}
-			if (ClientState.TerritoryType == 827 && fateid is 1425) {
-				var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateid);
-				if (ret != null) {
-					SetFlagAndMove(ret.FatePosition);
-					return;
+				case Territory.Hydatos when fateid is 1425: {
+					var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateid);
+					if (ret != null) {
+						SetFlagAndMove(ret.FatePosition);
+						return;
+					}
+					break;
 				}
 			}
 		}
@@ -242,7 +263,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		foreach (var obj in validObjs.OrderBy(c => Vector3.Distance(playerPos, c.Position))) {
 			if (obj.TargetObject != null) continue;
 			if (ieu) {
-				if (Vector3.Distance(playerPos, obj.Position) < 15) {
+				if (Vector3.Distance(playerPos, obj.Position) < 16) {
 					TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
 					ChatBox.SendMessage(Configuration.FarmStartCommand);
 					if (attracted.Length == 0 || lastFarmPos == null)
@@ -323,11 +344,11 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	private void OnCommand(string? command, string? args) => _configWindow.Toggle();
 
-	internal static bool InEureka() => ObjectTable.LocalPlayer != null && ClientState.TerritoryType is 732 or 763 or 795 or 827;
-	internal static bool InEureka(ushort id) => id is 732 or 763 or 795 or 827;
+	internal static bool InEureka() => ObjectTable.LocalPlayer != null && InEureka(ClientState.TerritoryType);
+	internal static bool InEureka(ushort id) => (Territory)id is Territory.Anemos or Territory.Pagos or Territory.Pyros or Territory.Hydatos;
 
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
-	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, ClientState.TerritoryType == 827 ? 20.25f : 11.25f));
+	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, (Territory)ClientState.TerritoryType == Territory.Hydatos ? 20.25f : 11.25f));
 
 	internal static unsafe void SetFlagAndMove(Vector2 pos) {
 		AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, Pos2Map(pos));
@@ -335,11 +356,14 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (p.HasValue) Ipcs.PathfindAndMoveTo(p.Value, false);
 	}
 
+	private static bool wait4chest;
+
 	private void ChatRabbit(XivChatType type, int timestamp, SeString sender, SeString message) {
 		if (!InEureka()) return;
 		var msg = message.TextValue.Trim();
 		if (msg.StartsWith("找到了财宝，幸福兔心满意足地离去了。")) {
 			DetectedTreasurePositions = [];
+			wait4chest = true;
 			StopCarrotTimer();
 			foreach (var obj in ObjectTable) {
 				if (obj is not { ObjectKind: ObjectKind.EventObj } || !obj.Name.ToString().Contains("财宝箱")) continue;
@@ -354,6 +378,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 				ChatBox.SendMessage("/e 等待7s后寻找下一个兔子");
 				Task.Run(async () => {
 					await Task.Delay(7000);
+					wait4chest = false;
 					FindRabbit(force: true);
 				});
 			}
@@ -385,11 +410,11 @@ public sealed partial class Plugin : IDalamudPlugin {
 		var playerPos = ObjectTable.LocalPlayer!.Position;
 		if (Configuration.RabbitDistVec2) {
 			var playerPos2D = new Vector2(playerPos.X, playerPos.Z);
-			DetectedTreasurePositions = PData.RabbitTreasurePositions[ClientState.TerritoryType]
+			DetectedTreasurePositions = RabbitTreasurePositions[(Territory)ClientState.TerritoryType]
 				.Select(i => (i, Vector2.Distance(playerPos2D, new Vector2(i.X, i.Z))))
 				.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
 		} else
-			DetectedTreasurePositions = PData.RabbitTreasurePositions[ClientState.TerritoryType]
+			DetectedTreasurePositions = RabbitTreasurePositions[(Territory)ClientState.TerritoryType]
 				.Select(i => (i, Vector3.Distance(playerPos, i)))
 				.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
 		if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();

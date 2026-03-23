@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
@@ -30,7 +32,6 @@ public class ConfigWindow() : Window("SkyEye") {
 		ImGui.EndTabItem();
 	}
 
-
 	private static void ValidateSpeedInfo() {
 		SetSpeed(1);
 		if (!Configuration.SpeedUp[0].SpeedUpTerritory.Equals(SpeedInfo.Default().SpeedUpTerritory))
@@ -50,7 +51,7 @@ public class ConfigWindow() : Window("SkyEye") {
 		Configuration.Save();
 	}
 
-	public override unsafe void Draw() {
+	public override void Draw() {
 		if (ImGui.Checkbox("开关", ref Configuration.PluginEnabled)) Configuration.Save();
 		if (!Configuration.PluginEnabled) {
 			SetSpeed(1);
@@ -62,7 +63,7 @@ public class ConfigWindow() : Window("SkyEye") {
 		if (ImGui.BeginTabBar("tab")) {
 			NewTab("基础", () => {
 				if (ImGui.Checkbox("稀有天气时间开关", ref Configuration.Overlay2DWeatherMapEnabled)) Configuration.Save();
-				if (ImGui.Checkbox("元灵位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
+				if (ImGui.Checkbox("详细信息开关", ref Configuration.Overlay2DDetailEnabled)) Configuration.Save();
 				if (!InEureka()) return;
 				ImGui.Separator();
 				ImGui.Text("NM开战时间喊话");
@@ -76,9 +77,41 @@ public class ConfigWindow() : Window("SkyEye") {
 					ImGui.Text($"元灵{i}({p.X},{p.Y},{p.Z})");
 					ImGui.SameLine();
 					if (ImGui.Button($"发送位置{i}")) {
-						AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
-						ChatBox.SendMessage($"/sh 元灵位置{i}: <flag>");
+						unsafe {
+							AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);
+							ChatBox.SendMessage($"/sh 元灵位置{i}: <flag>");
+						}
 					}
+				}
+			});
+			NewTab("元灵", () => {
+				if (ImGui.Checkbox("元灵位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
+				ImGui.Text("当前Flag地面坐标: " + Ipcs.FlagToPoint());
+				if (ImGui.InputFloat("Flag环绕绘制距离", ref Configuration.FlagR)) Configuration.Save();
+				if (ImGui.Button("Flag环绕绘制")) {
+					Task.Run(async () => {
+						if (ObjectTable.LocalPlayer == null) return;
+						const int pointCount = 50;
+						var originPosition = ObjectTable.LocalPlayer.Position;
+						for (var i = 0; i < pointCount; i++) {
+							var angle = 2 * MathF.PI * i / pointCount;
+							var offsetX = Configuration.FlagR * MathF.Cos(angle);
+							var offsetZ = Configuration.FlagR * MathF.Sin(angle);
+							var newPoint = new Vector3(originPosition.X + offsetX, originPosition.Y, originPosition.Z + offsetZ);
+							unsafe {
+								AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, newPoint);
+							}
+							await Task.Delay(20);
+						}
+					});
+				}
+				if (ImGui.Checkbox("显示当前地图点位", ref Configuration.ShowCurrentYl)) Configuration.Save();
+				foreach (var p in Configuration.AllYlPositions) {
+					ImGui.Text(p.Key.ToString());
+					ImGui.Indent();
+					foreach (var v in p.Value.OrderBy(i => i.X))
+						ImGui.Text(v.ToString());
+					ImGui.Unindent();
 				}
 			});
 			NewTab("加速", () => {
@@ -306,8 +339,8 @@ public class ConfigWindow() : Window("SkyEye") {
 						NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], EurekaHydatos.HydatosFates, acts);
 					}
 				};
-				switch (ClientState.TerritoryType) {
-					case 732:
+				switch ((Territory)ClientState.TerritoryType) {
+					case Territory.Anemos:
 						ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
 						ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
 						orderact[0]();
@@ -318,7 +351,7 @@ public class ConfigWindow() : Window("SkyEye") {
 						orderact[2]();
 						orderact[3]();
 						break;
-					case 763:
+					case Territory.Pagos:
 						ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
 						ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
 						orderact[1]();
@@ -329,7 +362,7 @@ public class ConfigWindow() : Window("SkyEye") {
 						orderact[2]();
 						orderact[3]();
 						break;
-					case 795:
+					case Territory.Pyros:
 						ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
 						ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
 						orderact[2]();
@@ -340,7 +373,7 @@ public class ConfigWindow() : Window("SkyEye") {
 						orderact[1]();
 						orderact[3]();
 						break;
-					case 827:
+					case Territory.Hydatos:
 						ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
 						ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
 						orderact[3]();

@@ -14,7 +14,7 @@
     <LangVersion>Latest</LangVersion>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <DalamudPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudPath>
-    <NoWarn>CA1416;</NoWarn>
+    <NoWarn>CA1416;CS8524</NoWarn>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>

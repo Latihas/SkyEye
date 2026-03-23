@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using Dalamud.Configuration;
 using static SkyEye.Plugin;
 
@@ -7,13 +8,15 @@ namespace SkyEye;
 
 [Serializable]
 public class MConfiguration : IPluginConfiguration {
-	public float FarmMaxDistance = 100, FarmWaitX, FarmWaitY, FarmWaitZ;
+	public float FarmMaxDistance = 100, FarmWaitX, FarmWaitY, FarmWaitZ, FlagR = 100;
 	public int FarmTargetMax = 1, WssRegion, FarmDistAlgo;
-	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay3DEnabled = true, AutoRabbit = true, AutoRabbitWait = true, AutoFarm, FarmWait, EnableWss, RabbitDistVec2 = true;
+	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay2DDetailEnabled = true, Overlay3DEnabled = true, AutoRabbit = true, AutoRabbitWait = true, AutoFarm, FarmWait, EnableWss, RabbitDistVec2 = true,
+		ShowCurrentYl;
 	public List<SpeedInfo> SpeedUp = [];
 	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "";
 	public int Version { get; set; }
 	public Dictionary<string, int> TotalChest = [];
+	public Dictionary<int, HashSet<Vector3>> AllYlPositions = [];
 
 	public void Save() => PluginInterface.SavePluginConfig(this);
 
