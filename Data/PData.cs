@@ -2,8 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using static SkyEye.Data.PData.EurekaWeather;
 
 namespace SkyEye.Data;
+
+public enum Territory : uint {
+	Anemos = 732,
+	Pagos = 763,
+	Pyros = 795,
+	Hydatos = 827
+}
 
 [SuppressMessage("ReSharper", "UnusedMember.Local")]
 [SuppressMessage("ReSharper", "UnusedMember.Global")]
@@ -336,17 +344,17 @@ internal static class PData {
 
 	internal static string ToFriendlyString(this EurekaWeather weather) {
 		return weather switch {
-			EurekaWeather.Gales => "强风",
-			EurekaWeather.Showers => "小雨",
-			EurekaWeather.FairSkies => "晴朗",
-			EurekaWeather.Snow => "小雪",
-			EurekaWeather.HeatWaves => "热浪",
-			EurekaWeather.Thunder => "打雷",
-			EurekaWeather.Blizzards => "暴雪",
-			EurekaWeather.Fog => "薄雾",
-			EurekaWeather.UmbralWind => "妖风",
-			EurekaWeather.Thunderstorms => "雷暴",
-			EurekaWeather.Gloom => "乱灵流",
+			Gales => "强风",
+			Showers => "小雨",
+			FairSkies => "晴朗",
+			Snow => "小雪",
+			HeatWaves => "热浪",
+			Thunder => "打雷",
+			Blizzards => "暴雪",
+			Fog => "薄雾",
+			UmbralWind => "妖风",
+			Thunderstorms => "雷暴",
+			Gloom => "乱灵流",
 			_ => ""
 		};
 	}
@@ -365,4 +373,132 @@ internal static class PData {
 		Gloom,
 		None
 	}
+
+	internal static readonly Dictionary<Territory, (int, EurekaWeather)[]> Weathers = new() {
+		{ Territory.Anemos, [(30, FairSkies), (60, Gales), (90, Showers), (100, Snow)] },
+		{ Territory.Pagos, [(10, FairSkies), (28, Fog), (46, HeatWaves), (64, Snow), (82, Thunder), (100, Blizzards)] },
+		{ Territory.Pyros, [(10, FairSkies), (28, HeatWaves), (46, Thunder), (64, Blizzards), (82, UmbralWind), (100, Snow)] },
+		{ Territory.Hydatos, [(12, FairSkies), (34, Showers), (56, Gloom), (78, Thunderstorms), (100, Snow)] }
+	};
+	internal static readonly Dictionary<Territory, Dictionary<int, string>> DeadFateDic = new() {
+		{
+			Territory.Anemos, new Dictionary<int, string> {
+				{ 1332, "-1" }, { 1348, "-1" }, { 1333, "-1" }, { 1328, "-1" },
+				{ 1344, "-1" }, { 1347, "-1" }, { 1345, "-1" }, { 1334, "-1" },
+				{ 1335, "-1" }, { 1336, "-1" }, { 1339, "-1" }, { 1346, "-1" },
+				{ 1343, "-1" }, { 1337, "-1" }, { 1342, "-1" }, { 1341, "-1" },
+				{ 1331, "-1" }, { 1340, "-1" }, { 1338, "-1" }, { 1329, "-1" }
+			}
+		}, {
+			Territory.Pagos, new Dictionary<int, string> {
+				{ 1351, "-1" }, { 1369, "-1" }, { 1353, "-1" }, { 1354, "-1" },
+				{ 1355, "-1" }, { 1366, "-1" }, { 1357, "-1" }, { 1356, "-1" },
+				{ 1352, "-1" }, { 1360, "-1" }, { 1358, "-1" }, { 1361, "-1" },
+				{ 1362, "-1" }, { 1359, "-1" }, { 1363, "-1" }, { 1365, "-1" },
+				{ 1364, "-1" }, { 1367, "-1" }, { 1368, "-1" }
+			}
+		}, {
+			Territory.Pyros, new Dictionary<int, string> {
+				{ 1388, "-1" }, { 1389, "-1" }, { 1390, "-1" }, { 1391, "-1" },
+				{ 1392, "-1" }, { 1393, "-1" }, { 1394, "-1" }, { 1395, "-1" },
+				{ 1396, "-1" }, { 1397, "-1" }, { 1398, "-1" }, { 1399, "-1" },
+				{ 1400, "-1" }, { 1401, "-1" }, { 1402, "-1" }, { 1403, "-1" },
+				{ 1404, "-1" }, { 1407, "-1" }, { 1408, "-1" }
+			}
+		}, {
+			Territory.Hydatos, new Dictionary<int, string> {
+				{ 1412, "-1" }, { 1413, "-1" }, { 1414, "-1" }, { 1415, "-1" },
+				{ 1416, "-1" }, { 1417, "-1" }, { 1418, "-1" }, { 1419, "-1" },
+				{ 1420, "-1" }, { 1421, "-1" }, { 1422, "-1" }, { 1423, "-1" },
+				{ 1424, "-1" }, { 1425, "-1" }
+			}
+		}
+	};
+	internal static readonly Dictionary<Territory, EurekaFate[]> XFates = new() {
+		{
+			Territory.Anemos, [
+				new EurekaFate(1332, 1, "舞动花王——科里多仙人刺", "仙人掌", "仙人花", 6, new Vector2(13.9f, 21.6f)),
+				new EurekaFate(1348, 2, "章鱼统领——常风领主", "章鱼", "海祭司", 7, new Vector2(29.7f, 27.1f)),
+				new EurekaFate(1333, 3, "绝命美声——忒勒斯", "鸟", "常风哈佩亚鸟妖", 8, new Vector2(25.6f, 27.4f)),
+				new EurekaFate(1328, 4, "御驾亲征——常风皇帝", "蜻蜓", "晏蜓", 9, new Vector2(17.2f, 22.2f)),
+				new EurekaFate(1344, 5, "行尸走肉——卡利斯托", "熊", "瓦尔巨熊", 10, new Vector2(25.5f, 22.3f)),
+				new EurekaFate(1347, 6, "无主傀儡——群偶", "群偶", "夺灵魔", 11, new Vector2(23.5f, 22.7f)),
+				new EurekaFate(1345, 7, "强风妖精——哲罕南", "台风", "台风元精", 12, new Vector2(17.7f, 18.6f), Gales),
+				new EurekaFate(1334, 8, "贪食者——阿米特", "暴龙", "阿卜拉克萨斯", 13, new Vector2(15f, 15.6f)),
+				new EurekaFate(1335, 9, "兽脚怪人——盖因", "盖因", "追踪席兹", 14, new Vector2(13.8f, 12.5f)),
+				new EurekaFate(1336, 10, "腐臭贤者——庞巴德", "举高高", "古老贪吃鬼", 15, new Vector2(28.3f, 20.4f), None, true),
+				new EurekaFate(1339, 11, "幻魔蝎——塞尔凯特", "蝎子", "河道巨钳虾", 16, new Vector2(24.8f, 17.9f)),
+				new EurekaFate(1346, 12, "播种者——武断魔花茱莉卡", "魔界花", "天仙子", 17, new Vector2(21.9f, 15.6f)),
+				new EurekaFate(1343, 13, "胜利象征——白骑士", "白骑士", "黄昏无头骑士", 18, new Vector2(20.3f, 13f), None, true),
+				new EurekaFate(1337, 14, "巨人的复仇——波吕斐摩斯", "独眼", "独眼怪", 19, new Vector2(26.4f, 14.3f)),
+				new EurekaFate(1342, 15, "狂怒怪鸟——阔步西牟鸟", "阔步西牟鸟", "旧世界祖", 20, new Vector2(28.6f, 13f)),
+				new EurekaFate(1341, 16, "放火大王——极其危险物质", "极其危险物质", "常风阿那罗", 21, new Vector2(35.3f, 18.3f)),
+				new EurekaFate(1331, 17, "狂乱暗龙——法夫纳", "法夫纳", "龙化石", 22, new Vector2(35.5f, 21.5f), None, true),
+				new EurekaFate(1340, 18, "异界魔犬——阿玛洛克", "阿玛洛克", "虚无鳞龙", 23, new Vector2(7.6f, 18.2f)),
+				new EurekaFate(1338, 19, "魔王之后——拉玛什图", "拉玛什图", "瓦尔妖影", 24, new Vector2(7.7f, 23.3f), None, true),
+				new EurekaFate(1329, 20, "暴风魔王——帕祖祖", "帕祖祖", "暗影幽灵", 25, new Vector2(7.4f, 21.7f), Gales, true)
+			]
+		}, {
+			Territory.Pagos, [
+				new EurekaFate(1367, 20, "雪上的幸福兔", "小兔子", "", -1, new Vector2(18, 27.5f)),
+				new EurekaFate(1368, 31, "盯上宝石的幸福兔", "大兔子", "", -1, new Vector2(21, 21.5f)),
+				new EurekaFate(1351, 20, "纯白的支配者——雪之女王", "周冬雨", "雪童子", 25, new Vector2(21.9f, 26.8f)),
+				new EurekaFate(1369, 21, "腐烂的读书家——塔克西姆", "读书人", "珍卷恶魔", 26, new Vector2(25.4f, 27.4f), spawnByRequiredNight: true),
+				new EurekaFate(1353, 22, "灰壳的鳞王——灰烬龙", "灰烬龙", "血魔", 27, new Vector2(29f, 30f)),
+				new EurekaFate(1354, 23, "地壳变动之谜——异形魔虫", "魔虫", "瓦尔巨虫", 28, new Vector2(33f, 27f)),
+				new EurekaFate(1355, 24, "融雪的化身——安娜波", "安娜波", "融雪元精", 29, new Vector2(33f, 21.5f), Fog),
+				new EurekaFate(1366, 25, "五行眼的主人——白泽", "白泽", "啜泣百目妖", 30, new Vector2(29f, 22f)),
+				new EurekaFate(1357, 26, "移动的雪洞——雪屋王", "雪屋王", "胡瓦西", 31, new Vector2(17f, 16f)),
+				new EurekaFate(1356, 27, "硬质的病魔——阿萨格", "阿萨格", "徘徊欧浦肯", 32, new Vector2(10.4f, 11.4f)),
+				new EurekaFate(1352, 28, "家畜的慈母——苏罗毗", "山羊", "恒冰公山羊", 33, new Vector2(10.3f, 19.5f)),
+				new EurekaFate(1360, 29, "圆桌的雾王——亚瑟罗王", "螃蟹", "瓦尔利螯陆蟹", 34, new Vector2(8.7f, 15.5f), Fog),
+				new EurekaFate(1358, 30, "唇亡齿寒", "双牛", "研究所弥诺陶洛斯", 35, new Vector2(14f, 19f)),
+				new EurekaFate(1361, 31, "野牛的救世主——优雷卡圣牛", "圣牛", "古老水牛", 36, new Vector2(26f, 16f)),
+				new EurekaFate(1362, 32, "雷云的魔兽——哈达约什", "贝爷", "虚无小龙", 37, new Vector2(30f, 19f), Thunder),
+				new EurekaFate(1359, 33, "太阳的使者——荷鲁斯", "荷鲁斯", "虚无薇薇尔飞龙", 38, new Vector2(26f, 20f), HeatWaves),
+				new EurekaFate(1363, 34, "暗眼王——总领安哥拉·曼纽", "大眼", "瞪视之眼", 39, new Vector2(24f, 25f)),
+				new EurekaFate(1365, 35, "模仿犯——复制魔花凯西", "凯西", "阿米雷戴", 40, new Vector2(22.3f, 14.4f), Blizzards),
+				new EurekaFate(1364, 35, "苍蓝冰刃——娄希", "娄希", "瓦尔腐尸", 40, new Vector2(36f, 19f), spawnByRequiredNight: true)
+			]
+		}, {
+			Territory.Pyros, [
+				new EurekaFate(1407, 35, "瞄准珊瑚的幸福兔", "小兔子", "", -1, new Vector2(24f, 26f)),
+				new EurekaFate(1408, 46, "困入岩石的幸福兔", "大兔子", "", -1, new Vector2(25f, 11.1f)),
+				new EurekaFate(1388, 35, "洁白的惨叫——琉科西亚", "惨叫", "涌火浮灵", 40, new Vector2(26.9f, 26.6f), spawnByRequiredNight: true),
+				new EurekaFate(1389, 36, "狰狞的雷兽——佛劳洛斯", "雷兽", "雷暴元精", 41, new Vector2(30f, 28.4f), Thunder),
+				new EurekaFate(1390, 37, "妖异中的辩论家——诡辩者", "诡辩者", "涌火阿班达", 42, new Vector2(31.9f, 31.3f)),
+				new EurekaFate(1391, 38, "恐怖的人偶——格拉菲亚卡内", "塔塔露", "瓦尔维京人偶", 43, new Vector2(23f, 37.2f)),
+				new EurekaFate(1392, 39, "图书守护者——阿斯卡拉福斯", "阿福", "过期魔导书", 44, new Vector2(19.1f, 29.1f), UmbralWind),
+				new EurekaFate(1393, 40, "深渊贵族——巴钦大公爵", "大公", "暗黑行吟诗人", 45, new Vector2(17.7f, 14.5f), spawnByRequiredNight: true),
+				new EurekaFate(1394, 41, "闪电的指挥者——埃托洛斯", "雷鸟", "瓦尔独爪妖禽", 46, new Vector2(10f, 14f)),
+				new EurekaFate(1395, 42, "灼热的刺剑——来萨特", "蝎子", "食鸟者", 47, new Vector2(13.7f, 11.5f)),
+				new EurekaFate(1396, 43, "炎热霸主——火巨人", "火巨人", "涌火陆蟹", 48, new Vector2(15.4f, 7f)),
+				new EurekaFate(1397, 44, "落泪的海燕——伊丽丝", "海燕", "北境盐蓝燕", 49, new Vector2(21.3f, 11.8f)),
+				new EurekaFate(1398, 45, "奇迹的生还者——佣兵雷姆普里克斯", "哥布林", "青蓝之手逃亡者", 50, new Vector2(22.1f, 8.3f)),
+				new EurekaFate(1399, 46, "雷兽统领——闪电督军", "雷军", "遗弃象魔", 51, new Vector2(27.1f, 9f), Thunder),
+				new EurekaFate(1400, 47, "樵夫杰科的死亡对决", "树人", "涌火树精", 52, new Vector2(29.9f, 11.8f)),
+				new EurekaFate(1401, 48, "智慧与战斗之母——明眸", "明眸", "瓦尔斯卡尼特", 53, new Vector2(31.8f, 15.1f)),
+				new EurekaFate(1402, 49, "相反的双子——阴·阳", "阴阳", "涌火百目妖", 54, new Vector2(11.7f, 34.3f)),
+				new EurekaFate(1403, 50, "嘲讽的霜狼——斯库尔", "狼", "涌火狗灵", 55, new Vector2(24f, 30f), Blizzards),
+				new EurekaFate(1404, 50, "炎蝶的女王——彭忒西勒亚", "彭女士", "瓦尔血飞蛾", 55, new Vector2(36f, 6f), HeatWaves)
+			]
+		}, {
+			Territory.Hydatos, [
+				new EurekaFate(1425, 50, "戏水的幸福兔", "兔子", "", -1, new Vector2(14.4f, 22f)),
+				new EurekaFate(1412, 50, "奇怪的乌贼——卡拉墨鱼", "墨鱼", "左米特", 55, new Vector2(10.8f, 25.5f)),
+				new EurekaFate(1413, 51, "暴虐的魔兽——剑齿象", "象", "丰水曙象", 56, new Vector2(9f, 17f)),
+				new EurekaFate(1414, 52, "落泪的君主——摩洛", "摩洛", "瓦尔泥口花", 57, new Vector2(7.8f, 22.2f)),
+				new EurekaFate(1415, 53, "惊鸿艳影——皮艾萨邪鸟", "皮鸟", "多彩冠恐鸟", 58, new Vector2(7f, 14f)),
+				new EurekaFate(1416, 54, "高傲的猎人——霜鬃猎魔", "老虎", "北方猛虎", 59, new Vector2(8f, 25f)),
+				new EurekaFate(1417, 55, "浴血的妖妃——达佛涅", "达芙涅", "暗黑虚无鬼鱼", 60, new Vector2(25f, 15f)),
+				new EurekaFate(1418, 56, "异界的锻冶王——戈尔德马尔王", "马王", "丰水幽灵", 61, new Vector2(29f, 23.5f), spawnByRequiredNight: true),
+				new EurekaFate(1419, 57, "食妖植物——琉刻", "琉刻", "虎鹰", 62, new Vector2(37f, 26f)),
+				new EurekaFate(1420, 58, "业火狮子王——巴龙", "巴龙", "研究所雄狮", 63, new Vector2(32.5f, 24.5f)),
+				new EurekaFate(1421, 59, "魔蛇女王——刻托", "刻托", "丰水达菲妮", 64, new Vector2(36f, 14f)),
+				new EurekaFate(1423, 60, "水晶之龙——起源守望者", "守望者", "水晶爪", 65, new Vector2(32.8f, 19.7f)),
+				new EurekaFate(1424, 60, "未知的威胁——未确认飞行物体", "UFO", "", -1, new Vector2(27.1f, 29f)),
+				new EurekaFate(1422, 60, "兵武塔调查支援", "光灵鳐", "", -1, new Vector2(18.8f, 28.9f))
+			]
+		}
+	};
 }

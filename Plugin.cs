@@ -166,60 +166,20 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (!force && (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || FateManager.Instance()->SyncedFateId != 0 || wait4chest)) return;
 		var territory = (Territory)ClientState.TerritoryType;
 		if (fateidx != -1) {
-			switch (territory) {
-				case Territory.Pagos when fateidx is 1367 or 1368: {
-					var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateidx);
-					if (ret != null) {
-						SetFlagAndMove(ret.FatePosition);
-						return;
-					}
-					break;
-				}
-				case Territory.Pyros when fateidx is 1407 or 1408: {
-					var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateidx);
-					if (ret != null) {
-						SetFlagAndMove(ret.FatePosition);
-						return;
-					}
-					break;
-				}
-				case Territory.Hydatos when fateidx is 1425: {
-					var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateidx);
-					if (ret != null) {
-						SetFlagAndMove(ret.FatePosition);
-						return;
-					}
-					break;
+			if (territory == Territory.Pagos && fateidx is 1367 or 1368 || territory == Territory.Pyros && fateidx is 1407 or 1408 || territory == Territory.Hydatos && fateidx is 1425) {
+				var ret = XFates[territory].FirstOrDefault(i => i.FateId == fateidx);
+				if (ret != null) {
+					SetFlagAndMove(ret.FatePosition);
+					return;
 				}
 			}
 		}
-		foreach (var fateid in UiBuilder._eurekaLiveIdList2DOld) {
-			switch (territory) {
-				case Territory.Pagos when fateid is 1367 or 1368: {
-					var ret = EurekaPagos.PagosFates.FirstOrDefault(i => i.FateId == fateid);
-					if (ret != null) {
-						SetFlagAndMove(ret.FatePosition);
-						return;
-					}
-					break;
-				}
-				case Territory.Pyros when fateid is 1407 or 1408: {
-					var ret = EurekaPyros.PyrosFates.FirstOrDefault(i => i.FateId == fateid);
-					if (ret != null) {
-						SetFlagAndMove(ret.FatePosition);
-						return;
-					}
-					break;
-				}
-				case Territory.Hydatos when fateid is 1425: {
-					var ret = EurekaHydatos.HydatosFates.FirstOrDefault(i => i.FateId == fateid);
-					if (ret != null) {
-						SetFlagAndMove(ret.FatePosition);
-						return;
-					}
-					break;
-				}
-			}
+		foreach (var ret in UiBuilder._eurekaLiveIdList2DOld
+			         .Where(fateid => territory == Territory.Pagos && fateid is 1367 or 1368 || territory == Territory.Pyros && fateid is 1407 or 1408 || territory == Territory.Hydatos && fateid is 1425)
+			         .Select(fateid => XFates[territory].FirstOrDefault(i => i.FateId == fateid))) {
+			if (ret == null) continue;
+			SetFlagAndMove(ret.FatePosition);
+			return;
 		}
 	}
 
@@ -430,6 +390,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 		else if (Configuration.AutoRabbit && !Ipcs.IsRunning()) Ipcs.PathfindAndMoveTo(pos, false);
 	}
 
+	internal static bool GreenNearby() {
+		var friends = Configuration.SpeedUpFriendly.Split('|');
+		return OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ObjectTable.LocalPlayer!.Position) < (110 ^ 2));
+	}
 
 	private static void UpdateRoundPlayers(IFramework _) {
 		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null || !InArea() || CurrentSpeedInfo == null) return;
@@ -439,7 +403,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 				OtherPlayer.Add(rcTemp);
 		if (Configuration.SpeedUpEnabled) {
 			var friends = Configuration.SpeedUpFriendly.Split('|');
-			_dspeed = OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ObjectTable.LocalPlayer.Position) < (110 ^ 2)) ? 1f : CurrentSpeedInfo.SpeedUpN;
+			_dspeed = GreenNearby() ? 1f : CurrentSpeedInfo.SpeedUpN;
 		} else _dspeed = 1f;
 		SetSpeed(_dspeed);
 	}

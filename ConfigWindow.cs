@@ -10,6 +10,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using SkyEye.Data;
+using static SkyEye.Data.PData;
 using static SkyEye.MConfiguration;
 using static SkyEye.Plugin;
 using static SkyEye.Util;
@@ -324,19 +325,19 @@ public class ConfigWindow() : Window("SkyEye") {
 				var orderact = new[] {
 					() => {
 						ImGui.Text("常风之地");
-						NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], EurekaAnemos.AnemosFates, acts);
+						NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Territory.Anemos], acts);
 					},
 					() => {
 						ImGui.Text("恒冰之地");
-						NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], EurekaPagos.PagosFates, acts);
+						NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Territory.Pagos], acts);
 					},
 					() => {
 						ImGui.Text("涌火之地");
-						NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], EurekaPyros.PyrosFates, acts);
+						NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Territory.Pyros], acts);
 					},
 					() => {
 						ImGui.Text("丰水之地");
-						NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], EurekaHydatos.HydatosFates, acts);
+						NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Territory.Hydatos], acts);
 					}
 				};
 				switch ((Territory)ClientState.TerritoryType) {
@@ -398,10 +399,11 @@ public class ConfigWindow() : Window("SkyEye") {
 
 			if (Ipcs.HasCore())
 				NewTab("Core", () => {
-					if (ImGui.Button("潜水无敌")) Ipcs.Dive();
+					if (ImGui.Checkbox("绿玩在附近也tp", ref Configuration.CoreTpWhenGreenNearby)) Configuration.Save();
+					if (ImGui.Button("潜水无敌")) Ipcs.CoreDive();
 					if (ImGui.Button("潜水Tp到flag")) {
 						var p = Ipcs.FlagToPoint();
-						if (p.HasValue) Ipcs.DiveTp(p.Value);
+						if (p.HasValue) Ipcs.CoreDiveTp(p.Value);
 					}
 				});
 		}
