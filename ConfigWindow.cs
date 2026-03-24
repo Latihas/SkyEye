@@ -1,8 +1,10 @@
 using System;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Dalamud;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
@@ -10,6 +12,7 @@ using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using SkyEye.Data;
 using static SkyEye.Data.PData;
+using static SkyEye.Ipcs;
 using static SkyEye.MConfiguration;
 using static SkyEye.Plugin;
 using static SkyEye.Util;
@@ -49,7 +52,7 @@ public class ConfigWindow() : Window("SkyEye") {
 			SetSpeed(1);
 			lastFarmPos = null;
 			FarmFull = false;
-			Ipcs.Stop();
+			Stop();
 			return;
 		}
 		if (ImGui.BeginTabBar("tab")) {
@@ -78,7 +81,7 @@ public class ConfigWindow() : Window("SkyEye") {
 			});
 			NewTab("元灵", () => {
 				if (ImGui.Checkbox("元灵位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
-				ImGui.Text("当前Flag地面坐标: " + Ipcs.FlagToPoint());
+				ImGui.Text("当前Flag地面坐标: " + FlagToPoint());
 				if (ImGui.InputFloat("Flag环绕绘制距离", ref Configuration.FlagR)) Configuration.Save();
 				if (ImGui.Button("Flag环绕绘制")) {
 					Task.Run(async () => {
@@ -388,17 +391,50 @@ public class ConfigWindow() : Window("SkyEye") {
 				ImGui.PopStyleColor(2);
 			});
 
-			if (Ipcs.HasCore())
+			if (HasCore())
 				NewTab("Core", () => {
 					if (ImGui.Checkbox("绿玩在附近也tp", ref Configuration.CoreTpWhenGreenNearby)) Configuration.Save();
-					if (ImGui.Button("潜水无敌")) Ipcs.CoreDive();
-					if (ImGui.Button("潜水Tp到flag")) {
-						var p = Ipcs.FlagToPoint();
-						if (p.HasValue) Ipcs.CoreDiveTp(p.Value);
+					if (ObjectTable.LocalPlayer == null) return;
+					if (ImGui.Button("潜水无敌")) CoreDive();
+					if (ImGui.Button("潜水天灾")) {
+						Task.Run(async () => {
+							ChatBox.SendMessage("/共通技能 任务指令1");
+							await Task.Delay(100);
+							CoreDive();
+						});
 					}
+					if (ImGui.Button("潜水Tp到flag")) {
+						var p = FlagToPoint();
+						if (p.HasValue) CoreDiveTp(p.Value);
+					}
+					ImGui.Separator();
+					if (ImGui.Button("潜水Tp到坐标"))
+						CoreDiveTp(new Vector3(tpX, tpY, tpZ));
+					if (ImGui.Button("到坐标再潜水Tp")) {
+						Task.Run(async () => {
+							if (setPosition == null) {
+								if (SigScanner.TryScanText("E8 ?? ?? ?? ?? 44 89 A3 ?? ?? ?? ?? 66 C7 83", out var x))
+									setPosition = Marshal.GetDelegateForFunctionPointer<SetPositionDelegate>(x);
+							}
+							if (setPosition == null) return;
+							setPosition(ObjectTable.LocalPlayer.Address, tpX, tpY, tpZ);
+							await Task.Delay(100);
+							CoreDive();
+						});
+					}
+					ImGui.Text(ObjectTable.LocalPlayer.Position.ToString());
+					ImGui.InputFloat("tpX", ref tpX);
+					ImGui.InputFloat("tpY", ref tpY);
+					ImGui.InputFloat("tpZ", ref tpZ);
 				});
 		}
 	}
+
+	private static SetPositionDelegate? setPosition;
+
+	private delegate long SetPositionDelegate(long playerAddress, float x, float y, float z);
+
+	private float tpX, tpZ, tpY;
 
 	private static int getDeltaMin(string d) {
 		try {

@@ -113,6 +113,8 @@ internal static class Ipcs {
 		}
 		_dive ??= PluginInterface.GetIpcSubscriber<bool>("LatihasDalamudCore.Dive");
 		_dive.InvokeAction();
+	}internal static void Harvest() {
+		 PluginInterface.GetIpcSubscriber<bool>("LatihasDalamudCore.Harvest").InvokeAction();
 	}
 
 	internal static bool HasCore() {
