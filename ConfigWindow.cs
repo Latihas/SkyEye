@@ -31,8 +31,10 @@ public class ConfigWindow() : Window("SkyEye") {
 
 	private static void ValidateSpeedInfo() {
 		SetSpeed(1);
-		Configuration.SpeedUp[0].SpeedUpTerritory = SpeedInfo.Default().SpeedUpTerritory;
-		Configuration.SpeedUp[0].Desc = SpeedInfo.Default().Desc;
+		if (!Configuration.SpeedUp[0].SpeedUpTerritory.Equals(SpeedInfo.Default().SpeedUpTerritory))
+			Configuration.SpeedUp[0].SpeedUpTerritory = SpeedInfo.Default().SpeedUpTerritory;
+		if (!Configuration.SpeedUp[0].Desc.Equals(SpeedInfo.Default().Desc))
+			Configuration.SpeedUp[0].Desc = SpeedInfo.Default().Desc;
 		if (Configuration.SpeedUp[^2].SpeedUpTerritory.IsNullOrEmpty())
 			Configuration.SpeedUp.Remove(Configuration.SpeedUp[^2]);
 		if (!Configuration.SpeedUp[^1].SpeedUpTerritory.IsNullOrEmpty())
@@ -426,6 +428,7 @@ public class ConfigWindow() : Window("SkyEye") {
 					ImGui.InputFloat("tpX", ref tpX);
 					ImGui.InputFloat("tpY", ref tpY);
 					ImGui.InputFloat("tpZ", ref tpZ);
+					if(ImGui.Checkbox("丢弃移动包",ref Configuration.DropMovementPacket))Configuration.Save();
 				});
 		}
 	}
