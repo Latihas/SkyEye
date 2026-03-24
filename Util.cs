@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Utility;
+using FFXIVClientStructs.FFXIV.Client.UI;
 
 namespace SkyEye;
 
@@ -42,6 +43,9 @@ internal static class Util {
 		}
 	}
 
+	internal static unsafe AddonAreaMap* AreaMapAddon => Plugin.Gui.GetAddonByName<AddonAreaMap>("AreaMap");
+	internal static unsafe bool MapVisible => AreaMapAddon->IsVisible;
+	internal static unsafe float MapScale => AreaMapAddon->AreaMap.MapScale;
 	internal static Vector2 ToVector2(Vector3 v) => new(v.X, v.Z);
 
 	internal static Vector3 ToVector3(Vector2 v) => new(v.X, 0f, v.Y);

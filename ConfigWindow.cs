@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -19,13 +18,7 @@ using Action = System.Action;
 namespace SkyEye;
 
 public class ConfigWindow() : Window("SkyEye") {
-	private static readonly string[] regions = [
-		"未选择",
-		"陆行鸟",
-		"莫古力",
-		"猫小胖",
-		"豆豆柴"
-	];
+	private static readonly string[] regions = ["未选择", "陆行鸟", "莫古力", "猫小胖", "豆豆柴"];
 
 	private static void NewTab(string tabname, Action act) {
 		if (!ImGui.BeginTabItem(tabname)) return;
@@ -35,10 +28,8 @@ public class ConfigWindow() : Window("SkyEye") {
 
 	private static void ValidateSpeedInfo() {
 		SetSpeed(1);
-		if (!Configuration.SpeedUp[0].SpeedUpTerritory.Equals(SpeedInfo.Default().SpeedUpTerritory))
-			Configuration.SpeedUp[0].SpeedUpTerritory = SpeedInfo.Default().SpeedUpTerritory;
-		if (!Configuration.SpeedUp[0].Desc.Equals(SpeedInfo.Default().Desc))
-			Configuration.SpeedUp[0].Desc = SpeedInfo.Default().Desc;
+		Configuration.SpeedUp[0].SpeedUpTerritory = SpeedInfo.Default().SpeedUpTerritory;
+		Configuration.SpeedUp[0].Desc = SpeedInfo.Default().Desc;
 		if (Configuration.SpeedUp[^2].SpeedUpTerritory.IsNullOrEmpty())
 			Configuration.SpeedUp.Remove(Configuration.SpeedUp[^2]);
 		if (!Configuration.SpeedUp[^1].SpeedUpTerritory.IsNullOrEmpty())

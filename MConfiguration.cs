@@ -17,7 +17,7 @@ public class MConfiguration : IPluginConfiguration {
 	public int Version { get; set; }
 	public Dictionary<string, int> TotalChest = [];
 	public Dictionary<int, HashSet<Vector3>> AllYlPositions = [];
-	public bool CoreTpWhenGreenNearby = false;
+	public bool CoreTpWhenGreenNearby;
 
 	public void Save() => PluginInterface.SavePluginConfig(this);
 

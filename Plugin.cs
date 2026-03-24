@@ -39,7 +39,7 @@ namespace SkyEye;
 public sealed partial class Plugin : IDalamudPlugin {
 	private const uint LuckyCarrotItemId = 2002482;
 	internal const int FarmTimeout = 50;
-	private static float _lSpeed = 1f, _dspeed = 1f;
+	private static float _lSpeed = 1f;
 	internal static List<Vector3> DetectedTreasurePositions = [];
 	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
 	internal static readonly List<Vector3> YlPositions = [];
@@ -277,18 +277,18 @@ public sealed partial class Plugin : IDalamudPlugin {
 		}
 	}
 
-	private void StartCarrotTimer() {
+	private static void StartCarrotTimer() {
 		if (_carrotTimer.Enabled || !Configuration.AutoRabbit) return;
 		UseCarrot();
 		_carrotTimer.Start();
 	}
 
-	private void StopCarrotTimer() {
+	private static void StopCarrotTimer() {
 		if (_carrotTimer is not { Enabled: true }) return;
 		_carrotTimer.Stop();
 	}
 
-	private unsafe void UseCarrot() {
+	private static unsafe void UseCarrot() {
 		if (!Configuration.AutoRabbit) return;
 		if (!InEureka()) {
 			StopCarrotTimer();
@@ -318,7 +318,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	private static bool wait4chest;
 
-	private void ChatRabbit(XivChatType type, int timestamp, SeString sender, SeString message) {
+	private static void ChatRabbit(XivChatType type, int timestamp, SeString sender, SeString message) {
 		if (!InEureka()) return;
 		var msg = message.TextValue.Trim();
 		if (msg.StartsWith("找到了财宝，幸福兔心满意足地离去了。")) {
@@ -401,11 +401,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		foreach (var obj in ObjectTable)
 			if (obj.GameObjectId != ObjectTable.LocalPlayer.GameObjectId & obj.Address.ToInt64() != 0 && obj is IPlayerCharacter rcTemp)
 				OtherPlayer.Add(rcTemp);
-		if (Configuration.SpeedUpEnabled) {
-			var friends = Configuration.SpeedUpFriendly.Split('|');
-			_dspeed = GreenNearby() ? 1f : CurrentSpeedInfo.SpeedUpN;
-		} else _dspeed = 1f;
-		SetSpeed(_dspeed);
+		SetSpeed(!Configuration.SpeedUpEnabled || GreenNearby() ? 1f : CurrentSpeedInfo.SpeedUpN);
 	}
 
 	// https://github.com/Jaksuhn/ffxiv-bundleoftweaks

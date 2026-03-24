@@ -100,8 +100,8 @@ internal class UiBuilder : IDisposable {
 				foreach (var o8 in DeadFateDic[territory]
 					         .Where(o8 => o8.Value.Contains(':'))
 					         .Select(o8 => new { o8, minuteSpan4 = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o8.Value).Ticks) })
-					         .Where(t => @t.minuteSpan4.Hours >= 2)
-					         .Select(@t => @t.o8))
+					         .Where(t => t.minuteSpan4.Hours >= 2)
+					         .Select(t => t.o8))
 					DeadFateDic[territory][o8.Key] = "-1";
 				break;
 			case Territory.Pagos:
@@ -274,8 +274,8 @@ internal class UiBuilder : IDisposable {
 
 	private unsafe void RefreshMapOrigin() {
 		_mapOrigin = null;
-		if (!AreaMap.MapVisible) return;
-		var areaMapAddon = AreaMap.AreaMapAddon;
+		if (!MapVisible) return;
+		var areaMapAddon = AreaMapAddon;
 		_globalUiScale = areaMapAddon->Scale;
 		var areaMapAddonUldManager = areaMapAddon->UldManager;
 		if (areaMapAddonUldManager.NodeListCount <= 4) return;
@@ -308,7 +308,7 @@ internal class UiBuilder : IDisposable {
 	}
 
 	private Vector2 WorldToMap(Vector2 origin, Vector3 worldVector3) =>
-		origin + ToVector2(worldVector3 - ObjectTable.LocalPlayer!.Position) * AreaMap.MapScale * _globalUiScale;
+		origin + ToVector2(worldVector3 - ObjectTable.LocalPlayer!.Position) * MapScale * _globalUiScale;
 
 
 	internal static void NmFound() {

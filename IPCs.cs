@@ -14,7 +14,6 @@ internal static class Ipcs {
 	private static ICallGateSubscriber<object>? _pathStop;
 	private static ICallGateSubscriber<Vector3, bool, bool>? _pathfindAndMoveTo;
 	private static ICallGateSubscriber<Vector3>? _flagToPoint;
-	private static bool IsEnabled => IsPluginLoaded();
 
 	private static bool IsPluginLoaded() {
 		try {
@@ -127,13 +126,8 @@ internal static class Ipcs {
 
 	internal static void PathfindAndMoveTo(Vector3 pos, bool fly) {
 		if (!IsReady()) Init();
-		if (HasCore()) {
+		if (HasCore() && (Configuration.CoreTpWhenGreenNearby || !GreenNearby())) {
 			CoreDiveTp(pos);
-			return;
-		}
-		if (!IsEnabled || !IsReady()) {
-			Log.Error("vnavmesh插件异常，尝试重新初始化");
-			Init();
 			return;
 		}
 		Execute(() => _pathfindAndMoveTo?.InvokeFunc(pos, fly));
