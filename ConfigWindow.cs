@@ -1,17 +1,19 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using Dalamud;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using SkyEye.Data;
+using static SkyEye.Data.EorzeaWeather;
 using static SkyEye.Data.PData;
+using static SkyEye.Data.PData.EurekaWeather;
 using static SkyEye.Ipcs;
 using static SkyEye.MConfiguration;
 using static SkyEye.Plugin;
@@ -181,7 +183,6 @@ public class ConfigWindow() : Window("SkyEye") {
 				if (ImGui.Checkbox("宝箱位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
 				if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoRabbit)) Configuration.Save();
 				if (ImGui.Checkbox("自动开宝箱后自动导航到兔子", ref Configuration.AutoRabbitWait)) Configuration.Save();
-				if (ImGui.Checkbox("[实验性] 距离计算使用2D(原地卡住时可尝试开启)", ref Configuration.RabbitDistVec2)) Configuration.Save();
 				ImGui.Separator();
 				ImGui.Text("统计");
 				foreach (var p in Configuration.TotalChest)
@@ -293,6 +294,52 @@ public class ConfigWindow() : Window("SkyEye") {
 				} else WebSocket.StopWss();
 			});
 			NewTab("Fate", () => {
+				if (ImGui.InputInt("下几个天气", ref Configuration.NextWeatherCount)) Configuration.Save();
+				var data = new Dictionary<Territory, Dictionary<string, EurekaWeather>> {
+					{
+						Territory.Anemos, GetAllWeathers(Weathers[Territory.Anemos])
+							.Where(i => i.Weather == Gales)
+							.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather)
+					}, {
+						Territory.Pagos, GetAllWeathers(Weathers[Territory.Pagos])
+							.Where(i => i.Weather is Blizzards or Fog)
+							.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather)
+					}, {
+						Territory.Pyros, GetAllWeathers(Weathers[Territory.Pyros])
+							.Where(i => i.Weather is Blizzards or HeatWaves)
+							.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather)
+					}
+				};
+				var allUniqueTimes = data.Values.Aggregate(new List<string>(), (current, x) => current.Concat(x.Keys).ToList())
+					.Distinct()
+					.OrderBy(time => time)
+					.ToList();
+				if (ImGui.BeginTable("EurekaWeatherTable", 1 + allUniqueTimes.Count, ImGuiTableFlags.Borders)) {
+					ImGui.TableSetupColumn("区域", ImGuiTableColumnFlags.WidthFixed, 40);
+					for (var index = 0; index < allUniqueTimes.Count; index++)
+						ImGui.TableSetupColumn(index == 0 ? "当前" : allUniqueTimes[index], ImGuiTableColumnFlags.WidthFixed, 100);
+					ImGui.TableHeadersRow();
+					foreach (var t in data) {
+						ImGui.TableNextRow();
+						ImGui.TableSetColumnIndex(0);
+						ImGui.Text(t.Key.ToFriendlyString());
+						foreach (var time in allUniqueTimes) {
+							ImGui.TableNextColumn();
+							if (t.Value.TryGetValue(time, out var weather)) {
+								ImGui.PushStyleColor(ImGuiCol.Text, weather switch {
+									Gales => new Vector4(0, 1, 0, 1),
+									Blizzards => new Vector4(1, 1, 1, 1),
+									Fog => new Vector4(1, 1, 1, .4f),
+									HeatWaves => new Vector4(1, 0, 0, 1),
+									_ => new Vector4(1, 1, 1, 1)
+								});
+								ImGui.Text(weather.ToFriendlyString());
+								ImGui.PopStyleColor();
+							}
+						}
+					}
+					ImGui.EndTable();
+				}
 				var acts = new Action<EurekaFate>[] {
 					i => ImGui.Text(i.Lv), i => {
 						if (ImGui.Button(i.Name)) {
@@ -424,11 +471,19 @@ public class ConfigWindow() : Window("SkyEye") {
 							CoreDive();
 						});
 					}
-					ImGui.Text(ObjectTable.LocalPlayer.Position.ToString());
 					ImGui.InputFloat("tpX", ref tpX);
 					ImGui.InputFloat("tpY", ref tpY);
 					ImGui.InputFloat("tpZ", ref tpZ);
-					if(ImGui.Checkbox("丢弃移动包",ref Configuration.DropMovementPacket))Configuration.Save();
+					ImGui.Separator();
+					ImGui.Text($"当前坐标: {ObjectTable.LocalPlayer.Position.ToString()}");
+					foreach (var p in PartyList) {
+						var s = $"{p.Name}: {p.Position.ToString()}";
+						ImGui.Text(s);
+						ImGui.SameLine();
+						if (ImGui.Button($"传送##{s}")) CoreDiveTp(p.Position);
+					}
+					ImGui.Separator();
+					if (ImGui.Checkbox("丢弃移动包", ref Configuration.DropMovementPacket)) Configuration.Save();
 				});
 		}
 	}

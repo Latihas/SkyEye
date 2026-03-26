@@ -19,7 +19,7 @@ using static SkyEye.Util;
 namespace SkyEye;
 
 internal class UiBuilder : IDisposable {
-	private const string timeFormat = @"hh\:mm\:ss";
+	internal const string timeFormat = @"hh\:mm\:ss";
 	private static readonly SoundPlayer Player1 = new(), Player2 = new();
 	private static ushort lastTerritoryId;
 	private static readonly List<(Vector3 worldpos, uint fgcolor, uint bgcolor, string name, ushort fateId, EurekaWeather SpawnRequiredWeather, bool SpawnByRequiredNight)> _eurekaList2D = [];
@@ -166,7 +166,7 @@ internal class UiBuilder : IDisposable {
 		_weatherDic.Clear();
 		foreach (var o9 in EorzeaWeather.GetAllWeathers(regionWeather)) {
 			var timeLeft = EorzeaWeather.GetWeatherUptime(o9.Weather, regionWeather, DateTime.Now).End - DateTime.Now;
-			_weatherDic.Add(o9.Weather, (o9.Time.ToString(timeFormat), timeLeft.ToString(timeFormat)));
+			_weatherDic.TryAdd(o9.Weather, (o9.Time.ToString(timeFormat), timeLeft.ToString(timeFormat)));
 		}
 		foreach (var o10 in XFates[territory])
 			_eurekaList2D.Add((Pos2Map(o10.FatePosition),

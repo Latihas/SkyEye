@@ -357,6 +357,14 @@ internal static class PData {
 			Gloom => "乱灵流",
 			_ => ""
 		};
+	}internal static string ToFriendlyString(this Territory weather) {
+		return weather switch {
+			Territory.Anemos => "风岛",
+			Territory.Pagos => "冰岛",
+			Territory.Pyros => "火岛",
+			Territory.Hydatos => "水岛",
+			_ => ""
+		};
 	}
 
 	internal enum EurekaWeather {

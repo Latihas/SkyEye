@@ -127,6 +127,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	[PluginService] internal static ICondition Condition { get; private set; } = null!;
 	[PluginService] internal static IGameGui Gui { get; private set; } = null!;
 	[PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
+	[PluginService] internal static IPartyList PartyList { get; private set; } = null!;
 	[PluginService] internal static IFateTable Fates { get; private set; } = null!;
 	[PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
 	[PluginService] private static IChatGui ChatGui { get; set; } = null!;
@@ -383,15 +384,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 				break;
 		}
 		var playerPos = ObjectTable.LocalPlayer!.Position;
-		if (Configuration.RabbitDistVec2) {
-			var playerPos2D = new Vector2(playerPos.X, playerPos.Z);
-			DetectedTreasurePositions = RabbitTreasurePositions[(Territory)ClientState.TerritoryType]
-				.Select(i => (i, Vector2.Distance(playerPos2D, new Vector2(i.X, i.Z))))
-				.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
-		} else
-			DetectedTreasurePositions = RabbitTreasurePositions[(Territory)ClientState.TerritoryType]
-				.Select(i => (i, Vector3.Distance(playerPos, i)))
-				.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
+		var playerPos2D = new Vector2(playerPos.X, playerPos.Z);
+		DetectedTreasurePositions = RabbitTreasurePositions[(Territory)ClientState.TerritoryType]
+			.Select(i => (i, Vector2.Distance(playerPos2D, new Vector2(i.X, i.Z))))
+			.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
 		if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
 		else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
 		else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
@@ -401,8 +397,11 @@ public sealed partial class Plugin : IDalamudPlugin {
 		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
 		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
 		var pos = DetectedTreasurePositions.FirstOrDefault();
-		if (pos == default) Log.Error("无可用点位");
-		else if (Configuration.AutoRabbit && !Ipcs.IsRunning()) Ipcs.PathfindAndMoveTo(pos, false);
+		if (pos == default) {
+			Log.Warning("无可用点位");
+			return;
+		}
+		if (Configuration.AutoRabbit) Ipcs.PathfindAndMoveTo(pos, false);
 	}
 
 	internal static bool GreenNearby() {
