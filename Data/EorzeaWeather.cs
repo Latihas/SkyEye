@@ -7,6 +7,8 @@ using static SkyEye.Data.PData;
 namespace SkyEye.Data;
 
 internal static class EorzeaWeather {
+	private static readonly TimeSpan TIME_STEP = TimeSpan.FromMilliseconds(1400000);
+
 	private static int CalculateTarget(DateTime dateTime) {
 		var num = (int)(dateTime - Zero).TotalSeconds;
 		var bell = num / 175;
@@ -20,7 +22,7 @@ internal static class EorzeaWeather {
 		weathers.Where(t => chance < t.Item1).Select(t => t.Item2).FirstOrDefault();
 
 	internal static (EurekaWeather weather, TimeSpan time) GetCurrentWeatherInfo((int, EurekaWeather)[] weathers) =>
-		(Forecast(weathers, CalculateTarget(DateTime.Now.ToUniversalTime())), (GetNearestEarthInterval(DateTime.Now) + TimeSpan.FromMilliseconds(1400000)).ToLocalTime() - DateTime.Now);
+		(Forecast(weathers, CalculateTarget(DateTime.Now.ToUniversalTime())), (GetNearestEarthInterval(DateTime.Now) + TIME_STEP).ToLocalTime() - DateTime.Now);
 
 
 	internal static List<(EurekaWeather Weather, TimeSpan Time)> GetAllWeathers((int, EurekaWeather)[] weathers) {
@@ -28,9 +30,12 @@ internal static class EorzeaWeather {
 		var ws = weathers.Select(i => i.Item2).ToArray();
 		var bws = new List<EurekaWeather>(ws);
 		DateTime nextInterval;
-		for (nextInterval = GetNearestEarthInterval(DateTime.Now); results.Count < Plugin.Configuration.NextWeatherCount || bws.Count > 0; nextInterval += TimeSpan.FromMilliseconds(1400000)) {
+		for (nextInterval = GetNearestEarthInterval(DateTime.Now); results.Count < Plugin.Configuration.NextWeatherCount || bws.Count > 0; nextInterval += TIME_STEP) {
 			var f = Forecast(weathers, CalculateTarget(nextInterval));
-			if (!ws.Contains(f)) continue;
+			if (!ws.Contains(f)) {
+				results.Add((EurekaWeather.None, nextInterval.ToLocalTime() - DateTime.Now));
+				continue;
+			}
 			results.Add((f, nextInterval.ToLocalTime() - DateTime.Now));
 			bws.Remove(f);
 		}

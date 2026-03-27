@@ -130,6 +130,7 @@ internal static class Ipcs {
 			CoreDiveTp(pos);
 			return;
 		}
+		Stop();
 		Execute(() => _pathfindAndMoveTo?.InvokeFunc(pos, fly));
 	}
 }

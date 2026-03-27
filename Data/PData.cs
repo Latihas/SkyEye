@@ -345,7 +345,7 @@ internal static class PData {
 	internal static string ToFriendlyString(this EurekaWeather weather) {
 		return weather switch {
 			Gales => "强风",
-			Showers => "小雨",
+			Showers => "暴雨",
 			FairSkies => "晴朗",
 			Snow => "小雪",
 			HeatWaves => "热浪",
@@ -353,11 +353,13 @@ internal static class PData {
 			Blizzards => "暴雪",
 			Fog => "薄雾",
 			UmbralWind => "妖风",
-			Thunderstorms => "雷暴",
-			Gloom => "乱灵流",
+			Thunderstorms => "雷雨",
+			Gloom => "妖雾",
 			_ => ""
 		};
-	}internal static string ToFriendlyString(this Territory weather) {
+	}
+
+	internal static string ToFriendlyString(this Territory weather) {
 		return weather switch {
 			Territory.Anemos => "风岛",
 			Territory.Pagos => "冰岛",
