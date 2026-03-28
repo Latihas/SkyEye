@@ -3,9 +3,11 @@
     <Configuration>Release</Configuration>
     <OutputPath>bin</OutputPath>
     <AssemblyName>SkyEye</AssemblyName>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows8</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <PlatformTarget>x64</PlatformTarget>
+    <Platform>windows</Platform>
     <Optimize>true</Optimize>
     <DebugSymbols>false</DebugSymbols>
     <DebugType>none</DebugType>
@@ -16,6 +18,7 @@
     <DalamudPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudPath>
     <NoWarn>CA1416;CS8524</NoWarn>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Lumina">
@@ -52,7 +55,7 @@
     <Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5"/>
     <PackageReference Include="System.Windows.Extensions" Version="10.0.5"/>
   </ItemGroup>
 </Project>
