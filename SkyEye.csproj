@@ -4,7 +4,6 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <Nullable>enable</Nullable>
     <NoWarn>CS8524</NoWarn>
   </PropertyGroup>
   <PropertyGroup>

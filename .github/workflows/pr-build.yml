@@ -32,5 +32,7 @@ jobs:
         with:
           tag_name: ${{ steps.generate_version.outputs.VERSION }}
           name: Release ${{ steps.generate_version.outputs.VERSION }}
-          files: ./bin/Skyeye/latest.zip
+          files: |
+            ./bin/Skyeye/latest.zip
+            ./bin/Skyeye/Skyeye.json
           generate_release_notes: true
