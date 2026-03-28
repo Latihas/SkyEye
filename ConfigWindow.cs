@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -10,6 +11,7 @@ using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using Microsoft.Data.Sqlite;
 using SkyEye.Data;
 using static SkyEye.Data.EorzeaWeather;
 using static SkyEye.Data.PData;
@@ -181,6 +183,7 @@ public class ConfigWindow() : Window("SkyEye") {
 			});
 			NewTab("宝箱", () => {
 				if (ImGui.Checkbox("宝箱位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
+				if (ImGui.Checkbox("进入新场景禁用开宝箱", ref Configuration.DisableAutoRabbitWhenTerritoryChanged)) Configuration.Save();
 				if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoRabbit)) Configuration.Save();
 				if (ImGui.Checkbox("自动开宝箱后自动导航到兔子", ref Configuration.AutoRabbitWait)) Configuration.Save();
 				ImGui.Separator();
@@ -447,21 +450,21 @@ public class ConfigWindow() : Window("SkyEye") {
 				NewTab("Core", () => {
 					if (ImGui.Checkbox("绿玩在附近也tp", ref Configuration.CoreTpWhenGreenNearby)) Configuration.Save();
 					if (ObjectTable.LocalPlayer == null) return;
-					if (ImGui.Button("潜水无敌")) CoreDive();
+					if (ImGui.Button("潜水无敌")) CoreDive(true);
 					if (ImGui.Button("潜水天灾")) {
 						Task.Run(async () => {
 							ChatBox.SendMessage("/共通技能 任务指令1");
 							await Task.Delay(100);
-							CoreDive();
+							CoreDive(true);
 						});
 					}
 					if (ImGui.Button("潜水Tp到flag")) {
 						var p = FlagToPoint();
-						if (p.HasValue) CoreDiveTp(p.Value);
+						if (p.HasValue) CoreDiveTp(p.Value, true);
 					}
 					ImGui.Separator();
 					if (ImGui.Button("潜水Tp到坐标"))
-						CoreDiveTp(new Vector3(tpX, tpY, tpZ));
+						CoreDiveTp(new Vector3(tpX, tpY, tpZ), true);
 					if (ImGui.Button("到坐标再潜水Tp")) {
 						Task.Run(async () => {
 							if (setPosition == null) {
@@ -471,7 +474,7 @@ public class ConfigWindow() : Window("SkyEye") {
 							if (setPosition == null) return;
 							setPosition(ObjectTable.LocalPlayer.Address, tpX, tpY, tpZ);
 							await Task.Delay(100);
-							CoreDive();
+							CoreDive(true);
 						});
 					}
 					ImGui.InputFloat("tpX", ref tpX);
@@ -480,17 +483,48 @@ public class ConfigWindow() : Window("SkyEye") {
 					ImGui.Separator();
 					ImGui.Text($"当前坐标: {ObjectTable.LocalPlayer.Position.ToString()}");
 					foreach (var p in PartyList) {
-						var s = $"{p.Name}: {p.Position.ToString()}";
-						ImGui.Text(s);
+						var name = p.Name.ToString();
+						if (ImGui.Button(name)) ImGui.SetClipboardText(name);
 						ImGui.SameLine();
-						if (ImGui.Button($"传送##{s}")) CoreDiveTp(p.Position);
+						ImGui.Text($": {p.Position.ToString()}");
+						ImGui.SameLine();
+						if (ImGui.Button($"传送##{name}")) CoreDiveTp(p.Position, true);
 					}
 					ImGui.Separator();
 					if (ImGui.Checkbox("丢弃移动包", ref Configuration.DropMovementPacket)) Configuration.Save();
 				});
+			NewTab("深宫", () => {
+				if (ImGui.Button("读取数据库")) {
+					try {
+						PalacePalDat.Clear();
+						using var connection = new SqliteConnection($"Data Source={Path.Combine(PluginInterface.ConfigDirectory.Parent!.FullName, "PalacePal", "palace-pal.data.sqlite3")};");
+						connection.Open();
+						using var cmd = new SqliteCommand("SELECT * FROM Locations;", connection);
+						using var reader = cmd.ExecuteReader();
+						while (reader.Read()) {
+							PalacePalDat.Add(new PalacePalDTO(
+								reader.GetInt32(0),
+								reader.GetInt32(1),
+								reader.GetInt32(2),
+								(float)reader.GetDouble(3),
+								(float)reader.GetDouble(4),
+								(float)reader.GetDouble(5),
+								reader.GetInt32(6),
+								reader.GetString(7)));
+						}
+					} catch (Exception ex) {
+						Log.Error(ex.ToString());
+					}
+				}
+				foreach (var p in PalacePalDat) 
+					ImGui.Text($"{p.x},{p.y},{p.z}");
+			});
 		}
 	}
 
+	private record PalacePalDTO(int localId, int territoryType, int type, float x, float y, float z, int seen, string sinceVersion);
+
+	private List<PalacePalDTO> PalacePalDat = [];
 	private static SetPositionDelegate? setPosition;
 
 	private delegate long SetPositionDelegate(long playerAddress, float x, float y, float z);

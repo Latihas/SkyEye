@@ -89,9 +89,9 @@ internal static class Ipcs {
 	private static ICallGateSubscriber<Vector3, bool>? _divetp;
 	private static ICallGateSubscriber<bool>? _dive;
 
-	internal static void CoreDiveTp(Vector3 pos) {
+	internal static void CoreDiveTp(Vector3 pos,bool force=false) {
 		if (!IsReady()) Init();
-		if (!Configuration.CoreTpWhenGreenNearby && GreenNearby()) {
+		if (!force&&!Configuration.CoreTpWhenGreenNearby && GreenNearby()) {
 			NotificationManager.AddNotification(new Notification {
 				Title = "附近有绿玩",
 				Content = "禁用tp"
@@ -102,9 +102,9 @@ internal static class Ipcs {
 		_divetp.InvokeAction(pos);
 	}
 
-	internal static void CoreDive() {
+	internal static void CoreDive(bool force=false) {
 		if (!IsReady()) Init();
-		if (!Configuration.CoreTpWhenGreenNearby && GreenNearby()) {
+		if (!force&&!Configuration.CoreTpWhenGreenNearby && GreenNearby()) {
 			NotificationManager.AddNotification(new Notification {
 				Title = "附近有绿玩",
 				Content = "禁用tp"

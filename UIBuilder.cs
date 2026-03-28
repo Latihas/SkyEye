@@ -44,6 +44,11 @@ internal class UiBuilder : IDisposable {
 	}
 
 	private static void TerritoryChanged(ushort _) {
+		if (Configuration.DisableAutoRabbitWhenTerritoryChanged) {
+			Configuration.AutoRabbit = false;
+			Configuration.AutoRabbitWait = false;
+			Configuration.Save();
+		}
 		if (InEureka(lastTerritoryId) || InEureka(ClientState.TerritoryType)) {
 			YlPositions.Clear();
 			Yl.Clear();
