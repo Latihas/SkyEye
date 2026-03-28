@@ -21,6 +21,7 @@ jobs:
       - name: Build with dotnet
         run: dotnet build --configuration Release
       - name: GenVersion
+        id: generate_version
         shell: pwsh
         run: |
           $time = (Get-Date).AddHours(8).ToString("yyyyMMddHHmmss")
