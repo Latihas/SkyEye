@@ -6,6 +6,11 @@
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <Optimize>true</Optimize>
     <Version>7.45.2.6</Version>
+    <RepoUrl>https://github.com/Latihas/SkyEye</RepoUrl>
+    <Author>Latihas</Author>
+    <Name>SkyEye</Name>
+    <Description>改版SkyEye</Description>
+    <Punchline>ULK工具（也可以干别的）</Punchline>
     <DebugSymbols>false</DebugSymbols>
     <DebugType>none</DebugType>
     <Nullable>enable</Nullable>
@@ -42,7 +47,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="SkyEye.json" CopyToOutputDirectory="PreserveNewest"/>
     <Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
   <ItemGroup>
