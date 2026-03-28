@@ -36,3 +36,14 @@ jobs:
             ./bin/Skyeye/latest.zip
             ./bin/Skyeye/Skyeye.json
           generate_release_notes: true
+      - name: Trigger Auto Update repo.json
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.TRIGGER_REPO_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: "Latihas",
+              repo: "dalamud-plugins",
+              event_type: ""
+            });
+            console.log("✅ Triggered Updating repo.json");    
