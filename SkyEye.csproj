@@ -1,52 +1,42 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Dalamud.NET.Sdk/14.0.2">
   <PropertyGroup>
-    <Configuration>Release</Configuration>
     <OutputPath>bin</OutputPath>
-    <AssemblyName>SkyEye</AssemblyName>
-    <TargetFramework>net10.0-windows8</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <PlatformTarget>x64</PlatformTarget>
-    <Platform>windows</Platform>
     <Optimize>true</Optimize>
     <DebugSymbols>false</DebugSymbols>
     <DebugType>none</DebugType>
     <Nullable>enable</Nullable>
-    <GenerateSatelliteAssembliesForCore>false</GenerateSatelliteAssembliesForCore>
-    <LangVersion>Latest</LangVersion>
-    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    <DalamudPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudPath>
     <NoWarn>CA1416;CS8524</NoWarn>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Lumina">
-      <HintPath>$(DalamudPath)\Lumina.dll</HintPath>
+      <HintPath>$(DalamudLibPath)\Lumina.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lumina.Excel">
-      <HintPath>$(DalamudPath)\Lumina.Excel.dll</HintPath>
+      <HintPath>$(DalamudLibPath)\Lumina.Excel.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Dalamud">
-      <HintPath>$(DalamudPath)\Dalamud.dll</HintPath>
+      <HintPath>$(DalamudLibPath)\Dalamud.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="FFXIVClientStructs">
-      <HintPath>$(DalamudPath)\FFXIVClientStructs.dll</HintPath>
+      <HintPath>$(DalamudLibPath)\FFXIVClientStructs.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="InteropGenerator.Runtime">
-      <HintPath>$(DalamudPath)\InteropGenerator.Runtime.dll</HintPath>
+      <HintPath>$(DalamudLibPath)\InteropGenerator.Runtime.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="ImGui.NET">
-      <HintPath>$(DalamudPath)\Dalamud.Bindings.ImGui.dll</HintPath>
+      <HintPath>$(DalamudLibPath)\Dalamud.Bindings.ImGui.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json">
-      <HintPath>$(DalamudPath)\Newtonsoft.Json.dll</HintPath>
+      <HintPath>$(DalamudLibPath)\Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
@@ -55,7 +45,10 @@
     <Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5"/>
-    <PackageReference Include="System.Windows.Extensions" Version="10.0.5"/>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="*"/>
+    <PackageReference Include="System.Windows.Extensions" Version="*"/>
   </ItemGroup>
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == ''">
+    <DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudLibPath>
+  </PropertyGroup>
 </Project>
