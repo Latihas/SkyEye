@@ -34,10 +34,3 @@ jobs:
           name: Release ${{ steps.generate_version.outputs.VERSION }}
           files: ./bin/Skyeye/latest.zip
           generate_release_notes: true
-      - name: Store artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: Skyeye
-          path: ./bin/*
-          if-no-files-found: error
-          retention-days: 1
