@@ -5,6 +5,7 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <Optimize>true</Optimize>
+    <Version>7.45.2.6</Version>
     <DebugSymbols>false</DebugSymbols>
     <DebugType>none</DebugType>
     <Nullable>enable</Nullable>
