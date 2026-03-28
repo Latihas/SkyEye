@@ -20,6 +20,18 @@ jobs:
           Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
       - name: Build with dotnet
         run: dotnet build --configuration Release
+      - name: GenVersion
+        shell: pwsh
+        run: |
+          $time = (Get-Date).AddHours(8).ToString("yyyyMMddHHmmss")
+          echo "VERSION=$time" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.generate_version.outputs.VERSION }}
+          name: Release ${{ steps.generate_version.outputs.VERSION }}
+          files: ./bin/Skyeye/latest.zip
+          generate_release_notes: true
       - name: Store artifacts
         uses: actions/upload-artifact@v7
         with:
