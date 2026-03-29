@@ -462,7 +462,12 @@ public class ConfigWindow() : Window("SkyEye") {
 			if (HasCore())
 				NewTab("Core", () => {
 					unsafe {
-						ImGui.Text("[测试] 岛ID: " + Marshal.ReadInt32((IntPtr)GameMain.Instance() + SigScanner.GetStaticAddressFromSig("48 8D 8F ?? ?? ?? ?? 40 0F B6 D5 E8 ?? ?? ?? ?? 8B D3") + 1488).ToString("X"));
+						var baseaddr = (IntPtr)GameMain.Instance() + SigScanner.GetStaticAddressFromSig("48 8D 8F ?? ?? ?? ?? 40 0F B6 D5 E8 ?? ?? ?? ?? 8B D3") + 1488;
+						ImGui.Text("[测试] 岛ID数据: ");
+						for (var i = 0; i < 4 * 8 * 4; i += 4) {
+							ImGui.Text(Marshal.ReadInt32(baseaddr + i).ToString("x8"));
+							if (i % 32 != 28) ImGui.SameLine();
+						}
 					}
 					if (ImGui.Checkbox("绿玩在附近也tp", ref Configuration.CoreTpWhenGreenNearby)) Configuration.Save();
 					if (ObjectTable.LocalPlayer == null) return;
