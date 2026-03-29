@@ -6,10 +6,12 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Dalamud;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Windowing;
 using Dalamud.Utility;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Microsoft.Data.Sqlite;
 using SkyEye.Data;
@@ -459,6 +461,9 @@ public class ConfigWindow() : Window("SkyEye") {
 
 			if (HasCore())
 				NewTab("Core", () => {
+					unsafe {
+						ImGui.Text("[测试] 岛ID: " + Marshal.ReadInt32((IntPtr)GameMain.Instance() + SigScanner.GetStaticAddressFromSig("48 8D 8F ?? ?? ?? ?? 40 0F B6 D5 E8 ?? ?? ?? ?? 8B D3") + 1488).ToString("X"));
+					}
 					if (ImGui.Checkbox("绿玩在附近也tp", ref Configuration.CoreTpWhenGreenNearby)) Configuration.Save();
 					if (ObjectTable.LocalPlayer == null) return;
 					if (ImGui.Button("潜水无敌")) CoreDive(true);
@@ -527,7 +532,7 @@ public class ConfigWindow() : Window("SkyEye") {
 						Log.Error(ex.ToString());
 					}
 				}
-				foreach (var p in PalacePalDat) 
+				foreach (var p in PalacePalDat)
 					ImGui.Text($"{p.x},{p.y},{p.z}");
 			});
 		}
