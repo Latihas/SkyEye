@@ -296,6 +296,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static void StartCarrotTimer() {
 		if (_carrotTimer.Enabled || !Configuration.AutoRabbit) return;
 		UseCarrot();
+		if (!string.IsNullOrEmpty(Configuration.BeforeFindTreasure))
+			ChatBox.SendMessage(Configuration.BeforeFindTreasure);
 		_carrotTimer.Start();
 	}
 
@@ -352,6 +354,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 				Configuration.Save();
 				if (!Configuration.AutoRabbitWait) continue;
 				ChatBox.SendMessage("/e 等待7s后寻找下一个兔子");
+				if (!string.IsNullOrEmpty(Configuration.AfterFindTreasure))
+					ChatBox.SendMessage(Configuration.AfterFindTreasure);
 				Task.Run(async () => {
 					await Task.Delay(7000);
 					wait4chest = false;

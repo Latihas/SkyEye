@@ -13,7 +13,7 @@ public class MConfiguration : IPluginConfiguration {
 	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay2DDetailEnabled = true, Overlay3DEnabled = true, AutoRabbit = true, AutoRabbitWait = true, AutoFarm, FarmWait, EnableWss,
 		ShowCurrentYl, DropMovementPacket,DisableAutoRabbitWhenTerritoryChanged;
 	public List<SpeedInfo> SpeedUp = [];
-	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "";
+	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "",BeforeFindTreasure="/bmrai off",AfterFindTreasure="",BeforeGotoNewRabbit="/bmrai on";
 	public int Version { get; set; }
 	public Dictionary<string, int> TotalChest = [];
 	public Dictionary<int, HashSet<Vector3>> AllYlPositions = [];
