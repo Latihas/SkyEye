@@ -180,6 +180,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	internal static unsafe void FindRabbit(int fateidx = -1, bool force = false) {
 		if (!force && (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || FateManager.Instance()->SyncedFateId != 0 || wait4chest)) return;
+		if (!string.IsNullOrEmpty(Configuration.BeforeGotoNewRabbit))
+			ChatBox.SendMessage(Configuration.BeforeGotoNewRabbit);
 		var territory = (Territory)ClientState.TerritoryType;
 		if (fateidx != -1) {
 			if (territory == Territory.Pagos && fateidx is 1367 or 1368 || territory == Territory.Pyros && fateidx is 1407 or 1408 || territory == Territory.Hydatos && fateidx is 1425) {
