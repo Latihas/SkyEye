@@ -7,7 +7,7 @@
     <NoWarn>CS8524</NoWarn>
   </PropertyGroup>
   <PropertyGroup>
-    <Version>7.45.2.10</Version>
+    <Version>7.45.2.11</Version>
     <RepoUrl>https://github.com/Latihas/SkyEye</RepoUrl>
     <Author>Latihas</Author>
     <Name>SkyEye</Name>

@@ -484,32 +484,38 @@ public class ConfigWindow() : Window("SkyEye") {
 						if (p.HasValue) CoreDiveTp(p.Value, true);
 					}
 					ImGui.Separator();
-					if (ImGui.Button("潜水Tp到坐标"))
-						CoreDiveTp(new Vector3(tpX, tpY, tpZ), true);
-					if (ImGui.Button("到坐标再潜水Tp")) {
-						Task.Run(async () => {
-							if (setPosition == null) {
-								if (SigScanner.TryScanText("E8 ?? ?? ?? ?? 44 89 A3 ?? ?? ?? ?? 66 C7 83", out var x))
-									setPosition = Marshal.GetDelegateForFunctionPointer<SetPositionDelegate>(x);
-							}
-							if (setPosition == null) return;
-							setPosition(ObjectTable.LocalPlayer.Address, tpX, tpY, tpZ);
-							await Task.Delay(100);
-							CoreDive(true);
-						});
+					if (ImGui.Checkbox("解除高危tp防护", ref Configuration.PreventTp)) Configuration.Save();
+					if (Configuration.PreventTp) {
+						if (ImGui.Button("潜水Tp到坐标"))
+							CoreDiveTp(new Vector3(tpX, tpY, tpZ), true);
+						if (ImGui.Button("到坐标再潜水Tp")) {
+							Task.Run(async () => {
+								if (setPosition == null) {
+									if (SigScanner.TryScanText("E8 ?? ?? ?? ?? 44 89 A3 ?? ?? ?? ?? 66 C7 83", out var x))
+										setPosition = Marshal.GetDelegateForFunctionPointer<SetPositionDelegate>(x);
+								}
+								if (setPosition == null) return;
+								setPosition(ObjectTable.LocalPlayer.Address, tpX, tpY, tpZ);
+								await Task.Delay(100);
+								CoreDive(true);
+							});
+						}
+						ImGui.InputFloat("tpX", ref tpX);
+						ImGui.InputFloat("tpY", ref tpY);
+						ImGui.InputFloat("tpZ", ref tpZ);
+						ImGui.Separator();
 					}
-					ImGui.InputFloat("tpX", ref tpX);
-					ImGui.InputFloat("tpY", ref tpY);
-					ImGui.InputFloat("tpZ", ref tpZ);
-					ImGui.Separator();
 					ImGui.Text($"当前坐标: {ObjectTable.LocalPlayer.Position.ToString()}");
 					foreach (var p in PartyList) {
 						var name = p.Name.ToString();
 						if (ImGui.Button(name)) ImGui.SetClipboardText(name);
 						ImGui.SameLine();
 						ImGui.Text($": {p.Position.ToString()}");
-						ImGui.SameLine();
-						if (ImGui.Button($"传送##{name}")) CoreDiveTp(p.Position, true);
+						if (Configuration.PreventTp) {
+							ImGui.SameLine();
+							if (ImGui.Button($"传送##{name}"))
+								CoreDiveTp(p.Position, true);
+						}
 					}
 					ImGui.Separator();
 					if (ImGui.Checkbox("丢弃移动包", ref Configuration.DropMovementPacket)) Configuration.Save();
