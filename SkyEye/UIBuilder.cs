@@ -122,7 +122,7 @@ internal class UiBuilder : IDisposable {
 						Gui.WorldToScreen(new Vector3(position.X + p.Item1, position.Y, position.Z + p.Item2), out var segment);
 						_bdl.PathLineTo(segment);
 					}
-					_bdl.PathFillConvex(type == 1 ? 0x70FFFF00u : 0x700000FFu);
+					_bdl.PathFillConvex(type == 1 ? 0x50FFFF00u : 0x500000FFu);
 					_bdl.PathClear();
 				}
 			}
