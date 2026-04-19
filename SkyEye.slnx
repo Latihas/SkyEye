@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="DataGenerator/DataGenerator.csproj" />
+  <Project Path="SkyEye/SkyEye.csproj" />
+</Solution>
