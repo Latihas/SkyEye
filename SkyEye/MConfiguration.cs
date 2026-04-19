@@ -11,7 +11,7 @@ public class MConfiguration : IPluginConfiguration {
 	public float FarmMaxDistance = 100, FarmWaitX, FarmWaitY, FarmWaitZ, FlagR = 100;
 	public int FarmTargetMax = 1, WssRegion, FarmDistAlgo, NextWeatherCount = 10;
 	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay2DDetailEnabled = true, Overlay3DEnabled = true, AutoRabbit = true, AutoRabbitWait = true, AutoFarm, FarmWait, EnableWss,
-		ShowCurrentYl, DropMovementPacket, DisableAutoRabbitWhenTerritoryChanged, PreventTp, NameReplacement,EnablePalacePal;
+		ShowCurrentYl, DropMovementPacket, DisableAutoRabbitWhenTerritoryChanged, PreventTp, NameReplacement, EnablePalacePal;
 	public List<SpeedInfo> SpeedUp = [];
 	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "", BeforeFindTreasure = "/bmrai off", AfterFindTreasure = "", BeforeGotoNewRabbit = "/bmrai on";
 	public int Version { get; set; }

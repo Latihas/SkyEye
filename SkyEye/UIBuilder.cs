@@ -91,7 +91,47 @@ internal class UiBuilder : IDisposable {
 					_bdl.DrawLine(v, v2, 0x7F0000FF);
 			}
 		}
+
+		if (Configuration.EnablePalacePal) {
+			if (_params == null) {
+				const int r1 = 3;
+				_params = new (float, float)[DefaultCircleSegments + 1];
+				for (var i = 0; i <= DefaultCircleSegments; i++) {
+					var currentRotation = i * DefaultCircleSegmentFullRotation;
+					_params[i] = (r1 * MathF.Sin(currentRotation), r1 * MathF.Cos(currentRotation));
+				}
+			}
+			if (ConfigWindow.PalacePalDatList.Count == 0) {
+				ConfigWindow.PalacePalDatList.Clear();
+				foreach (var sp in Ipcs.PalacePalData()) {
+					ConfigWindow.PalacePalDatList.Add(new ConfigWindow.PalacePalDat(
+						int.Parse(sp[0]),
+						int.Parse(sp[1]),
+						new Vector3(float.Parse(sp[2]),
+							float.Parse(sp[3]),
+							float.Parse(sp[4])))
+					);
+				}
+				ConfigWindow.PalacePalDatTerritoryIds = ConfigWindow.PalacePalDatList.Select(i => i.territoryType).ToArray();
+			}
+			if (ConfigWindow.PalacePalDatTerritoryIds.Contains(ClientState.TerritoryType)) {
+				foreach (var (territoryType, type, position) in ConfigWindow.PalacePalDatList) {
+					if (territoryType != ClientState.TerritoryType) continue;
+					for (var i = 0; i <= DefaultCircleSegments; i++) {
+						var p = _params[i];
+						Gui.WorldToScreen(new Vector3(position.X + p.Item1, position.Y, position.Z + p.Item2), out var segment);
+						_bdl.PathLineTo(segment);
+					}
+					_bdl.PathFillConvex(type == 1 ? 0x70FFFF00u : 0x700000FFu);
+					_bdl.PathClear();
+				}
+			}
+		}
 	}
+
+	private (float, float)[]? _params;
+	private const int DefaultCircleSegments = 16;
+	private const float DefaultCircleSegmentFullRotation = 2 * MathF.PI / DefaultCircleSegments;
 
 	private void RefreshEureka() {
 		var territory = (Territory)ClientState.TerritoryType;

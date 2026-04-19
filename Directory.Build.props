@@ -9,5 +9,5 @@
     <LangVersion>latest</LangVersion>
     <GenerateSatelliteAssembliesForCore>false</GenerateSatelliteAssembliesForCore>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-   </PropertyGroup>
+  </PropertyGroup>
 </Project>

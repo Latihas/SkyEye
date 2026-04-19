@@ -5,7 +5,7 @@
   },
   "projects": {
     "C:\\Users\\Latihas\\Desktop\\FFXIV_Cheat_dev\\SkyEye\\SkyEye\\SkyEye.csproj": {
-      "version": "7.45.2.12",
+      "version": "7.45.2.13",
       "restore": {
         "projectUniqueName": "C:\\Users\\Latihas\\Desktop\\FFXIV_Cheat_dev\\SkyEye\\SkyEye\\SkyEye.csproj",
         "projectName": "SkyEye",
@@ -57,10 +57,6 @@
               "suppressParent": "All",
               "target": "Package",
               "version": "[1.2.39, )"
-            },
-            "Microsoft.Data.Sqlite": {
-              "target": "Package",
-              "version": "[*, )"
             },
             "System.Windows.Extensions": {
               "target": "Package",

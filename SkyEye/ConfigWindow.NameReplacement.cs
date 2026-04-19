@@ -30,8 +30,7 @@ public partial class ConfigWindow {
 	}
 
 	internal static void EnableNameplate() {
-		var intPtr = SigScanner.ScanText("E8 ?? ?? ?? ?? 33 F6 0F B7 D6");
-		_atkTextNodeSetTextHook = GameInteropProvider.HookFromAddress(intPtr, (AtkTextNodeSetTextDelegate)AtkTextNodeSetTextDetour);
+		_atkTextNodeSetTextHook = GameInteropProvider.HookFromAddress(SigScanner.ScanText("E8 ?? ?? ?? ?? 33 F6 0F B7 D6"), (AtkTextNodeSetTextDelegate)AtkTextNodeSetTextDetour);
 		_atkTextNodeSetTextHook.Enable();
 		NamePlate.OnDataUpdate += NamePlate_OnDataUpdate;
 	}
@@ -67,7 +66,8 @@ public partial class ConfigWindow {
 					Configuration.Save();
 				}
 			}
-		} catch (Exception) {
+		} catch {
+			//
 		}
 	}
 
@@ -105,12 +105,11 @@ public partial class ConfigWindow {
 		if (string.IsNullOrEmpty(name)) return false;
 		var result = false;
 		foreach (var payload in text.Payloads) {
-			if (payload is TextPayload load && !string.IsNullOrEmpty(load.Text)) {
-				var t = load.Text.Replace(name, replacement);
-				if (t != load.Text) {
-					load.Text = t;
-					result = true;
-				}
+			if (payload is not TextPayload load || string.IsNullOrEmpty(load.Text)) continue;
+			var t = load.Text.Replace(name, replacement);
+			if (t != load.Text) {
+				load.Text = t;
+				result = true;
 			}
 		}
 		return result;

@@ -133,4 +133,13 @@ internal static class Ipcs {
 		Stop();
 		Execute(() => _pathfindAndMoveTo?.InvokeFunc(pos, fly));
 	}
+
+	internal static string[][] PalacePalData() {
+		try {
+			if (HasCore()) return PluginInterface.GetIpcSubscriber<string[][]>("LatihasDalamudCore.PalacePalData").InvokeFunc();
+		} catch {
+			//
+		}
+		return [];
+	}
 }

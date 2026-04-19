@@ -9,3 +9,4 @@ C:\Users\Latihas\Desktop\FFXIV_Cheat_dev\SkyEye\SkyEye\obj\Debug\SkyEye.Assembly
 C:\Users\Latihas\Desktop\FFXIV_Cheat_dev\SkyEye\SkyEye\obj\Debug\SkyEye.csproj.CoreCompileInputs.cache
 C:\Users\Latihas\Desktop\FFXIV_Cheat_dev\SkyEye\SkyEye\obj\Debug\SkyEye.csproj.Up2Date
 C:\Users\Latihas\Desktop\FFXIV_Cheat_dev\SkyEye\SkyEye\obj\Debug\SkyEye.dll
+C:\Users\Latihas\Desktop\FFXIV_Cheat_dev\SkyEye\SkyEye\obj\Debug\SkyEye.sourcelink.json

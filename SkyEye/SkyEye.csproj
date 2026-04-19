@@ -1,7 +1,7 @@
 <Project Sdk="Dalamud.NET.Sdk/14.0.2">
   <PropertyGroup>
     <OutputPath>../bin</OutputPath>
-    <Version>7.45.2.13</Version>
+    <Version>7.45.2.15</Version>
     <RepoUrl>https://github.com/Latihas/SkyEye</RepoUrl>
     <Author>Latihas</Author>
     <Name>SkyEye</Name>
@@ -10,9 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="*"/>
     <PackageReference Include="System.Windows.Extensions" Version="*"/>
-    <EmbeddedResource Include="PalacePal.dat"/>
   </ItemGroup>
   <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == ''">
     <DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudLibPath>
