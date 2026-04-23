@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using SkyEye.Data;
@@ -68,15 +68,7 @@ internal class UiBuilder : IDisposable {
 		SetSpeed(1);
 	}
 
-	private static string GetHomeWorlZone(ushort id) => id switch {
-		1042 or 1044 or 1060 or 1081 or 1167 or 1173 or 1174 or 1175 => "鸟",
-		1076 or 1113 or 1121 or 1166 or 1170 or 1171 or 1172 or 1176 => "猪",
-		1043 or 1045 or 1106 or 1169 or 1177 or 1178 or 1179 => "猫",
-		1180 or 1183 or 1186 or 1192 or 1201 => "狗",
-		_ => ""
-	};
-
-	private unsafe void UiBuilder_OnBuildUi() {
+	private void UiBuilder_OnBuildUi() {
 		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null) return;
 		_bdl = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
 		if (InEureka() && !Condition[ConditionFlag.BetweenAreas] && !Condition[ConditionFlag.BetweenAreas51]) {
@@ -94,28 +86,33 @@ internal class UiBuilder : IDisposable {
 		_eurekaList2D.Clear();
 		foreach (var item in _eurekaLiveIdList2D) _eurekaLiveIdList2DOld.Add(item);
 		_eurekaLiveIdList2D.Clear();
-		var poses = string.IsNullOrEmpty(Configuration.FindEntity) ? new List<Vector3>() : ObjectTable.Where(i => i.Name.ToString().Contains(Configuration.FindEntity)).Select(i => i.Position);
-		var bc = CharacterManager.Instance()->BattleCharas.ToArray().ToList();
-		if (Configuration.FindCharaNiao)
-			poses = poses.Concat(bc.Where(i => GetHomeWorlZone(i.Value->HomeWorld) == "鸟").Select(i => {
-				var fpos = i.Value->Position;
-				return new Vector3(fpos.X, fpos.Y, fpos.Z);
-			}));
-		if (Configuration.FindCharaMao)
-			poses = poses.Concat(bc.Where(i => GetHomeWorlZone(i.Value->HomeWorld) == "猫").Select(i => {
-				var fpos = i.Value->Position;
-				return new Vector3(fpos.X, fpos.Y, fpos.Z);
-			}));
-		if (Configuration.FindCharaZhu)
-			poses = poses.Concat(bc.Where(i => GetHomeWorlZone(i.Value->HomeWorld) == "猪").Select(i => {
-				var fpos = i.Value->Position;
-				return new Vector3(fpos.X, fpos.Y, fpos.Z);
-			}));
-		if (Configuration.FindCharaGou)
-			poses = poses.Concat(bc.Where(i => GetHomeWorlZone(i.Value->HomeWorld) == "狗").Select(i => {
-				var fpos = i.Value->Position;
-				return new Vector3(fpos.X, fpos.Y, fpos.Z);
-			}));
+		var poses = new List<Vector3>();
+		foreach (var obj in ObjectTable) {
+			if (obj is not IPlayerCharacter i) continue;
+			var hw = i.HomeWorld.Value.DataCenter.Value.Name.ToString();
+			if (!string.IsNullOrEmpty(Configuration.FindEntity) && i.Name.ToString().Contains(Configuration.FindEntity) ||
+			    Configuration.FindCharaNiao && hw == "陆行鸟" ||
+			    Configuration.FindCharaMao && hw == "猫小胖" ||
+			    Configuration.FindCharaZhu && hw == "莫古力" ||
+			    Configuration.FindCharaGou && hw == "豆豆柴" ||
+			    Configuration.FindRaceRenM && i.CustomizeData is { Race: 1, Sex: 0 } ||
+			    Configuration.FindRaceRenF && i.CustomizeData is { Race: 1, Sex: 1 } ||
+			    Configuration.FindRaceJingLingM && i.CustomizeData is { Race: 2, Sex: 0 } ||
+			    Configuration.FindRaceJingLingF && i.CustomizeData is { Race: 2, Sex: 1 } ||
+			    Configuration.FindRaceLaLaFeiErM && i.CustomizeData is { Race: 3, Sex: 0 } ||
+			    Configuration.FindRaceLaLaFeiErF && i.CustomizeData is { Race: 3, Sex: 1 } ||
+			    Configuration.FindRaceMaoMeiM && i.CustomizeData is { Race: 4, Sex: 0 } ||
+			    Configuration.FindRaceMaoMeiF && i.CustomizeData is { Race: 4, Sex: 1 } ||
+			    Configuration.FindRaceLuJiaM && i.CustomizeData is { Race: 5, Sex: 0 } ||
+			    Configuration.FindRaceLuJiaF && i.CustomizeData is { Race: 5, Sex: 1 } ||
+			    Configuration.FindRaceAoLongM && i.CustomizeData is { Race: 6, Sex: 0 } ||
+			    Configuration.FindRaceAoLongF && i.CustomizeData is { Race: 6, Sex: 1 } ||
+			    Configuration.FindRaceGeShiM && i.CustomizeData is { Race: 7, Sex: 0 } ||
+			    Configuration.FindRaceGeShiF && i.CustomizeData is { Race: 7, Sex: 1 } ||
+			    Configuration.FindRaceWeiAiLaM && i.CustomizeData is { Race: 8, Sex: 0 } ||
+			    Configuration.FindRaceWeiAiLaF && i.CustomizeData is { Race: 8, Sex: 1 })
+				poses.Add(i.Position);
+		}
 		foreach (var en in poses)
 			if (Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var v) && Gui.WorldToScreen(en, out var v2))
 				_bdl.DrawLine(v, v2, 0x7F0000FF);
