@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using SkyEye.Data;
@@ -67,7 +68,15 @@ internal class UiBuilder : IDisposable {
 		SetSpeed(1);
 	}
 
-	private void UiBuilder_OnBuildUi() {
+	private static string GetHomeWorlZone(ushort id) => id switch {
+		1042 or 1044 or 1060 or 1081 or 1167 or 1173 or 1174 or 1175 => "鸟",
+		1076 or 1113 or 1121 or 1166 or 1170 or 1171 or 1172 or 1176 => "猪",
+		1043 or 1045 or 1106 or 1169 or 1177 or 1178 or 1179 => "猫",
+		1180 or 1183 or 1186 or 1192 or 1201 => "狗",
+		_ => ""
+	};
+
+	private unsafe void UiBuilder_OnBuildUi() {
 		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null) return;
 		_bdl = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
 		if (InEureka() && !Condition[ConditionFlag.BetweenAreas] && !Condition[ConditionFlag.BetweenAreas51]) {
@@ -85,13 +94,31 @@ internal class UiBuilder : IDisposable {
 		_eurekaList2D.Clear();
 		foreach (var item in _eurekaLiveIdList2D) _eurekaLiveIdList2DOld.Add(item);
 		_eurekaLiveIdList2D.Clear();
-		if (!string.IsNullOrEmpty(Configuration.FindEntity)) {
-			foreach (var en in ObjectTable.Where(i => i.Name.ToString().Contains(Configuration.FindEntity))) {
-				if (Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var v) && Gui.WorldToScreen(en.Position, out var v2))
-					_bdl.DrawLine(v, v2, 0x7F0000FF);
-			}
-		}
-
+		var poses = string.IsNullOrEmpty(Configuration.FindEntity) ? new List<Vector3>() : ObjectTable.Where(i => i.Name.ToString().Contains(Configuration.FindEntity)).Select(i => i.Position);
+		var bc = CharacterManager.Instance()->BattleCharas.ToArray().ToList();
+		if (Configuration.FindCharaNiao)
+			poses = poses.Concat(bc.Where(i => GetHomeWorlZone(i.Value->HomeWorld) == "鸟").Select(i => {
+				var fpos = i.Value->Position;
+				return new Vector3(fpos.X, fpos.Y, fpos.Z);
+			}));
+		if (Configuration.FindCharaMao)
+			poses = poses.Concat(bc.Where(i => GetHomeWorlZone(i.Value->HomeWorld) == "猫").Select(i => {
+				var fpos = i.Value->Position;
+				return new Vector3(fpos.X, fpos.Y, fpos.Z);
+			}));
+		if (Configuration.FindCharaZhu)
+			poses = poses.Concat(bc.Where(i => GetHomeWorlZone(i.Value->HomeWorld) == "猪").Select(i => {
+				var fpos = i.Value->Position;
+				return new Vector3(fpos.X, fpos.Y, fpos.Z);
+			}));
+		if (Configuration.FindCharaGou)
+			poses = poses.Concat(bc.Where(i => GetHomeWorlZone(i.Value->HomeWorld) == "狗").Select(i => {
+				var fpos = i.Value->Position;
+				return new Vector3(fpos.X, fpos.Y, fpos.Z);
+			}));
+		foreach (var en in poses)
+			if (Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var v) && Gui.WorldToScreen(en, out var v2))
+				_bdl.DrawLine(v, v2, 0x7F0000FF);
 		if (Configuration.EnablePalacePal) {
 			if (_params == null) {
 				const int r1 = 3;

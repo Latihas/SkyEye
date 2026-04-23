@@ -50,7 +50,7 @@ public partial class ConfigWindow {
 		try {
 			for (var index = 0; index < Configuration.NameReplacementDict.Count; index++) {
 				var p1 = Configuration.NameReplacementDict[index].Item1;
-				if (ImGui.InputTextEx($"##Ori{index}","原始", ref p1,512,new Vector2(200,0))) {
+				if (ImGui.InputTextEx($"##Ori{index}", "原始", ref p1, 512, new Vector2(200, 0))) {
 					Configuration.NameReplacementDict[index] = new(p1, Configuration.NameReplacementDict[index].Item2);
 					if (string.IsNullOrEmpty(Configuration.NameReplacementDict[index].Item1) && string.IsNullOrEmpty(Configuration.NameReplacementDict[index].Item2))
 						Configuration.NameReplacementDict.RemoveAt(index);
@@ -60,7 +60,7 @@ public partial class ConfigWindow {
 				ImGui.Text("->");
 				ImGui.SameLine();
 				var p2 = Configuration.NameReplacementDict[index].Item2;
-				if (ImGui.InputTextEx($"##Rep{index}","替换",  ref p2,512,new Vector2(200,0))) {
+				if (ImGui.InputTextEx($"##Rep{index}", "替换", ref p2, 512, new Vector2(200, 0))) {
 					Configuration.NameReplacementDict[index] = new(Configuration.NameReplacementDict[index].Item1, p2);
 					if (string.IsNullOrEmpty(Configuration.NameReplacementDict[index].Item1) && string.IsNullOrEmpty(Configuration.NameReplacementDict[index].Item2))
 						Configuration.NameReplacementDict.RemoveAt(index);

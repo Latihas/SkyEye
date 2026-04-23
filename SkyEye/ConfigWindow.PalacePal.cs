@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using static SkyEye.Plugin;
@@ -13,7 +12,7 @@ public partial class ConfigWindow {
 	internal static int[] PalacePalDatTerritoryIds = [];
 
 	private static void DrawPalacePal() {
-		if(ImGui.Checkbox("启用",ref Configuration.EnablePalacePal))Configuration.Save();
+		if (ImGui.Checkbox("启用", ref Configuration.EnablePalacePal)) Configuration.Save();
 		foreach (var p in PalacePalDatList)
 			ImGui.Text($"{p.position.X},{p.position.Y},{p.position.Z}");
 	}

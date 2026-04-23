@@ -242,6 +242,10 @@ public partial class ConfigWindow() : Window("SkyEye") {
 				if (ClientState.TerritoryType == 147 && Configuration.AutoFarm) ImGui.Text($"超时：{(DateTime.Now - LastKill).Seconds}/{FarmTimeout}");
 				ImGui.Separator();
 				if (ImGui.InputText("连线查找怪", ref Configuration.FindEntity, 114514)) Configuration.Save();
+				if (ImGui.Checkbox("连线猪区人", ref Configuration.FindCharaZhu)) Configuration.Save();
+				if (ImGui.Checkbox("连线鸟区人", ref Configuration.FindCharaNiao)) Configuration.Save();
+				if (ImGui.Checkbox("连线猫区人", ref Configuration.FindCharaMao)) Configuration.Save();
+				if (ImGui.Checkbox("连线狗区人", ref Configuration.FindCharaGou)) Configuration.Save();
 			});
 			NewTab("史书", () => {
 				if (ImGui.Checkbox("连接史书", ref Configuration.EnableWss)) {
@@ -308,7 +312,7 @@ public partial class ConfigWindow() : Window("SkyEye") {
 		}
 	}
 
-	
+
 	private static int getDeltaMin(string d) {
 		try {
 			return (int)new TimeSpan(getT(d)).TotalMinutes;
