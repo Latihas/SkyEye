@@ -434,7 +434,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	internal static void SetSpeed(float speedBase) {
 		if (CurrentSpeedInfo == null || !Configuration.SpeedUpEnabled) return;
 		var mounted = Condition[ConditionFlag.Mounted];
-		if (mounted) speedBase *= 2;
+		if (mounted) speedBase *= InEureka() ? 20f / 12 : 2;
 		if (_lSpeed == speedBase) return;
 		_lSpeed = speedBase;
 		if (SpeedPtr == null) {
@@ -442,7 +442,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			SpeedPtr = ba + Marshal.ReadInt32(ba) + 4 + 0x58;
 		}
 		var finalspeed = Math.Min(CurrentSpeedInfo.SpeedUpMax, speedBase * 6);
-		ChatBox.SendMessage($"/e SetSpeed({(mounted ? 12 : 6)}x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
+		ChatBox.SendMessage($"/e SetSpeed({(mounted ? InEureka() ? 10 : 12 : 6)}x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
 		SafeMemory.Write(SpeedPtr.Value, finalspeed);
 	}
 

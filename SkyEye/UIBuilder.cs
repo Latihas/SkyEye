@@ -118,7 +118,7 @@ internal class UiBuilder : IDisposable {
 				_bdl.DrawLine(v, v2, 0x7F0000FF);
 		if (Configuration.EnablePalacePal) {
 			if (_params == null) {
-				const int r1 = 3;
+				const float r1 = 2.5f;
 				_params = new (float, float)[DefaultCircleSegments + 1];
 				for (var i = 0; i <= DefaultCircleSegments; i++) {
 					var currentRotation = i * DefaultCircleSegmentFullRotation;
