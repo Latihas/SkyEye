@@ -1,7 +1,7 @@
 <Project Sdk="Dalamud.NET.Sdk/14.0.2">
   <PropertyGroup>
     <OutputPath>../bin</OutputPath>
-    <Version>7.50.0.0</Version>
+    <Version>7.50.0.1</Version>
     <RepoUrl>https://github.com/Latihas/SkyEye</RepoUrl>
     <Author>Latihas</Author>
     <Name>SkyEye</Name>
@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
+    <Content Include="SkyEye.json" />
     <PackageReference Include="System.Windows.Extensions" Version="*"/>
   </ItemGroup>
   <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == ''">
