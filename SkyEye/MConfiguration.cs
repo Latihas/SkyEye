@@ -10,8 +10,11 @@ namespace SkyEye;
 public class MConfiguration : IPluginConfiguration {
 	public float FarmMaxDistance = 100, FarmWaitX, FarmWaitY, FarmWaitZ, FlagR = 100;
 	public int FarmTargetMax = 1, WssRegion, FarmDistAlgo, NextWeatherCount = 10;
-	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay2DDetailEnabled = true, Overlay3DEnabled = true, AutoRabbit = true, AutoRabbitWait = true, AutoFarm, FarmWait, EnableWss,
-		ShowCurrentYl, DropMovementPacket, DisableAutoRabbitWhenTerritoryChanged, PreventTp, NameReplacement, EnablePalacePal, FindCharaNiao, FindCharaMao, FindCharaGou, FindCharaZhu,
+	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay2DDetailEnabled = true, Overlay3DEnabled = true,
+		AutoRabbit = true, AutoRabbitWait = true, AutoPot,AutoPotWait,
+		AutoFarm, FarmWait, EnableWss,
+		ShowCurrentYl, DropMovementPacket, DisableAutoRabbitWhenTerritoryChanged, PreventTp, NameReplacement, EnablePalacePal,
+		FindCharaNiao, FindCharaMao, FindCharaGou, FindCharaZhu,
 		FindRaceRenM, FindRaceRenF,
 		FindRaceJingLingM, FindRaceJingLingF,
 		FindRaceLaLaFeiErM, FindRaceLaLaFeiErF,
@@ -25,7 +28,7 @@ public class MConfiguration : IPluginConfiguration {
 	public int Version { get; set; }
 	public Dictionary<string, int> TotalChest = [];
 	public List<(string, string)> NameReplacementDict = [];
-	public Dictionary<int, HashSet<Vector3>> AllYlPositions = [];
+	public Dictionary<uint, HashSet<Vector3>> AllYlPositions = [];
 	public bool CoreTpWhenGreenNearby;
 
 	public void Save() => PluginInterface.SavePluginConfig(this);

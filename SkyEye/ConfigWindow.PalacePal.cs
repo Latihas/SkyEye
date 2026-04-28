@@ -6,10 +6,10 @@ using static SkyEye.Plugin;
 namespace SkyEye;
 
 public partial class ConfigWindow {
-	internal record PalacePalDat(int territoryType, int type, Vector3 position);
+	internal record PalacePalDat(uint territoryType, int type, Vector3 position);
 
 	internal static readonly List<PalacePalDat> PalacePalDatList = [];
-	internal static int[] PalacePalDatTerritoryIds = [];
+	internal static uint[] PalacePalDatTerritoryIds = [];
 
 	private static void DrawPalacePal() {
 		if (ImGui.Checkbox("启用", ref Configuration.EnablePalacePal)) Configuration.Save();

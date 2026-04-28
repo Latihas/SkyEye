@@ -4,3 +4,4 @@
 *.zip
 Folder.DotSettings.user
 packages.lock.json
+*.DotSettings.user

@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud;
+using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -329,7 +330,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private void OnCommand(string? command, string? args) => _configWindow.Toggle();
 
 	internal static bool InEureka() => ObjectTable.LocalPlayer != null && InEureka(ClientState.TerritoryType);
-	internal static bool InEureka(ushort id) => (Territory)id is Territory.Anemos or Territory.Pagos or Territory.Pyros or Territory.Hydatos;
+	internal static bool InEureka(uint id) => (Territory)id is Territory.Anemos or Territory.Pagos or Territory.Pyros or Territory.Hydatos;
 
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
 	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, (Territory)ClientState.TerritoryType == Territory.Hydatos ? 20.25f : 11.25f));
@@ -342,9 +343,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	private static bool wait4chest;
 
-	private static void ChatRabbit(XivChatType type, int timestamp, SeString sender, SeString message) {
+	private static void ChatRabbit(IChatMessage chatMessage) {
 		if (!InEureka()) return;
-		var msg = message.TextValue.Trim();
+		var msg = chatMessage.Message.TextValue.Trim();
 		if (msg.StartsWith("找到了财宝，幸福兔心满意足地离去了。")) {
 			DetectedTreasurePositions = [];
 			wait4chest = true;

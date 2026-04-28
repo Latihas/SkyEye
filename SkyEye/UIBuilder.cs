@@ -22,7 +22,7 @@ namespace SkyEye;
 internal class UiBuilder : IDisposable {
 	internal const string timeFormat = @"hh\:mm\:ss";
 	private static readonly SoundPlayer Player1 = new(), Player2 = new();
-	private static ushort lastTerritoryId;
+	private static uint lastTerritoryId;
 	private static readonly List<(Vector3 worldpos, uint fgcolor, uint bgcolor, string name, ushort fateId, EurekaWeather SpawnRequiredWeather, bool SpawnByRequiredNight)> _eurekaList2D = [];
 	private static readonly List<ushort> _eurekaLiveIdList2D = [];
 	internal static readonly List<ushort> _eurekaLiveIdList2DOld = [];
@@ -44,7 +44,7 @@ internal class UiBuilder : IDisposable {
 		ClientState.TerritoryChanged -= TerritoryChanged;
 	}
 
-	private static void TerritoryChanged(ushort _) {
+	private static void TerritoryChanged(uint u) {
 		if (Configuration.DisableAutoRabbitWhenTerritoryChanged) {
 			Configuration.AutoRabbit = false;
 			Configuration.AutoRabbitWait = false;
@@ -129,7 +129,7 @@ internal class UiBuilder : IDisposable {
 				ConfigWindow.PalacePalDatList.Clear();
 				foreach (var sp in Ipcs.PalacePalData()) {
 					ConfigWindow.PalacePalDatList.Add(new ConfigWindow.PalacePalDat(
-						int.Parse(sp[0]),
+						uint.Parse(sp[0]),
 						int.Parse(sp[1]),
 						new Vector3(float.Parse(sp[2]),
 							float.Parse(sp[3]),
