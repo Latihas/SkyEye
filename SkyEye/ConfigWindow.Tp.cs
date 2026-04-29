@@ -40,7 +40,7 @@ public partial class ConfigWindow {
 			if (ImGui.Button("到坐标再潜水Tp")) {
 				Task.Run(async () => {
 					if (setPosition == null) {
-						if (SigScanner.TryScanText("E8 ?? ?? ?? ?? 44 89 A3 ?? ?? ?? ?? 66 C7 83", out var x))
+						if (SigScanner.TryScanText("E8 ?? ?? ?? ?? 83 4B 70 01", out var x))
 							setPosition = Marshal.GetDelegateForFunctionPointer<SetPositionDelegate>(x);
 					}
 					if (setPosition == null) return;
