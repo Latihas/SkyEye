@@ -1,12 +1,15 @@
-<Project Sdk="Dalamud.NET.Sdk/14.0.2">
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <OutputPath>../bin</OutputPath>
-    <Version>7.50.0.2</Version>
+    <Version>7.50.0.3</Version>
     <RepoUrl>https://github.com/Latihas/SkyEye</RepoUrl>
+    <Author>Latihas</Author>
+    <Name>SkyEye</Name>
+    <Description>改版SkyEye</Description>
+    <Punchline>ULK工具（也可以干别的）</Punchline>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
-    <Content Include="SkyEye.json" />
     <PackageReference Include="System.Windows.Extensions" Version="*"/>
   </ItemGroup>
   <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == ''">

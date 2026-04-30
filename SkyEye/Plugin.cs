@@ -164,7 +164,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		IGameObject yls;
 		try {
 			yls = ObjectTable.First(obj => {
-				if (obj.ObjectKind == ObjectKind.Player) return false;
+				if (obj.ObjectKind == ObjectKind.Pc) return false;
 				var s = obj.Name.ToString();
 				return s.Contains("风元灵") || s.Contains("冰元灵") || s.Contains("火元灵") || s.Contains("水元灵");
 			});
