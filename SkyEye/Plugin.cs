@@ -155,6 +155,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		_carrotTimer.Stop();
 		_carrotTimer.Dispose();
 		SendPacketInternalHook?.Disable();
+		SendPacketInternalHook?.Dispose();
 		WebSocket.StopWss();
 	}
 
