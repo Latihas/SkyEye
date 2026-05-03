@@ -51,8 +51,8 @@ internal class UiBuilder : IDisposable {
 			Configuration.Save();
 		}
 		if (InEureka(lastTerritoryId) || InEureka(ClientState.TerritoryType)) {
-			YlPositions.Clear();
-			Yl.Clear();
+			Plugin.ElementalPositions.Clear();
+			ElementalSet.Clear();
 			lastFarmPos = null;
 			FarmFull = false;
 			foreach (var p in DeadFateDic)
@@ -332,9 +332,9 @@ internal class UiBuilder : IDisposable {
 				}
 		}
 		if (Configuration.Overlay2DWeatherMapEnabled) DrawWeatherMap(valueOrDefault);
-		foreach (var yl in YlPositions) _bdl.DrawText(WorldToMap(valueOrDefault, yl), "元灵", 0xFF0000FF);
-		if (Configuration.ShowCurrentYl) {
-			foreach (var p in ElementalPositions[territory])
+		foreach (var e in Plugin.ElementalPositions) _bdl.DrawText(WorldToMap(valueOrDefault, e), "元灵", 0xFF0000FF);
+		if (Configuration.ShowCurrentElemental) {
+			foreach (var p in PData.ElementalPositions[territory])
 				_bdl.DrawMapDot(WorldToMap(valueOrDefault, p), 0x7FFFFF00, 0x7F000000, 15);
 		}
 		_bdl.PopClipRect();

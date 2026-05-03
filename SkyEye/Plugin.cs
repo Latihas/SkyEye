@@ -13,8 +13,6 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
-using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
@@ -46,8 +44,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static float _lSpeed = 1f;
 	internal static List<Vector3> DetectedTreasurePositions = [];
 	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
-	internal static readonly List<Vector3> YlPositions = [];
-	internal static readonly HashSet<uint> Yl = [];
+	internal static readonly List<Vector3> ElementalPositions = [];
+	internal static readonly HashSet<uint> ElementalSet = [];
 	private static IGameObject? _farmGameObject;
 	internal static DateTime LastKill = DateTime.Now;
 	private static readonly uint[] Loc = [21, 22];
@@ -83,7 +81,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Ipcs.Init();
 		Framework.Update += UpdateRoundPlayers;
 		Framework.Update += Farm;
-		Framework.Update += FindYl;
+		Framework.Update += FindElemental;
 		Framework.Update += CheckState;
 		PluginInterface.UiBuilder.OpenConfigUi += OnCommand;
 		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
@@ -146,7 +144,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		ChatGui.ChatMessageUnhandled -= ChatRabbit;
 		Framework.Update -= UpdateRoundPlayers;
 		Framework.Update -= Farm;
-		Framework.Update -= FindYl;
+		Framework.Update -= FindElemental;
 		Framework.Update -= CheckState;
 		DisableNameplate();
 		SetSpeed(1);
@@ -159,12 +157,12 @@ public sealed partial class Plugin : IDalamudPlugin {
 		WebSocket.StopWss();
 	}
 
-	private static unsafe void FindYl(IFramework _) {
+	private static unsafe void FindElemental(IFramework _) {
 		if (!Configuration.PluginEnabled) return;
 		if (ObjectTable.LocalPlayer is null || !InEureka()) return;
-		IGameObject yls;
+		IGameObject es;
 		try {
-			yls = ObjectTable.First(obj => {
+			es = ObjectTable.First(obj => {
 				if (obj.ObjectKind == ObjectKind.Pc) return false;
 				var s = obj.Name.ToString();
 				return s.Contains("风元灵") || s.Contains("冰元灵") || s.Contains("火元灵") || s.Contains("水元灵");
@@ -172,12 +170,12 @@ public sealed partial class Plugin : IDalamudPlugin {
 		} catch (Exception) {
 			return;
 		}
-		if (!Yl.Add(yls.EntityId)) return;
-		var p = yls.Position;
-		YlPositions.Add(p);
-		if (!ElementalPositions[(Territory)ClientState.TerritoryType].Contains(p)) {
-			if (!Configuration.AllYlPositions.ContainsKey(ClientState.TerritoryType)) Configuration.AllYlPositions[ClientState.TerritoryType] = [];
-			Configuration.AllYlPositions[ClientState.TerritoryType].Add(p);
+		if (!ElementalSet.Add(es.EntityId)) return;
+		var p = es.Position;
+		ElementalPositions.Add(p);
+		if (!PData.ElementalPositions[(Territory)ClientState.TerritoryType].Contains(p)) {
+			if (!Configuration.AllElementalPositions.ContainsKey(ClientState.TerritoryType)) Configuration.AllElementalPositions[ClientState.TerritoryType] = [];
+			Configuration.AllElementalPositions[ClientState.TerritoryType].Add(p);
 			Configuration.Save();
 		}
 		AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, p);

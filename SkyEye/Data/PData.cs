@@ -511,4 +511,35 @@ internal static class PData {
 			]
 		}
 	};
+	public static readonly Dictionary<uint, List<Vector3>> OccultBunnyPosition = new() {
+		{
+			1252, [
+				new Vector3(283.6546f, 55.999996f, 587.3107f),
+				new Vector3(-439.0463f, 115.82392f, 184.4665f),
+				new Vector3(477.4074f, 96.10128f, 138.6543f),
+				new Vector3(-743.601f, 96.39003f, 84.43998f),
+				new Vector3(-575.6361f, 162.39511f, 668.7043f),
+				new Vector3(865.0009f, 95.99958f, -214.6744f),
+				new Vector3(248.9159f, 55.999996f, 791.1138f),
+				new Vector3(-490.3187f, 3f, -741.0153f),
+				new Vector3(720.4133f, 120f, 271.05f),
+				new Vector3(466.2025f, 70.3f, 563.2519f),
+				new Vector3(-701.8768f, 201f, 718.7181f),
+				new Vector3(-273.0878f, 75f, 850.0336f),
+				new Vector3(650.2321f, 108f, 141.1927f),
+				new Vector3(827.2007f, 108f, -156.4444f),
+				new Vector3(845.5334f, 98f, 777.4331f),
+				new Vector3(772.3591f, 70.3f, 531.1259f),
+				new Vector3(-84.73673f, 2.999999f, -796.0166f),
+				new Vector3(-843.8602f, 83.657074f, -36.78173f),
+				new Vector3(-727.8528f, 81.47683f, 328.9311f),
+				new Vector3(-400.528f, 2.999999f, -518.3032f),
+				new Vector3(-806.5123f, 107f, 887.6146f),
+				new Vector3(-174.0473f, 121.00001f, 107.6488f),
+				new Vector3(-771.6308f, 5f, -694.0016f),
+				new Vector3(-710.266f, 3f, -451.5128f),
+				new Vector3(-554.0244f, 110.698654f, -365.897f)
+			]
+		}
+	};
 }

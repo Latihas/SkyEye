@@ -72,6 +72,12 @@ internal static class Util {
 		}
 	}
 
+	internal static void NewTab(string tabname, Action act) {
+		if (!ImGui.BeginTabItem(tabname)) return;
+		act();
+		ImGui.EndTabItem();
+	}
+
 	internal static void NewTable<T>(string[] header, T[] data, Action<T>[] acts, Func<T, string>[]? filter = null, string? filterTag = null) {
 		var datax = (data.Clone() as T[])!;
 		if (ImGui.BeginTable("Table", acts.Length, ImGuiTableFlag)) {
