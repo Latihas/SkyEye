@@ -1,7 +1,7 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <OutputPath>../bin</OutputPath>
-    <Version>7.50.0.5</Version>
+    <Version>7.50.1.0</Version>
     <RepoUrl>https://github.com/Latihas/SkyEye</RepoUrl>
     <Author>Latihas</Author>
     <Name>SkyEye</Name>

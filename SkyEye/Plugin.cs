@@ -13,12 +13,10 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
-using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Application.Network;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.Fate;
@@ -63,7 +61,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	// ReSharper disable once MemberCanBePrivate.Global
 	public readonly WindowSystem WindowSystem = new("SkyEye");
 
-	public unsafe Plugin() {
+	public Plugin() {
 		Configuration = PluginInterface.GetPluginConfig() as MConfiguration ?? new MConfiguration();
 		_uiBuilder = new UiBuilder();
 		_configWindow = new ConfigWindow();
@@ -98,24 +96,13 @@ public sealed partial class Plugin : IDalamudPlugin {
 		}
 		if (Configuration.NameReplacement) EnableNameplate();
 		SetSpeed(1);
-		SendPacketInternalHook ??= GameInteropProvider.HookFromSignature<SendPacketInternalDelegate>("48 83 EC ?? 48 8B 89 ?? ?? ?? ?? 48 85 C9 74 ?? 44 89 44 24 ?? 4C 8D 44 24 ?? 44 89 4C 24 ?? 44 0F B6 4C 24", SendPacketInternalDetour);
-		SendPacketInternalHook.Enable();
 	}
 
-	internal unsafe delegate bool SendPacketInternalDelegate(ZoneClient* zoneClient, IntPtr packet, uint a3, uint a4, bool a5);
-
-	internal static Hook<SendPacketInternalDelegate>? SendPacketInternalHook;
 
 	private void CheckState(IFramework _) {
 		if (!InArea() || Condition[ConditionFlag.Mounted] == mountState) return;
 		mountState = Condition[ConditionFlag.Mounted];
 		SetSpeed(1);
-	}
-
-	internal static unsafe bool SendPacketInternalDetour(ZoneClient* zoneClient, IntPtr packet, uint a1, uint a2, bool b) {
-		if (Configuration.DropMovementPacket && Marshal.ReadByte(packet) == 0x09 && Marshal.ReadByte(packet + 1) == 0x01)
-			return true;
-		return SendPacketInternalHook!.Original(zoneClient, packet, a1, a2, b);
 	}
 
 	private void OnCommand() => OnCommand(null, null);
@@ -138,6 +125,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	[PluginService] internal static IGameInteropProvider GameInteropProvider { get; set; } = null!;
 
 	public void Dispose() {
+		isFindingTreasure = false;
 		PluginInterface.UiBuilder.OpenConfigUi -= OnCommand;
 		PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
 		WindowSystem.RemoveAllWindows();
@@ -152,8 +140,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 		CommandManager.RemoveHandler("/skyeye");
 		_carrotTimer.Stop();
 		_carrotTimer.Dispose();
-		SendPacketInternalHook?.Disable();
-		SendPacketInternalHook?.Dispose();
 		WebSocket.StopWss();
 	}
 

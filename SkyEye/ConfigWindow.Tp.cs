@@ -67,7 +67,6 @@ public partial class ConfigWindow {
 			}
 		}
 		ImGui.Separator();
-		if (ImGui.Checkbox("丢弃移动包", ref Configuration.DropMovementPacket)) Configuration.Save();
 		unsafe {
 			var baseaddr = (IntPtr)GameMain.Instance() + SigScanner.GetStaticAddressFromSig("48 8D 8F ?? ?? ?? ?? 40 0F B6 D5 E8 ?? ?? ?? ?? 8B D3") + 1488;
 			ImGui.Text("[测试] 岛ID数据: ");
