@@ -46,6 +46,8 @@ public partial class ConfigWindow() : Window("SkyEye") {
 					if (HasCore())
 						NewTab("箱子", () => {
 							ImGui.Text("建议DR开附近箱子距离设置为7.5，IC下潜7。");
+							if (ImGui.InputText("寻宝前指令", ref Configuration.BeforeOccultTreasure)) Configuration.Save();
+							if (ImGui.InputText("寻宝后指令", ref Configuration.AfterOccultTreasure)) Configuration.Save();
 							if (ImGui.InputInt("时间延迟(看加载速度)(ms)", ref Configuration.OccultTreasureDelay)) Configuration.Save();
 							if (!PData.OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) return;
 							ImGui.Text("银箱子");
