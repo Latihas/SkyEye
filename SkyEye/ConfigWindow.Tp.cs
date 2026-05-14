@@ -18,6 +18,10 @@ public partial class ConfigWindow {
 
 
 	private static void DrawTp() {
+		ImGui.Text("自定义Tp为其他插件的潜水tp指令。");
+		ImGui.Text("自定义Tp指令的坐标使用<x> <y> <z>(有尖括号)代替(例如/tp <x> <y> <z>)");
+		if (ImGui.InputText("自定义Tp指令", ref Configuration.TpCommand)) Configuration.Save();
+		if (!CanTp()) return;
 		if (ImGui.Checkbox("绿玩在附近也tp", ref Configuration.CoreTpWhenGreenNearby)) Configuration.Save();
 		if (ObjectTable.LocalPlayer == null) return;
 		if (ImGui.Button("潜水无敌")) CoreDive(true);

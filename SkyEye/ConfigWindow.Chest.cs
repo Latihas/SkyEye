@@ -11,14 +11,16 @@ public partial class ConfigWindow {
 		if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoRabbit)) Configuration.Save();
 		if (Configuration.AutoRabbit) {
 			ImGui.Indent();
-			if (ImGui.InputText("开始寻找宝箱前指令", ref Configuration.BeforeFindTreasure)) Configuration.Save();
-			if (ImGui.InputText("开宝箱后指令", ref Configuration.AfterFindTreasure)) Configuration.Save();
+			if (ImGui.InputText("开始寻找宝箱前指令(|分割)", ref Configuration.BeforeFindTreasure)) Configuration.Save();
+			if (ImGui.InputText("开宝箱后指令(|分割)", ref Configuration.AfterFindTreasure)) Configuration.Save();
 			ImGui.Unindent();
 		}
-		if (ImGui.Checkbox("自动导航到新兔子", ref Configuration.AutoRabbitWait)) Configuration.Save();
-		if (Configuration.AutoRabbitWait) {
+		if (ImGui.Checkbox("自动导航到新兔子", ref Configuration.AutoForwardNewRabbit)) Configuration.Save();
+		ImGui.SameLine();
+		if(ImGui.Button("立刻寻找"))FindRabbit(force: true);
+		if (Configuration.AutoForwardNewRabbit) {
 			ImGui.Indent();
-			if (ImGui.InputText("开始导航到兔子前指令", ref Configuration.BeforeGotoNewRabbit)) Configuration.Save();
+			if (ImGui.InputText("开始导航到兔子前指令(|分割)", ref Configuration.BeforeGotoNewRabbit)) Configuration.Save();
 			ImGui.Unindent();
 		}
 		ImGui.Separator();

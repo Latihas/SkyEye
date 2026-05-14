@@ -12,9 +12,12 @@ public class MConfiguration : IPluginConfiguration {
 	public int FarmTargetMax = 1, WssRegion, FarmDistAlgo, NextWeatherCount = 10,
 		OccultTreasureDelay = 2000;
 	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay2DDetailEnabled = true, Overlay3DEnabled = true,
-		AutoRabbit = true, AutoRabbitWait = true, AutoPot, AutoPotWait,
+		AutoRabbit = true, AutoForwardNewRabbit = true, AutoPot, AutoForwardNewPot,
 		AutoFarm, FarmWait, EnableWss,
-		ShowCurrentElemental, DisableAutoRabbitWhenTerritoryChanged, PreventTp, NameReplacement, EnablePalacePal,
+		ShowCurrentElemental, 
+		DisableAutoRabbitWhenTerritoryChanged,
+		DisableAutoPotWhenTerritoryChanged,
+		PreventTp, NameReplacement, EnablePalacePal,
 		FindCharaNiao, FindCharaMao, FindCharaGou, FindCharaZhu,
 		FindRaceRenM, FindRaceRenF,
 		FindRaceJingLingM, FindRaceJingLingF,
@@ -25,10 +28,13 @@ public class MConfiguration : IPluginConfiguration {
 		FindRaceGeShiM, FindRaceGeShiF,
 		FindRaceWeiAiLaM, FindRaceWeiAiLaF;
 	public List<SpeedInfo> SpeedUp = [];
-	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "", BeforeFindTreasure = "/bmrai off", AfterFindTreasure = "", BeforeGotoNewRabbit = "/bmrai on",
-		BeforeOccultTreasure = "/i-ching-commander y_adjust -7 false", AfterOccultTreasure = "/i-ching-commander y_adjust 0 false";
+	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "", 
+		BeforeFindTreasure = "/bmrai off", AfterFindTreasure = "", BeforeGotoNewRabbit = "/bmrai on",
+		BeforeFindPot = "/bmrai off", AfterFindPot = "", BeforeGotoNewPot = "/bmrai on",
+		
+		BeforeOccultTreasure = "/i-ching-commander y_adjust -7 false", AfterOccultTreasure = "/i-ching-commander y_adjust 0 false", TpCommand = "";
 	public int Version { get; set; }
-	public Dictionary<string, int> TotalChest = [];
+	public Dictionary<string, int> TotalChest = [],TotalPot = [];
 	public List<(string, string)> NameReplacementDict = [];
 	public Dictionary<uint, HashSet<Vector3>> AllElementalPositions = [];
 	public bool CoreTpWhenGreenNearby;
@@ -39,11 +45,13 @@ public class MConfiguration : IPluginConfiguration {
 		public string Desc = "";
 		public bool Enabled;
 		public float SpeedUpMax = 20f;
+		public float SpeedUpMountX = 2f;
 		public float SpeedUpN = 3.5f;
 		public string SpeedUpTerritory = "";
 		private static readonly SpeedInfo _default = new() {
 			Desc = "ULK, 该行地区Id与描述不可修改",
 			SpeedUpTerritory = "732|763|795|827",
+			SpeedUpMountX = 1.6f,
 			Enabled = true
 		};
 

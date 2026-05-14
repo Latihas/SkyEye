@@ -28,6 +28,7 @@ using SkyEye.Data;
 using static System.StringComparison;
 using static SkyEye.ConfigWindow;
 using static SkyEye.Data.PData;
+using static SkyEye.MConfiguration;
 using static SkyEye.Util;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 using Timer = System.Timers.Timer;
@@ -38,6 +39,7 @@ namespace SkyEye;
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed partial class Plugin : IDalamudPlugin {
 	private const uint LuckyCarrotItemId = 2002482;
+	private const uint LuckyPotItemId = 2003296;
 	internal const int FarmTimeout = 50;
 	private static float _lSpeed = 1f;
 	internal static List<Vector3> DetectedTreasurePositions = [];
@@ -52,9 +54,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 	internal static Vector3? lastFarmPos;
 	internal static bool FarmFull;
 	private static IntPtr? SpeedPtr;
-	internal static MConfiguration.SpeedInfo? CurrentSpeedInfo;
+	internal static SpeedInfo? CurrentSpeedInfo;
 	internal static Dictionary<string, string> MapInfo = new();
-	private static Timer _carrotTimer = null!;
+	private static Timer _carrotTimer = null!, _potTimer = null!;
 	private readonly ConfigWindow _configWindow;
 	private readonly UiBuilder _uiBuilder;
 	private bool mountState;
@@ -72,9 +74,16 @@ public sealed partial class Plugin : IDalamudPlugin {
 		_carrotTimer = new Timer(7000) {
 			AutoReset = true
 		};
+		_potTimer = new Timer(7000) {
+			AutoReset = true
+		};
 		_carrotTimer.Elapsed += (_, _) => {
 			if (Configuration.AutoRabbit) UseCarrot();
 			else StopCarrotTimer();
+		};
+		_potTimer.Elapsed += (_, _) => {
+			if (Configuration.AutoPot) UsePotCarrot();
+			else StopPotTimer();
 		};
 		Ipcs.Init();
 		Framework.Update += UpdateRoundPlayers;
@@ -84,9 +93,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 		PluginInterface.UiBuilder.OpenConfigUi += OnCommand;
 		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
 		ChatGui.ChatMessageUnhandled += ChatRabbit;
+		ChatGui.ChatMessageUnhandled += ChatPot;
 		if (Configuration.SpeedUp.Count == 0) {
-			Configuration.SpeedUp.Add(MConfiguration.SpeedInfo.Default());
-			Configuration.SpeedUp.Add(new MConfiguration.SpeedInfo());
+			Configuration.SpeedUp.Add(SpeedInfo.Default());
+			Configuration.SpeedUp.Add(new SpeedInfo());
 		}
 		MapInfo = DataManager.GetExcelSheet<TerritoryType>().Where(i => !i.PlaceNameRegion.Value.Name.IsEmpty)
 			.ToDictionary(i => i.RowId.ToString(), i => $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}");
@@ -130,6 +140,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
 		WindowSystem.RemoveAllWindows();
 		ChatGui.ChatMessageUnhandled -= ChatRabbit;
+		ChatGui.ChatMessageUnhandled -= ChatPot;
 		Framework.Update -= UpdateRoundPlayers;
 		Framework.Update -= Farm;
 		Framework.Update -= FindElemental;
@@ -139,7 +150,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 		_uiBuilder.Dispose();
 		CommandManager.RemoveHandler("/skyeye");
 		_carrotTimer.Stop();
+		_potTimer.Stop();
 		_carrotTimer.Dispose();
+		_potTimer.Dispose();
 		WebSocket.StopWss();
 	}
 
@@ -169,9 +182,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	internal static unsafe void FindRabbit(int fateidx = -1, bool force = false) {
-		if (!force && (!Configuration.AutoRabbitWait || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || FateManager.Instance()->SyncedFateId != 0 || wait4chest)) return;
+		if (!force && (!Configuration.AutoForwardNewRabbit || _carrotTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || FateManager.Instance()->SyncedFateId != 0 || wait4chest)) return;
 		if (!string.IsNullOrEmpty(Configuration.BeforeGotoNewRabbit))
-			ChatBox.SendMessage(Configuration.BeforeGotoNewRabbit);
+			foreach (var cmd in Configuration.BeforeGotoNewRabbit.Split('|'))
+				ChatBox.SendMessage(cmd);
 		var territory = (Territory)ClientState.TerritoryType;
 		if (fateidx != -1) {
 			if (territory == Territory.Pagos && fateidx is 1367 or 1368 || territory == Territory.Pyros && fateidx is 1407 or 1408 || territory == Territory.Hydatos && fateidx is 1425) {
@@ -190,7 +204,16 @@ public sealed partial class Plugin : IDalamudPlugin {
 			return;
 		}
 	}
-
+	internal static void FindPot( bool force = false) {
+		if (!force && (!Configuration.AutoForwardNewPot || _potTimer is { Enabled: true } || Condition[ConditionFlag.InCombat]  || wait4chest)) return;
+		if (!string.IsNullOrEmpty(Configuration.BeforeGotoNewPot))
+			foreach (var cmd in Configuration.BeforeGotoNewPot.Split('|'))
+				ChatBox.SendMessage(cmd);
+		foreach (var ret in Fates.Where(fate=>fate.FateId is 1976 or 1977)) {
+			Ipcs.PathfindAndMoveTo(ret.Position, false);
+			return;
+		}
+	}
 
 	private static unsafe void Farm(IFramework _) {
 		if (!Configuration.PluginEnabled) return;
@@ -289,13 +312,28 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (_carrotTimer.Enabled || !Configuration.AutoRabbit) return;
 		UseCarrot();
 		if (!string.IsNullOrEmpty(Configuration.BeforeFindTreasure))
-			ChatBox.SendMessage(Configuration.BeforeFindTreasure);
+			foreach (var cmd in Configuration.BeforeFindTreasure.Split('|'))
+				ChatBox.SendMessage(cmd);
 		_carrotTimer.Start();
+	}
+
+	private static void StartPotTimer() {
+		if (_potTimer.Enabled || !Configuration.AutoPot) return;
+		UsePotCarrot();
+		if (!string.IsNullOrEmpty(Configuration.BeforeFindPot))
+			foreach (var cmd in Configuration.BeforeFindPot.Split('|'))
+				ChatBox.SendMessage(cmd);
+		_potTimer.Start();
 	}
 
 	private static void StopCarrotTimer() {
 		if (_carrotTimer is not { Enabled: true }) return;
 		_carrotTimer.Stop();
+	}
+
+	private static void StopPotTimer() {
+		if (_potTimer is not { Enabled: true }) return;
+		_potTimer.Stop();
 	}
 
 	private static unsafe void UseCarrot() {
@@ -312,10 +350,26 @@ public sealed partial class Plugin : IDalamudPlugin {
 		}
 	}
 
+	private static unsafe void UsePotCarrot() {
+		if (!Configuration.AutoPot) return;
+		if (!InOccult()) {
+			StopPotTimer();
+			return;
+		}
+		if (InventoryManager.Instance()->GetInventoryItemCount(LuckyPotItemId) > 0)
+			ActionManager.Instance()->UseAction(ActionType.EventItem, LuckyPotItemId, mode: ActionManager.UseActionMode.Queue);
+		else {
+			Log.Warning("没有幸运胡萝卜可用，停止自动使用");
+			StopCarrotTimer();
+		}
+	}
+
 	private void OnCommand(string? command, string? args) => _configWindow.Toggle();
 
 	internal static bool InEureka() => ObjectTable.LocalPlayer != null && InEureka(ClientState.TerritoryType);
+	internal static bool InOccult() => ObjectTable.LocalPlayer != null && InOccult(ClientState.TerritoryType);
 	internal static bool InEureka(uint id) => (Territory)id is Territory.Anemos or Territory.Pagos or Territory.Pyros or Territory.Hydatos;
+	internal static bool InOccult(uint id) => id == 1252;
 
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
 	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, (Territory)ClientState.TerritoryType == Territory.Hydatos ? 20.25f : 11.25f));
@@ -344,10 +398,11 @@ public sealed partial class Plugin : IDalamudPlugin {
 				Configuration.TotalChest.TryAdd(name, 0);
 				Configuration.TotalChest[name]++;
 				Configuration.Save();
-				if (!Configuration.AutoRabbitWait) continue;
+				if (!Configuration.AutoForwardNewRabbit) continue;
 				ChatBox.SendMessage("/e 等待7s后寻找下一个兔子");
 				if (!string.IsNullOrEmpty(Configuration.AfterFindTreasure))
-					ChatBox.SendMessage(Configuration.AfterFindTreasure);
+					foreach (var cmd in Configuration.AfterFindTreasure.Split('|'))
+						ChatBox.SendMessage(cmd);
 				Task.Run(async () => {
 					await Task.Delay(7000);
 					wait4chest = false;
@@ -356,7 +411,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			}
 			return;
 		}
-		var result = MyRegex().Match(msg);
+		var result = DirectionRegex().Match(msg);
 		if (!(result.Success || msg.StartsWith("幸福兔看起来很喜欢你。"))) return;
 		StartCarrotTimer();
 		var direction = result.Groups["direction"].Value;
@@ -400,6 +455,101 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (Configuration.AutoRabbit) Ipcs.PathfindAndMoveTo(pos, false);
 	}
 
+	private static void ChatPot(IChatMessage chatMessage) {
+		if (!InOccult()) return;
+		var msg = chatMessage.Message.TextValue.Trim();
+		if (msg.StartsWith("谢谢你的圣灵药！")) {
+			DetectedTreasurePositions = [];
+			wait4chest = true;
+			StopPotTimer();
+			foreach (var obj in ObjectTable) {
+				if (obj is not { ObjectKind: ObjectKind.EventObj } || !obj.Name.ToString().Contains("财宝箱")) continue;
+				unsafe {
+					TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
+				}
+				var name = obj.Name.ToString();
+				Configuration.TotalPot.TryAdd(name, 0);
+				Configuration.TotalPot[name]++;
+				Configuration.Save();
+				if (!Configuration.AutoForwardNewPot) continue;
+				ChatBox.SendMessage("/e 等待7s后寻找下一个罐子");
+				if (!string.IsNullOrEmpty(Configuration.AfterFindPot))
+					foreach (var cmd in Configuration.AfterFindPot.Split('|'))
+						ChatBox.SendMessage(cmd);
+				Task.Run(async () => {
+					await Task.Delay(7000);
+					wait4chest = false;
+					FindPot(force: true);
+				});
+			}
+			return;
+		}
+		if (msg.StartsWith("给我更多的圣灵药，我就再帮你找一次财宝！")) {
+			DetectedTreasurePositions = [];
+			wait4chest = true;
+			StopPotTimer();
+			foreach (var obj in ObjectTable) {
+				if (obj is not { ObjectKind: ObjectKind.EventObj } || !obj.Name.ToString().Contains("财宝箱")) continue;
+				unsafe {
+					TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
+				}
+				var name = obj.Name.ToString();
+				Configuration.TotalPot.TryAdd(name, 0);
+				Configuration.TotalPot[name]++;
+				Configuration.Save();
+				ChatBox.SendMessage("/e 等待7s后寻找下一个点位");
+				Task.Run(async () => {
+					await Task.Delay(7000);
+					wait4chest = false;
+					StartPotTimer();
+				});
+			}
+			return;
+		}
+		var result = DirectionRegex().Match(msg);
+		if (!(result.Success || msg.StartsWith("撒娇罐很想要圣灵药"))) return;
+		StartPotTimer();
+		var direction = result.Groups["direction"].Value;
+		int minDistance, maxDistance;
+		switch (result.Groups["distance"].Value) {
+			case "很远":
+				minDistance = 200;
+				maxDistance = int.MaxValue;
+				break;
+			case "稍远":
+				minDistance = 100;
+				maxDistance = 200;
+				break;
+			case "不远":
+				minDistance = 25;
+				maxDistance = 100;
+				break;
+			default:
+				minDistance = 0;
+				maxDistance = 25;
+				break;
+		}
+		var playerPos = ObjectTable.LocalPlayer!.Position;
+		var playerPos2D = new Vector2(playerPos.X, playerPos.Z);
+		DetectedTreasurePositions = OccultPotPosition[ClientState.TerritoryType]
+			.Select(i => (i, Vector2.Distance(playerPos2D, new Vector2(i.X, i.Z))))
+			.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
+		if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("正西", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X < playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
+		else if (direction.Equals("东南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X >= playerPos.X).ToList();
+		else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
+		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
+		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
+		var pos = DetectedTreasurePositions.FirstOrDefault();
+		if (pos == default) {
+			Log.Warning("无可用点位");
+			return;
+		}
+		if (Configuration.AutoPot) Ipcs.PathfindAndMoveTo(pos, false);
+	}
+
 	internal static bool GreenNearby() {
 		var friends = Configuration.SpeedUpFriendly.Split('|');
 		return OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ObjectTable.LocalPlayer!.Position) < (110 ^ 2));
@@ -420,7 +570,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	internal static void SetSpeed(float speedBase) {
 		if (CurrentSpeedInfo == null || !Configuration.SpeedUpEnabled) return;
 		var mounted = Condition[ConditionFlag.Mounted];
-		if (mounted) speedBase *= InEureka() ? 20f / 12 : 2;
+		if (mounted) speedBase *= CurrentSpeedInfo.SpeedUpMountX;
 		if (_lSpeed == speedBase) return;
 		_lSpeed = speedBase;
 		if (SpeedPtr == null) {
@@ -428,10 +578,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 			SpeedPtr = ba + Marshal.ReadInt32(ba) + 4 + 0x58;
 		}
 		var finalspeed = Math.Min(CurrentSpeedInfo.SpeedUpMax, speedBase * 6);
-		ChatBox.SendMessage($"/e SetSpeed({(mounted ? InEureka() ? 10 : 12 : 6)}x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
+		ChatBox.SendMessage($"/e SetSpeed({(mounted ? 6 * CurrentSpeedInfo.SpeedUpMountX : 6)}x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
 		SafeMemory.Write(SpeedPtr.Value, finalspeed);
 	}
 
 	[GeneratedRegex("^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！")]
-	private static partial Regex MyRegex();
+	private static partial Regex DirectionRegex();
 }

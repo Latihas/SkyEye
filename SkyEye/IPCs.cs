@@ -98,9 +98,15 @@ internal static class Ipcs {
 			});
 			return;
 		}
-		_divetp ??= PluginInterface.GetIpcSubscriber<Vector3, bool>("LatihasDalamudCore.DiveTp");
-		_divetp.InvokeAction(pos);
+		if (!string.IsNullOrEmpty(Configuration.TpCommand))
+			ChatBox.SendMessage(Configuration.TpCommand.Replace("<x>", pos.X.ToString()).Replace("<y>", pos.Y.ToString()).Replace("<z>", pos.Z.ToString()));
+		else {
+			_divetp ??= PluginInterface.GetIpcSubscriber<Vector3, bool>("LatihasDalamudCore.DiveTp");
+			_divetp.InvokeAction(pos);
+		}
 	}
+
+	public static bool CanTp() => HasCore() || !string.IsNullOrEmpty(Configuration.TpCommand);
 
 	internal static void CoreDive(bool force = false) {
 		if (!IsReady()) Init();
@@ -111,8 +117,12 @@ internal static class Ipcs {
 			});
 			return;
 		}
-		_dive ??= PluginInterface.GetIpcSubscriber<bool>("LatihasDalamudCore.Dive");
-		_dive.InvokeAction();
+		if (!string.IsNullOrEmpty(Configuration.TpCommand))
+			CoreDiveTp(ObjectTable.LocalPlayer!.Position, force);
+		else {
+			_dive ??= PluginInterface.GetIpcSubscriber<bool>("LatihasDalamudCore.Dive");
+			_dive.InvokeAction();
+		}
 	}
 
 	internal static bool HasCore() {
@@ -126,7 +136,7 @@ internal static class Ipcs {
 
 	internal static void PathfindAndMoveTo(Vector3 pos, bool fly) {
 		if (!IsReady()) Init();
-		if (HasCore() && (Configuration.CoreTpWhenGreenNearby || !GreenNearby())) {
+		if (CanTp() && (Configuration.CoreTpWhenGreenNearby || !GreenNearby())) {
 			CoreDiveTp(pos);
 			return;
 		}

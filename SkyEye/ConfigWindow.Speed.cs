@@ -17,6 +17,8 @@ public partial class ConfigWindow {
 			Configuration.SpeedUp[0].SpeedUpTerritory = SpeedInfo.Default().SpeedUpTerritory;
 		if (!Configuration.SpeedUp[0].Desc.Equals(SpeedInfo.Default().Desc))
 			Configuration.SpeedUp[0].Desc = SpeedInfo.Default().Desc;
+		if (!Configuration.SpeedUp[0].SpeedUpMountX.Equals(SpeedInfo.Default().SpeedUpMountX))
+			Configuration.SpeedUp[0].SpeedUpMountX = SpeedInfo.Default().SpeedUpMountX;
 		if (Configuration.SpeedUp[^2].SpeedUpTerritory.IsNullOrEmpty())
 			Configuration.SpeedUp.Remove(Configuration.SpeedUp[^2]);
 		if (!Configuration.SpeedUp[^1].SpeedUpTerritory.IsNullOrEmpty())
@@ -50,7 +52,7 @@ public partial class ConfigWindow {
 			ValidateSpeedInfo();
 		}
 		if (Configuration.SpeedUpEnabled) {
-			string[] header = ["启用", "地区Id", "倍率", "最终速度上限(含乘算倍率)", "备注"];
+			string[] header = ["启用", "地区Id", "倍率", "最终速度上限(含乘算倍率)", "基础坐骑速度倍率(默认2)", "备注"];
 			if (ImGui.BeginTable("TableSpeedInfo", header.Length, ImGuiTableFlag)) {
 				foreach (var item in header) ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthStretch);
 				ImGui.TableHeadersRow();
@@ -78,6 +80,9 @@ public partial class ConfigWindow {
 					ImGui.SetNextItemWidth(-1);
 					if (ImGui.InputFloat($"##最大{i}", ref Configuration.SpeedUp[i].SpeedUpMax)) ValidateSpeedInfo();
 					ImGui.TableSetColumnIndex(4);
+					ImGui.SetNextItemWidth(-1);
+					if (ImGui.InputFloat($"##基础坐骑倍率{i}", ref Configuration.SpeedUp[i].SpeedUpMountX)) ValidateSpeedInfo();
+					ImGui.TableSetColumnIndex(5);
 					ImGui.SetNextItemWidth(-1);
 					if (ImGui.InputText($"##描述{i}", ref Configuration.SpeedUp[i].Desc)) ValidateSpeedInfo();
 				}
