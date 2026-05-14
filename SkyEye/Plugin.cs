@@ -205,7 +205,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		}
 	}
 	internal static void FindPot( bool force = false) {
-		if (!force && (!Configuration.AutoForwardNewPot || _potTimer is { Enabled: true } || Condition[ConditionFlag.InCombat]  || wait4chest)) return;
+		if (!force && (  _potTimer is { Enabled: true } || Condition[ConditionFlag.InCombat]  || wait4chest)) return;
 		if (!string.IsNullOrEmpty(Configuration.BeforeGotoNewPot))
 			foreach (var cmd in Configuration.BeforeGotoNewPot.Split('|'))
 				ChatBox.SendMessage(cmd);
@@ -471,16 +471,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 				Configuration.TotalPot.TryAdd(name, 0);
 				Configuration.TotalPot[name]++;
 				Configuration.Save();
-				if (!Configuration.AutoForwardNewPot) continue;
-				ChatBox.SendMessage("/e 等待7s后寻找下一个罐子");
-				if (!string.IsNullOrEmpty(Configuration.AfterFindPot))
-					foreach (var cmd in Configuration.AfterFindPot.Split('|'))
-						ChatBox.SendMessage(cmd);
-				Task.Run(async () => {
-					await Task.Delay(7000);
-					wait4chest = false;
-					FindPot(force: true);
-				});
 			}
 			return;
 		}

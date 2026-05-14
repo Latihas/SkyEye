@@ -12,7 +12,7 @@ public class MConfiguration : IPluginConfiguration {
 	public int FarmTargetMax = 1, WssRegion, FarmDistAlgo, NextWeatherCount = 10,
 		OccultTreasureDelay = 2000;
 	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay2DDetailEnabled = true, Overlay3DEnabled = true,
-		AutoRabbit = true, AutoForwardNewRabbit = true, AutoPot, AutoForwardNewPot,
+		AutoRabbit = true, AutoForwardNewRabbit = true, AutoPot, 
 		AutoFarm, FarmWait, EnableWss,
 		ShowCurrentElemental, 
 		DisableAutoRabbitWhenTerritoryChanged,

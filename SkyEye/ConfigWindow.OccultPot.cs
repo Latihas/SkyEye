@@ -14,14 +14,11 @@ public partial class ConfigWindow {
 			if (ImGui.InputText("开宝箱后指令(|分割)", ref Configuration.AfterFindPot)) Configuration.Save();
 			ImGui.Unindent();
 		}
-		if (ImGui.Checkbox("自动导航到新罐子", ref Configuration.AutoForwardNewPot)) Configuration.Save();
-		ImGui.SameLine();
 		if (ImGui.Button("立刻寻找")) FindPot(force: true);
-		if (Configuration.AutoForwardNewPot) {
-			ImGui.Indent();
-			if (ImGui.InputText("开始导航到罐子前指令(|分割)", ref Configuration.BeforeGotoNewPot)) Configuration.Save();
-			ImGui.Unindent();
-		}
+		ImGui.Indent();
+		if (ImGui.InputText("开始导航到罐子前指令(|分割)", ref Configuration.BeforeGotoNewPot)) Configuration.Save();
+		ImGui.Unindent();
+
 		ImGui.Separator();
 		ImGui.Text("统计");
 		foreach (var p in Configuration.TotalPot)

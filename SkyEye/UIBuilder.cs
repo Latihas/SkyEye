@@ -53,7 +53,6 @@ internal class UiBuilder : IDisposable {
 		}
 		if (Configuration.DisableAutoPotWhenTerritoryChanged) {
 			Configuration.AutoPot = false;
-			Configuration.AutoForwardNewPot = false;
 			Configuration.Save();
 		}
 		if (InEureka(lastTerritoryId) || InEureka(ClientState.TerritoryType)) {
@@ -92,7 +91,7 @@ internal class UiBuilder : IDisposable {
 			var id = Fates.First(f => f.FateId is 1976 or 1977).FateId;
 			if(id!=LastPotId) {
 				LastPotId = id;
-				TzFound(id);
+				FindPot();
 			}
 		}
 		if (lastFarmPos != null)
@@ -408,7 +407,6 @@ internal class UiBuilder : IDisposable {
 		Player2.Load();
 		Player2.Play();
 		FindRabbit(fateid);
-		FindPot();
 	}
 
 	private void DrawWeatherMap(Vector2 valueOrDefault) {
