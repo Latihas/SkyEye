@@ -136,11 +136,11 @@ internal static class Ipcs {
 
 	internal static void PathfindAndMoveTo(Vector3 pos, bool fly) {
 		if (!IsReady()) Init();
+		Stop();
 		if (CanTp() && (Configuration.CoreTpWhenGreenNearby || !GreenNearby())) {
 			CoreDiveTp(pos);
 			return;
 		}
-		Stop();
 		Execute(() => _pathfindAndMoveTo?.InvokeFunc(pos, fly));
 	}
 
