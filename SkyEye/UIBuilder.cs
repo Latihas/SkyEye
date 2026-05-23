@@ -100,12 +100,18 @@ internal class UiBuilder : IDisposable {
 		_eurekaList2D.Clear();
 		foreach (var item in _eurekaLiveIdList2D) _eurekaLiveIdList2DOld.Add(item);
 		_eurekaLiveIdList2D.Clear();
-		var poses = new List<Vector3>();
+		var poses = new HashSet<Vector3>();
+		if (!string.IsNullOrEmpty(Configuration.FindEntity)) {
+			foreach (var obj in ObjectTable)
+			foreach (var pat in Configuration.FindEntity.Split('|')) 
+				if (obj.Name.ToString().Contains(pat)) 
+					poses.Add(obj.Position);
+		}
+		
 		foreach (var obj in ObjectTable) {
 			if (obj is not IPlayerCharacter i) continue;
 			var hw = i.HomeWorld.Value.DataCenter.Value.Name.ToString();
-			if (!string.IsNullOrEmpty(Configuration.FindEntity) && i.Name.ToString().Contains(Configuration.FindEntity) ||
-			    Configuration.FindCharaNiao && hw == "陆行鸟" ||
+			if (Configuration.FindCharaNiao && hw == "陆行鸟" ||
 			    Configuration.FindCharaMao && hw == "猫小胖" ||
 			    Configuration.FindCharaZhu && hw == "莫古力" ||
 			    Configuration.FindCharaGou && hw == "豆豆柴" ||

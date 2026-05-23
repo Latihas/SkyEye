@@ -9,7 +9,7 @@ namespace SkyEye;
 public partial class ConfigWindow {
 	private static void DrawTarget() {
 		ImGui.Text("连线");
-		if (ImGui.InputText("连线查找怪", ref Configuration.FindEntity, 114514)) Configuration.Save();
+		if (ImGui.InputText("连线查找怪(竖线|隔开)", ref Configuration.FindEntity, 114514)) Configuration.Save();
 		var Cats = new Dictionary<int, int> {
 			{ 0, 0 },
 			{ 1, 0 },
