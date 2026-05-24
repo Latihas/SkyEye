@@ -61,7 +61,7 @@ public partial class ConfigWindow() : Window("SkyEye") {
 
 	private static QuitInstanceDelegate? QuitInstanceD;
 	internal static bool isFindingTreasure;
-	private readonly Lock isFindingTreasureLock = new();
+	private static readonly Lock isFindingTreasureLock = new();
 
 	private delegate IntPtr QuitInstanceDelegate(byte shouldForceQuit);
 }

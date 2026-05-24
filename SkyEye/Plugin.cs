@@ -94,6 +94,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
 		ChatGui.ChatMessageUnhandled += ChatRabbit;
 		ChatGui.ChatMessageUnhandled += ChatPot;
+		ChatGui.ChatMessageUnhandled += Chat30OccultTreasure;
 		if (Configuration.SpeedUp.Count == 0) {
 			Configuration.SpeedUp.Add(SpeedInfo.Default());
 			Configuration.SpeedUp.Add(new SpeedInfo());
@@ -141,6 +142,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		WindowSystem.RemoveAllWindows();
 		ChatGui.ChatMessageUnhandled -= ChatRabbit;
 		ChatGui.ChatMessageUnhandled -= ChatPot;
+		ChatGui.ChatMessageUnhandled -= Chat30OccultTreasure;
 		Framework.Update -= UpdateRoundPlayers;
 		Framework.Update -= Farm;
 		Framework.Update -= FindElemental;
@@ -204,12 +206,13 @@ public sealed partial class Plugin : IDalamudPlugin {
 			return;
 		}
 	}
-	internal static void FindPot( bool force = false) {
-		if (!force && (  _potTimer is { Enabled: true } || Condition[ConditionFlag.InCombat]  || wait4chest)) return;
+
+	internal static void FindPot(bool force = false) {
+		if (!force && (_potTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || wait4chest)) return;
 		if (!string.IsNullOrEmpty(Configuration.BeforeGotoNewPot))
 			foreach (var cmd in Configuration.BeforeGotoNewPot.Split('|'))
 				ChatBox.SendMessage(cmd);
-		foreach (var ret in Fates.Where(fate=>fate.FateId is 1976 or 1977)) {
+		foreach (var ret in Fates.Where(fate => fate.FateId is 1976 or 1977)) {
 			Ipcs.PathfindAndMoveTo(ret.Position, false);
 			return;
 		}
@@ -540,6 +543,19 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (Configuration.AutoPot) Ipcs.PathfindAndMoveTo(pos, false);
 	}
 
+	private static void Chat30OccultTreasure(IChatMessage chatMessage) {
+		if (!InOccult() || !Configuration.Auto30OccultTreasure) return;
+		var msg = chatMessage.Message.TextValue.Trim();
+		if (Chat30OccultTreasureRegex().IsMatch(msg)&&OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) {
+				foreach (var p in Configuration.BeforeAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
+
+				ConfigWindow.StartFindOccultTreasure(value, () => {
+					foreach (var p in Configuration.AfterAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
+				});
+			
+		}
+	}
+	
 	internal static bool GreenNearby() {
 		var friends = Configuration.SpeedUpFriendly.Split('|');
 		return OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ObjectTable.LocalPlayer!.Position) < (110 ^ 2));
@@ -574,4 +590,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	[GeneratedRegex("^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！")]
 	private static partial Regex DirectionRegex();
+
+	[GeneratedRegex("^在当前区域中感知到了.个银宝箱、30个铜宝箱……！")]
+	private static partial Regex Chat30OccultTreasureRegex();
 }

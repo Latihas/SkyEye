@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,35 +11,32 @@ using SkyEye.Data;
 using static SkyEye.Ipcs;
 using static SkyEye.Plugin;
 using static SkyEye.Util;
+
 namespace SkyEye;
 
 public partial class ConfigWindow {
-	private  void DrawOccultChest() {
+	private void DrawOccultChest() {
 		ImGui.Text("建议DR开附近箱子距离设置为9，IC下潜7。");
-		if (ImGui.InputText("寻宝前指令", ref Configuration.BeforeOccultTreasure)) Configuration.Save();
-		if (ImGui.InputText("寻宝后指令", ref Configuration.AfterOccultTreasure)) Configuration.Save();
+		if (ImGui.InputText("手动寻宝前指令(竖线|隔开)", ref Configuration.BeforeOccultTreasure)) Configuration.Save();
+		if (ImGui.InputText("手动寻宝后指令(竖线|隔开)", ref Configuration.AfterOccultTreasure)) Configuration.Save();
 		if (ImGui.InputInt("时间延迟(看加载速度)(ms)", ref Configuration.OccultTreasureDelay)) Configuration.Save();
 		if (!PData.OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) return;
-		ImGui.Text("银箱子");
-		foreach (var p in value.Where(p => p.Item2 == 1597)) {
-			ImGui.Text($"{p.Item1}");
-			ImGui.SameLine();
-			if (ImGui.Button($"走##{p.Item1}")) CoreDiveTp(p.Item1, true);
+		if (ImGui.CollapsingHeader("银箱子")) {
+			foreach (var p in value.Where(p => p.Item2 == 1597)) {
+				ImGui.Text($"{p.Item1}");
+				ImGui.SameLine();
+				if (ImGui.Button($"走##{p.Item1}")) CoreDiveTp(p.Item1, true);
+			}
+		}
+		if (ImGui.Checkbox("满30自动循环", ref Configuration.Auto30OccultTreasure)) Configuration.Save();
+		if (Configuration.Auto30OccultTreasure) {
+			if (ImGui.InputText("满30自动寻宝前指令(竖线|隔开)", ref Configuration.BeforeAuto30OccultTreasure)) Configuration.Save();
+			if (ImGui.InputText("满30自动寻宝后指令(竖线|隔开)", ref Configuration.AfterAuto30OccultTreasure)) Configuration.Save();
 		}
 		ImGui.Text("开所有箱子");
 		if (!isFindingTreasure && ImGui.Button("开始")) {
-			lock (isFindingTreasureLock) isFindingTreasure = true;
-			ChatBox.SendMessage(Configuration.BeforeOccultTreasure);
-			Task.Run(async () => {
-				for (var i = 0; i < value.Count; i++) {
-					var p = value[i];
-					if (!isFindingTreasure) break;
-					ChatBox.SendMessage($"/e 点位 {i + 1}/{value.Count}");
-					CoreDiveTp(p.Item1, true);
-					await Task.Delay(5000);
-				}
-				ChatBox.SendMessage(Configuration.AfterOccultTreasure);
-				lock (isFindingTreasureLock) isFindingTreasure = false;
+			StartFindOccultTreasure(value, () => {
+				foreach (var p in Configuration.AfterOccultTreasure.Split("|")) ChatBox.SendMessage(p);
 			});
 		}
 		if (isFindingTreasure && ImGui.Button("强制结束")) {
@@ -45,5 +44,21 @@ public partial class ConfigWindow {
 			QuitInstanceD(0);
 			lock (isFindingTreasureLock) isFindingTreasure = false;
 		}
+	}
+
+	internal static void StartFindOccultTreasure(List<(Vector3, uint)> value, Action after) {
+		lock (isFindingTreasureLock) isFindingTreasure = true;
+		foreach (var p in Configuration.BeforeOccultTreasure.Split("|")) ChatBox.SendMessage(p);
+		Task.Run(async () => {
+			for (var i = 0; i < value.Count; i++) {
+				var p = value[i];
+				if (!isFindingTreasure) break;
+				ChatBox.SendMessage($"/e 点位 {i + 1}/{value.Count}");
+				CoreDiveTp(p.Item1, true);
+				await Task.Delay(5000);
+			}
+			after();
+			lock (isFindingTreasureLock) isFindingTreasure = false;
+		});
 	}
 }
