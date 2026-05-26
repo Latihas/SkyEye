@@ -11,7 +11,6 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Excel.Sheets;
 using SkyEye.Data;
 using static System.Globalization.CultureInfo;
 using static SkyEye.Data.PData;
@@ -74,10 +73,11 @@ internal class UiBuilder : IDisposable {
 	}
 
 	private static uint LastPotId;
+
 	private void UiBuilder_OnBuildUi() {
 		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null) return;
 		_bdl = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
-		if (InEureka() && !Plugin.Condition[ConditionFlag.BetweenAreas] && !Plugin.Condition[ConditionFlag.BetweenAreas51]) {
+		if (InEureka() && !Condition[ConditionFlag.BetweenAreas] && !Condition[ConditionFlag.BetweenAreas51]) {
 			_eorzeaTime = EorzeaTime.ToEorzeaTime(DateTime.Now);
 			RefreshEureka();
 			DrawMapOverlay();
@@ -86,10 +86,10 @@ internal class UiBuilder : IDisposable {
 					if (Gui.WorldToScreen(pos, out var v))
 						_bdl.DrawMapDot(v, 0xFF00FFFF, 0xFF00FFFF);
 		}
-		if(InOccult()&& !Plugin.Condition[ConditionFlag.BetweenAreas] && !Plugin.Condition[ConditionFlag.BetweenAreas51]
-		   && Fates.Any(f => f.FateId is 1976 or 1977)) {
+		if (InOccult() && !Condition[ConditionFlag.BetweenAreas] && !Condition[ConditionFlag.BetweenAreas51]
+		    && Fates.Any(f => f.FateId is 1976 or 1977)) {
 			var id = Fates.First(f => f.FateId is 1976 or 1977).FateId;
-			if(id!=LastPotId) {
+			if (id != LastPotId) {
 				LastPotId = id;
 				FindPot();
 			}
@@ -103,11 +103,11 @@ internal class UiBuilder : IDisposable {
 		var poses = new HashSet<Vector3>();
 		if (!string.IsNullOrEmpty(Configuration.FindEntity)) {
 			foreach (var obj in ObjectTable)
-			foreach (var pat in Configuration.FindEntity.Split('|')) 
-				if (obj.Name.ToString().Contains(pat)) 
+			foreach (var pat in Configuration.FindEntity.Split('|'))
+				if (obj.Name.ToString().Contains(pat))
 					poses.Add(obj.Position);
 		}
-		
+
 		foreach (var obj in ObjectTable) {
 			if (obj is not IPlayerCharacter i) continue;
 			var hw = i.HomeWorld.Value.DataCenter.Value.Name.ToString();

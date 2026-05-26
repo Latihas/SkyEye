@@ -11,26 +11,26 @@ public partial class ConfigWindow {
 		ImGui.Text("连线");
 		if (ImGui.InputText("连线查找怪(竖线|隔开)", ref Configuration.FindEntity, 114514)) Configuration.Save();
 		var Cats = new Dictionary<int, int> {
-			{ 0, 0 },
-			{ 1, 0 },
-			{ 2, 0 },
-			{ 3, 0 },
-			{ 10, 0 },
-			{ 11, 0 },
-			{ 20, 0 },
-			{ 21, 0 },
-			{ 30, 0 },
-			{ 31, 0 },
-			{ 40, 0 },
-			{ 41, 0 },
-			{ 50, 0 },
-			{ 51, 0 },
-			{ 60, 0 },
-			{ 61, 0 },
-			{ 70, 0 },
-			{ 71, 0 },
-			{ 80, 0 },
-			{ 81, 0 }
+			[0] = 0,
+			[1] = 0,
+			[2] = 0,
+			[3] = 0,
+			[10] = 0,
+			[11] = 0,
+			[20] = 0,
+			[21] = 0,
+			[30] = 0,
+			[31] = 0,
+			[40] = 0,
+			[41] = 0,
+			[50] = 0,
+			[51] = 0,
+			[60] = 0,
+			[61] = 0,
+			[70] = 0,
+			[71] = 0,
+			[80] = 0,
+			[81] = 0
 		};
 		foreach (var obj in ObjectTable) {
 			if (obj is not IPlayerCharacter i) continue;

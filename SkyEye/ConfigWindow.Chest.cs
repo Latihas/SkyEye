@@ -17,7 +17,7 @@ public partial class ConfigWindow {
 		}
 		if (ImGui.Checkbox("自动导航到新兔子", ref Configuration.AutoForwardNewRabbit)) Configuration.Save();
 		ImGui.SameLine();
-		if(ImGui.Button("立刻寻找"))FindRabbit(force: true);
+		if (ImGui.Button("立刻寻找")) FindRabbit(force: true);
 		if (Configuration.AutoForwardNewRabbit) {
 			ImGui.Indent();
 			if (ImGui.InputText("开始导航到兔子前指令(|分割)", ref Configuration.BeforeGotoNewRabbit)) Configuration.Save();

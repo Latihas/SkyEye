@@ -3,14 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Windowing;
 using SkyEye.Data;
 using static SkyEye.Ipcs;
 using static SkyEye.Plugin;
-using static SkyEye.Util;
 
 namespace SkyEye;
 

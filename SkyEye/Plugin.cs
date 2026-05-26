@@ -546,16 +546,15 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static void Chat30OccultTreasure(IChatMessage chatMessage) {
 		if (!InOccult() || !Configuration.Auto30OccultTreasure) return;
 		var msg = chatMessage.Message.TextValue.Trim();
-		if (Chat30OccultTreasureRegex().IsMatch(msg)&&OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) {
-				foreach (var p in Configuration.BeforeAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
+		if (Chat30OccultTreasureRegex().IsMatch(msg) && OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) {
+			foreach (var p in Configuration.BeforeAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
 
-				ConfigWindow.StartFindOccultTreasure(value, () => {
-					foreach (var p in Configuration.AfterAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
-				});
-			
+			StartFindOccultTreasure(value, () => {
+				foreach (var p in Configuration.AfterAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
+			});
 		}
 	}
-	
+
 	internal static bool GreenNearby() {
 		var friends = Configuration.SpeedUpFriendly.Split('|');
 		return OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ObjectTable.LocalPlayer!.Position) < (110 ^ 2));

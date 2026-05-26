@@ -1,5 +1,4 @@
-﻿using System;
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
 using static SkyEye.Plugin;
 
 namespace SkyEye;
@@ -14,7 +13,7 @@ public partial class ConfigWindow {
 			if (ImGui.InputText("开宝箱后指令(|分割)", ref Configuration.AfterFindPot)) Configuration.Save();
 			ImGui.Unindent();
 		}
-		if (ImGui.Button("立刻寻找")) FindPot(force: true);
+		if (ImGui.Button("立刻寻找")) FindPot(true);
 		ImGui.Indent();
 		if (ImGui.InputText("开始导航到罐子前指令(|分割)", ref Configuration.BeforeGotoNewPot)) Configuration.Save();
 		ImGui.Unindent();

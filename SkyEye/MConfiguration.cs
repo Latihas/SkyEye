@@ -12,11 +12,11 @@ public class MConfiguration : IPluginConfiguration {
 	public int FarmTargetMax = 1, WssRegion, FarmDistAlgo, NextWeatherCount = 10,
 		OccultTreasureDelay = 2000;
 	public bool PluginEnabled = true, SpeedUpEnabled = true, Overlay2DWeatherMapEnabled = true, Overlay2DDetailEnabled = true, Overlay3DEnabled = true,
-		AutoRabbit = true, AutoForwardNewRabbit = true, 
-		AutoPot,Auto30OccultTreasure, 
+		AutoRabbit = true, AutoForwardNewRabbit = true,
+		AutoPot, Auto30OccultTreasure,
 		AutoFarm, FarmWait,
 		EnableWss,
-		ShowCurrentElemental, 
+		ShowCurrentElemental,
 		DisableAutoRabbitWhenTerritoryChanged,
 		DisableAutoPotWhenTerritoryChanged,
 		PreventTp, NameReplacement, EnablePalacePal,
@@ -30,13 +30,13 @@ public class MConfiguration : IPluginConfiguration {
 		FindRaceGeShiM, FindRaceGeShiF,
 		FindRaceWeiAiLaM, FindRaceWeiAiLaF;
 	public List<SpeedInfo> SpeedUp = [];
-	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "", 
+	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "",
 		BeforeFindTreasure = "/bmrai off", AfterFindTreasure = "", BeforeGotoNewRabbit = "/bmrai on",
 		BeforeFindPot = "/bocchiillegal off|/bmrai off|/rotation off", AfterFindPot = "/bocchiillegal on|/rotation manual|/ac 返回", BeforeGotoNewPot = "/bmrai on",
-		BeforeAuto30OccultTreasure="/bocchiillegal off|/bmrai off|/rotation off|/i-ching-commander y_adjust -7 false",AfterAuto30OccultTreasure="/bocchiillegal on|/rotation manual|/ac 返回|/i-ching-commander y_adjust 0 false",
+		BeforeAuto30OccultTreasure = "/bocchiillegal off|/bmrai off|/rotation off|/i-ching-commander y_adjust -7 false", AfterAuto30OccultTreasure = "/bocchiillegal on|/rotation manual|/ac 返回|/i-ching-commander y_adjust 0 false",
 		BeforeOccultTreasure = "/bocchiillegal off|/bmrai off|/rotation off|/i-ching-commander y_adjust -7 false", AfterOccultTreasure = "/bocchiillegal on|/rotation manual|/ac 返回|/i-ching-commander y_adjust 0 false", TpCommand = "";
 	public int Version { get; set; }
-	public Dictionary<string, int> TotalChest = [],TotalPot = [];
+	public Dictionary<string, int> TotalChest = [], TotalPot = [];
 	public List<(string, string)> NameReplacementDict = [];
 	public Dictionary<uint, HashSet<Vector3>> AllElementalPositions = [];
 	public bool CoreTpWhenGreenNearby;

@@ -18,19 +18,14 @@ public partial class ConfigWindow {
 	private static void DrawFate() {
 		if (ImGui.SliderInt("下几个天气", ref Configuration.NextWeatherCount, 10, 50)) Configuration.Save();
 		var data = new Dictionary<Territory, Dictionary<string, EurekaWeather>> {
-			{
-				Territory.Anemos, GetAllWeathers(Weathers[Territory.Anemos].ToArray())
-					.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather)
-			}, {
-				Territory.Pagos, GetAllWeathers(Weathers[Territory.Pagos])
-					.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather)
-			}, {
-				Territory.Pyros, GetAllWeathers(Weathers[Territory.Pyros])
-					.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather)
-			}, {
-				Territory.Hydatos, GetAllWeathers(Weathers[Territory.Hydatos])
-					.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather)
-			}
+			[Territory.Anemos] = GetAllWeathers(Weathers[Territory.Anemos].ToArray())
+				.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather),
+			[Territory.Pagos] = GetAllWeathers(Weathers[Territory.Pagos])
+				.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather),
+			[Territory.Pyros] = GetAllWeathers(Weathers[Territory.Pyros])
+				.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather),
+			[Territory.Hydatos] = GetAllWeathers(Weathers[Territory.Hydatos])
+				.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather)
 		};
 		var allUniqueTimes = data.Values.Aggregate(new List<string>(), (current, x) => current.Concat(x.Keys).ToList())
 			.Distinct().ToList();
