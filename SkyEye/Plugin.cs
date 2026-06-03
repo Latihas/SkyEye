@@ -559,7 +559,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 					if (Vector3.DistanceSquared(ObjectTable.LocalPlayer.Position, pos) < 10
 					    && !Condition[ConditionFlag.BetweenAreas]
 					    && !Condition[ConditionFlag.BetweenAreas51]
-					   ) {
+					    && !Ipcs.IsRunning()) {
 						unsafe { TargetSystem.Instance()->InteractWithObject((GameObject*)p.Address); }
 					}
 				}
