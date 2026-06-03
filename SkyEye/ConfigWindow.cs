@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Threading;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using SkyEye.Data;
@@ -47,6 +46,7 @@ public partial class ConfigWindow() : Window("SkyEye") {
 					ImGui.EndTabBar();
 				}
 			});
+			NewTab("月球", DrawMoonPack);
 			NewTab("加速", DrawSpeed);
 			NewTab("农怪", DrawFarm);
 			NewTab("目标", DrawTarget);
@@ -59,7 +59,7 @@ public partial class ConfigWindow() : Window("SkyEye") {
 
 	private static QuitInstanceDelegate? QuitInstanceD;
 	internal static bool isFindingTreasure;
-	private static readonly Lock isFindingTreasureLock = new();
+	internal static bool isFindingMoonPack;
 
 	private delegate IntPtr QuitInstanceDelegate(byte shouldForceQuit);
 }

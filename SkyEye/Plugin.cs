@@ -85,7 +85,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 			if (Configuration.AutoPot) UsePotCarrot();
 			else StopPotTimer();
 		};
-		Ipcs.Init();
 		Framework.Update += UpdateRoundPlayers;
 		Framework.Update += Farm;
 		Framework.Update += FindElemental;
@@ -94,6 +93,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
 		ChatGui.ChatMessageUnhandled += ChatRabbit;
 		ChatGui.ChatMessageUnhandled += ChatPot;
+		ChatGui.ChatMessageUnhandled += ChatMoonPack;
 		ChatGui.ChatMessageUnhandled += Chat30OccultTreasure;
 		if (Configuration.SpeedUp.Count == 0) {
 			Configuration.SpeedUp.Add(SpeedInfo.Default());
@@ -108,7 +108,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (Configuration.NameReplacement) EnableNameplate();
 		SetSpeed(1);
 	}
-
 
 	private void CheckState(IFramework _) {
 		if (!InArea() || Condition[ConditionFlag.Mounted] == mountState) return;
@@ -137,11 +136,13 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	public void Dispose() {
 		isFindingTreasure = false;
+		isFindingMoonPack = false;
 		PluginInterface.UiBuilder.OpenConfigUi -= OnCommand;
 		PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
 		WindowSystem.RemoveAllWindows();
 		ChatGui.ChatMessageUnhandled -= ChatRabbit;
 		ChatGui.ChatMessageUnhandled -= ChatPot;
+		ChatGui.ChatMessageUnhandled -= ChatMoonPack;
 		ChatGui.ChatMessageUnhandled -= Chat30OccultTreasure;
 		Framework.Update -= UpdateRoundPlayers;
 		Framework.Update -= Farm;
@@ -221,7 +222,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static unsafe void Farm(IFramework _) {
 		if (!Configuration.PluginEnabled) return;
 		if (ObjectTable.LocalPlayer is null || !Configuration.AutoFarm) return;
-		if (!Ipcs.IsReady()) Ipcs.Init();
 		var playerPos = ObjectTable.LocalPlayer.Position;
 		var playerName = ObjectTable.LocalPlayer.Name.ToString();
 		var allObjs = ObjectTable.Where(obj =>
@@ -543,13 +543,46 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (Configuration.AutoPot) Ipcs.PathfindAndMoveTo(pos, false);
 	}
 
+	internal static uint MoonPackId => ClientState.TerritoryType switch { 1319 => 50415, 1310 => 50414, _ => 0 };
+
+	private static void ChatMoonPack(IChatMessage message) {
+		if (!isFindingMoonPack || MoonPackId == 0) return;
+		if (message.Message.TextValue == "探索无人机发现了星球遗物！") {
+			var p = ObjectTable.ReactionEventObjects.FirstOrDefault(i => i.Name.TextValue == "星球遗物");
+			if (p == null) return;
+			var pos = p.Position;
+			Ipcs.PathfindAndMoveTo(pos);
+			Task.Run(async () => {
+				while (true) {
+					if (!isFindingMoonPack || MoonPackId == 0) return;
+					await Task.Delay(1000);
+					if (Vector3.DistanceSquared(ObjectTable.LocalPlayer.Position, pos) < 10
+					    && !Condition[ConditionFlag.BetweenAreas]
+					    && !Condition[ConditionFlag.BetweenAreas51]
+					   ) {
+						unsafe { TargetSystem.Instance()->InteractWithObject((GameObject*)p.Address); }
+					}
+				}
+			});
+		}
+		if (message.Message.TextValue == "“星球遗物”解析完毕！") {
+			Task.Run(async () => {
+				var p = ObjectTable.ReactionEventObjects.FirstOrDefault(i => i.Name.TextValue == "星球遗物");
+				if (p == null) return;
+				ChatBox.SendMessage("/e 等待5s后开启下一个");
+				await Task.Delay(5000);
+				unsafe { AgentInventoryContext.Instance()->UseItem(MoonPackId); }
+			});
+		}
+	}
+
 	private static void Chat30OccultTreasure(IChatMessage chatMessage) {
 		if (!InOccult() || !Configuration.Auto30OccultTreasure) return;
 		var msg = chatMessage.Message.TextValue.Trim();
 		if (Chat30OccultTreasureRegex().IsMatch(msg) && OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) {
 			foreach (var p in Configuration.BeforeAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
 
-			StartFindOccultTreasure(value, () => {
+			StartFindOccultTreasure(() => {
 				foreach (var p in Configuration.AfterAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
 			});
 		}

@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
@@ -12,7 +10,7 @@ using static SkyEye.Plugin;
 namespace SkyEye;
 
 public partial class ConfigWindow {
-	private void DrawOccultChest() {
+	private static void DrawOccultChest() {
 		ImGui.Text("建议DR开附近箱子距离设置为9，IC下潜7。");
 		if (ImGui.InputText("手动寻宝前指令(竖线|隔开)", ref Configuration.BeforeOccultTreasure)) Configuration.Save();
 		if (ImGui.InputText("手动寻宝后指令(竖线|隔开)", ref Configuration.AfterOccultTreasure)) Configuration.Save();
@@ -32,19 +30,21 @@ public partial class ConfigWindow {
 		}
 		ImGui.Text("开所有箱子");
 		if (!isFindingTreasure && ImGui.Button("开始")) {
-			StartFindOccultTreasure(value, () => {
+			StartFindOccultTreasure(() => {
 				foreach (var p in Configuration.AfterOccultTreasure.Split("|")) ChatBox.SendMessage(p);
 			});
 		}
 		if (isFindingTreasure && ImGui.Button("强制结束")) {
 			QuitInstanceD ??= Marshal.GetDelegateForFunctionPointer<QuitInstanceDelegate>(SigScanner.ScanText("48 83 EC ?? 0F B6 D1 45 33 C9"));
 			QuitInstanceD(0);
-			lock (isFindingTreasureLock) isFindingTreasure = false;
+			isFindingTreasure = false;
 		}
 	}
 
-	internal static void StartFindOccultTreasure(List<(Vector3, uint)> value, Action after) {
-		lock (isFindingTreasureLock) isFindingTreasure = true;
+	internal static void StartFindOccultTreasure(Action after) {
+		var t = ClientState.TerritoryType;
+		if (!PData.OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) return;
+		isFindingTreasure = true;
 		foreach (var p in Configuration.BeforeOccultTreasure.Split("|")) ChatBox.SendMessage(p);
 		Task.Run(async () => {
 			for (var i = 0; i < value.Count; i++) {
@@ -53,9 +53,10 @@ public partial class ConfigWindow {
 				ChatBox.SendMessage($"/e 点位 {i + 1}/{value.Count}");
 				CoreDiveTp(p.Item1, true);
 				await Task.Delay(5000);
+				if (t != ClientState.TerritoryType) break;
 			}
 			after();
-			lock (isFindingTreasureLock) isFindingTreasure = false;
+			isFindingTreasure = false;
 		});
 	}
 }
