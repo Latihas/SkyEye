@@ -554,13 +554,15 @@ public sealed partial class Plugin : IDalamudPlugin {
 			Ipcs.PathfindAndMoveTo(pos);
 			Task.Run(async () => {
 				while (true) {
-					if (!isFindingMoonPack || MoonPackId == 0) return;
 					await Task.Delay(1000);
+					if (!isFindingMoonPack || MoonPackId == 0) return;
 					if (Vector3.DistanceSquared(ObjectTable.LocalPlayer.Position, pos) < 10
 					    && !Condition[ConditionFlag.BetweenAreas]
 					    && !Condition[ConditionFlag.BetweenAreas51]
 					    && !Ipcs.IsRunning()) {
-						unsafe { TargetSystem.Instance()->InteractWithObject((GameObject*)p.Address); }
+						unsafe {
+							Framework.RunOnTick(() => TargetSystem.Instance()->InteractWithObject((GameObject*)p.Address));
+						}
 					}
 				}
 			});
@@ -571,7 +573,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 				if (p == null) return;
 				ChatBox.SendMessage("/e 等待5s后开启下一个");
 				await Task.Delay(5000);
-				unsafe { AgentInventoryContext.Instance()->UseItem(MoonPackId); }
+				if (!isFindingMoonPack || MoonPackId == 0) return;
+				unsafe {
+					Framework.RunOnTick(() =>	AgentInventoryContext.Instance()->UseItem(MoonPackId));
+				}
 			});
 		}
 	}
