@@ -38,7 +38,7 @@ public partial class ConfigWindow() : Window("SkyEye") {
 								var pos = p.Value[i];
 								ImGui.Text($"[{i}] {pos}");
 								ImGui.SameLine();
-								if (ImGui.Button($"走##{i}")) PathfindAndMoveTo(pos, false);
+								if (ImGui.Button($"走##{i}")) PathfindAndMoveTo(pos);
 							}
 					});
 					NewTab("罐子", DrawOccultPot);

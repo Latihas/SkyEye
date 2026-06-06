@@ -214,7 +214,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			foreach (var cmd in Configuration.BeforeGotoNewPot.Split('|'))
 				ChatBox.SendMessage(cmd);
 		foreach (var ret in Fates.Where(fate => fate.FateId is 1976 or 1977)) {
-			Ipcs.PathfindAndMoveTo(ret.Position, false);
+			Ipcs.PathfindAndMoveTo(ret.Position);
 			return;
 		}
 	}
@@ -265,7 +265,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 					Ipcs.Stop();
 					break;
 				}
-				if (!Ipcs.IsRunning()) Ipcs.PathfindAndMoveTo(obj.Position, false);
+				if (!Ipcs.IsRunning()) Ipcs.PathfindAndMoveTo(obj.Position);
 			} else {
 				if (Ipcs.IsRunning()) {
 					if ((DateTime.Now - LastKill).Seconds % 15 == 14) {
@@ -372,7 +372,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	internal static bool InEureka() => ObjectTable.LocalPlayer != null && InEureka(ClientState.TerritoryType);
 	internal static bool InOccult() => ObjectTable.LocalPlayer != null && InOccult(ClientState.TerritoryType);
 	internal static bool InEureka(uint id) => (Territory)id is Territory.Anemos or Territory.Pagos or Territory.Pyros or Territory.Hydatos;
-	internal static bool InOccult(uint id) => id == 1252;
+	private static bool InOccult(uint id) => id == 1252;
 
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
 	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, (Territory)ClientState.TerritoryType == Territory.Hydatos ? 20.25f : 11.25f));
@@ -380,7 +380,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	internal static unsafe void SetFlagAndMove(Vector2 pos) {
 		AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, Pos2Map(pos));
 		var p = Ipcs.FlagToPoint();
-		if (p.HasValue) Ipcs.PathfindAndMoveTo(p.Value, false);
+		if (p.HasValue) Ipcs.PathfindAndMoveTo(p.Value);
 	}
 
 	private static bool wait4chest;
@@ -455,7 +455,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			Log.Warning("无可用点位");
 			return;
 		}
-		if (Configuration.AutoRabbit) Ipcs.PathfindAndMoveTo(pos, false);
+		if (Configuration.AutoRabbit) Ipcs.PathfindAndMoveTo(pos);
 	}
 
 	private static void ChatPot(IChatMessage chatMessage) {
@@ -540,7 +540,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			Log.Warning("无可用点位");
 			return;
 		}
-		if (Configuration.AutoPot) Ipcs.PathfindAndMoveTo(pos, false);
+		if (Configuration.AutoPot) Ipcs.PathfindAndMoveTo(pos);
 	}
 
 	internal static uint MoonPackId => ClientState.TerritoryType switch { 1319 => 50415, 1310 => 50414, _ => 0 };
@@ -575,7 +575,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 				await Task.Delay(5000);
 				if (!isFindingMoonPack || MoonPackId == 0) return;
 				unsafe {
-					Framework.RunOnTick(() =>	AgentInventoryContext.Instance()->UseItem(MoonPackId));
+					Framework.RunOnTick(() => AgentInventoryContext.Instance()->UseItem(MoonPackId));
 				}
 			});
 		}
@@ -586,7 +586,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 		var msg = chatMessage.Message.TextValue.Trim();
 		if (Chat30OccultTreasureRegex().IsMatch(msg) && OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) {
 			foreach (var p in Configuration.BeforeAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
-
 			StartFindOccultTreasure(() => {
 				foreach (var p in Configuration.AfterAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
 			});

@@ -90,7 +90,7 @@ public partial class ConfigWindow {
 			}
 		}
 		ImGui.Text("无视周边的挂壁亲友（用竖线|隔开）");
-		if (ImGui.InputText("Friendly names", ref Configuration.SpeedUpFriendly, 114514)) Configuration.Save();
+		if (ImGui.InputText("亲友", ref Configuration.SpeedUpFriendly, 114514)) Configuration.Save();
 		ImGui.Text($"周围人数：{(InArea() ? OtherPlayer.Count : "不在区域内")};区域id：{ClientState.TerritoryType}");
 		ImGui.Separator();
 		NewTable(["Id", "名称"], MapInfo.Select(p => (p.Key, p.Value)).ToArray(), [

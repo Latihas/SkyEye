@@ -17,8 +17,7 @@ public partial class ConfigWindow {
 	private static string ReplaceNameplate(string str) => GetChangedName(str);
 
 	private static string GetChangedName(string str) {
-		if (string.IsNullOrEmpty(str))
-			return str;
+		if (string.IsNullOrEmpty(str)) return str;
 		foreach (var entry in Configuration.NameReplacementDict.Where(entry => entry.Item1 == str)) return entry.Item2;
 		var lt = str.Split(' ');
 		return lt.Length != 2 ? str : string.Join(" . ", lt.Select(s => s.ToUpper().FirstOrDefault()));
