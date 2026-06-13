@@ -137,12 +137,12 @@ internal class UiBuilder : IDisposable {
 			if (Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var v) && Gui.WorldToScreen(en, out var v2))
 				_bdl.DrawLine(v, v2, 0x7F0000FF);
 		if (Configuration.EnablePalacePal) {
-			if (_params == null) {
+			if (_paramsPalacePal == null) {
 				const float r1 = 2.5f;
-				_params = new (float, float)[DefaultCircleSegments + 1];
+				_paramsPalacePal = new (float, float)[DefaultCircleSegments + 1];
 				for (var i = 0; i <= DefaultCircleSegments; i++) {
 					var currentRotation = i * DefaultCircleSegmentFullRotation;
-					_params[i] = (r1 * MathF.Sin(currentRotation), r1 * MathF.Cos(currentRotation));
+					_paramsPalacePal[i] = (r1 * MathF.Sin(currentRotation), r1 * MathF.Cos(currentRotation));
 				}
 			}
 			if (ConfigWindow.PalacePalDatList.Count == 0) {
@@ -162,7 +162,7 @@ internal class UiBuilder : IDisposable {
 				foreach (var (territoryType, type, position) in ConfigWindow.PalacePalDatList) {
 					if (territoryType != ClientState.TerritoryType) continue;
 					for (var i = 0; i <= DefaultCircleSegments; i++) {
-						var p = _params[i];
+						var p = _paramsPalacePal[i];
 						Gui.WorldToScreen(new Vector3(position.X + p.Item1, position.Y, position.Z + p.Item2), out var segment);
 						_bdl.PathLineTo(segment);
 					}
@@ -171,11 +171,48 @@ internal class UiBuilder : IDisposable {
 				}
 			}
 		}
+		if (Configuration.ShowMyPos) {
+			Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var p);
+			_bdl.DrawMapDot(p, 0xFFFFFFFF, 0xFFFFFFFF, Configuration.ShowThickness);
+		}
+		const uint color=0xFF00FF00;
+		if (Configuration.ShowCircle) {
+			var center = new Vector3(Configuration.ShowCenterX, Configuration.ShowCenterY, Configuration.ShowCenterZ);
+			var r1 = Configuration.CircleR;
+			var _params = new (float, float)[HighResCircleSegments + 1];
+			for (var i = 0; i <= HighResCircleSegments; i++) {
+				var currentRotation = i * HighResCircleSegmentFullRotation;
+				_params[i] = (r1 * MathF.Sin(currentRotation), r1 * MathF.Cos(currentRotation));
+			}
+			Vector2 last = new();
+			for (var i = 0; i <= HighResCircleSegments; i++) {
+				var p = _params[i];
+				if (i == 0) {
+					Gui.WorldToScreen(new Vector3(center.X + p.Item1, center.Y, center.Z + p.Item2), out last);
+					continue;
+				}
+				Gui.WorldToScreen(new Vector3(center.X + p.Item1, center.Y, center.Z + p.Item2), out var now);
+				_bdl.DrawLine(last, now, color, Configuration.ShowThickness);
+				last = now;
+			}
+		}
+		if (Configuration.ShowSquare) {
+			var center = new Vector3(Configuration.ShowCenterX, Configuration.ShowCenterY, Configuration.ShowCenterZ);
+			var LT = Gui.WorldToScreen(new Vector3(center.X - Configuration.SquareR, center.Y, center.Z + Configuration.SquareR), out var LT2);
+			var RT = Gui.WorldToScreen(new Vector3(center.X + Configuration.SquareR, center.Y, center.Z + Configuration.SquareR), out var RT2);
+			var LB = Gui.WorldToScreen(new Vector3(center.X - Configuration.SquareR, center.Y, center.Z - Configuration.SquareR), out var LB2);
+			var RB = Gui.WorldToScreen(new Vector3(center.X + Configuration.SquareR, center.Y, center.Z - Configuration.SquareR), out var RB2);
+			_bdl.DrawLine(LT2, RT2, color, Configuration.ShowThickness);
+			_bdl.DrawLine(LT2, LB2, color, Configuration.ShowThickness);
+			_bdl.DrawLine(RT2, RB2, color, Configuration.ShowThickness);
+			_bdl.DrawLine(LB2, RB2, color, Configuration.ShowThickness);
+		}
 	}
 
-	private (float, float)[]? _params;
-	private const int DefaultCircleSegments = 16;
-	private const float DefaultCircleSegmentFullRotation = 2 * MathF.PI / DefaultCircleSegments;
+	private (float, float)[]? _paramsPalacePal;
+	private const int DefaultCircleSegments = 16,HighResCircleSegments=50;
+	private const float DefaultCircleSegmentFullRotation = 2 * MathF.PI / DefaultCircleSegments,
+		HighResCircleSegmentFullRotation = 2 * MathF.PI / HighResCircleSegments;
 
 	private void RefreshEureka() {
 		var territory = (Territory)ClientState.TerritoryType;

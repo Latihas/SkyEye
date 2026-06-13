@@ -52,6 +52,17 @@ public partial class ConfigWindow() : Window("SkyEye") {
 			NewTab("目标", DrawTarget);
 			NewTab("改名", DrawNameReplacement);
 			NewTab("Tp", DrawTp);
+			NewTab("显示范围", () => {
+				if (ImGui.Checkbox("显示自身位置", ref Configuration.ShowMyPos)) Configuration.Save();
+				if (ImGui.Checkbox("显示圆环", ref Configuration.ShowCircle)) Configuration.Save();
+				if (ImGui.InputFloat("圆环半径", ref Configuration.CircleR)) Configuration.Save();
+				if (ImGui.Checkbox("显示方环", ref Configuration.ShowSquare)) Configuration.Save();
+				if (ImGui.InputFloat("方环半径", ref Configuration.SquareR)) Configuration.Save();
+				if (ImGui.InputFloat("粗细", ref Configuration.ShowThickness)) Configuration.Save();
+				if (ImGui.InputFloat("绘制中心X", ref Configuration.ShowCenterX)) Configuration.Save();
+				if (ImGui.InputFloat("绘制中心Y", ref Configuration.ShowCenterY)) Configuration.Save();
+				if (ImGui.InputFloat("绘制中心Z", ref Configuration.ShowCenterZ)) Configuration.Save();
+			});
 			if (HasCore()) NewTab("深宫", DrawPalacePal);
 			ImGui.EndTabBar();
 		}

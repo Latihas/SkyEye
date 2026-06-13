@@ -39,7 +39,8 @@ public class MConfiguration : IPluginConfiguration {
 	public Dictionary<string, int> TotalChest = [], TotalPot = [];
 	public List<(string, string)> NameReplacementDict = [];
 	public Dictionary<uint, HashSet<Vector3>> AllElementalPositions = [];
-	public bool CoreTpWhenGreenNearby;
+	public bool CoreTpWhenGreenNearby, ShowMyPos, ShowCircle, ShowSquare;
+	public float CircleR = 20, SquareR = 20, ShowThickness =6,ShowCenterX=100,ShowCenterY,ShowCenterZ=100;
 
 	public void Save() => PluginInterface.SavePluginConfig(this);
 

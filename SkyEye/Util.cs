@@ -38,8 +38,8 @@ internal static class Util {
 			drawList.AddCircle(pos, radius / 2, bgcolor, 0, radius / 2);
 		}
 
-		internal void DrawLine(Vector2 pos, Vector2 pos2, uint fgcolor) {
-			drawList.AddLine(pos, pos2, fgcolor, 4);
+		internal void DrawLine(Vector2 pos, Vector2 pos2, uint fgcolor, float thickness = 4) {
+			drawList.AddLine(pos, pos2, fgcolor, thickness);
 		}
 	}
 
