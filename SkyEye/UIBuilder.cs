@@ -44,15 +44,7 @@ internal class UiBuilder : IDisposable {
 	}
 
 	private static void TerritoryChanged(uint u) {
-		if (Configuration.DisableAutoRabbitWhenTerritoryChanged) {
-			Configuration.AutoRabbit = false;
-			Configuration.AutoForwardNewRabbit = false;
-			Configuration.Save();
-		}
-		if (Configuration.DisableAutoPotWhenTerritoryChanged) {
-			Configuration.AutoPot = false;
-			Configuration.Save();
-		}
+		if (DisableAutoTreasureOnTerritoryEnter(u)) Configuration.Save();
 		if (InEureka(lastTerritoryId) || InEureka(ClientState.TerritoryType)) {
 			Plugin.ElementalPositions.Clear();
 			ElementalSet.Clear();
@@ -63,12 +55,7 @@ internal class UiBuilder : IDisposable {
 				DeadFateDic[p.Key][k] = "-1";
 		}
 		lastTerritoryId = ClientState.TerritoryType;
-		CurrentSpeedInfo = null;
-		foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
-			CurrentSpeedInfo = s;
-			break;
-		}
-		SetSpeed(1);
+		RefreshCurrentSpeedInfo(u, true);
 	}
 
 	private static uint LastPotId;

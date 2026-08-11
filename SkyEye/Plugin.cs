@@ -40,8 +40,11 @@ namespace SkyEye;
 public sealed partial class Plugin : IDalamudPlugin {
 	private const uint LuckyCarrotItemId = 2002482;
 	private const uint LuckyPotItemId = 2003296;
+	private const int CurrentConfigurationVersion = 1;
+	private const string BaseMovementSpeedSignature = "48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 4F";
+	private const int BaseMovementSpeedOffset = 0x58;
 	internal const int FarmTimeout = 50;
-	private static float _lSpeed = 1f;
+	private static float _lSpeed = float.NaN;
 	internal static List<Vector3> DetectedTreasurePositions = [];
 	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
 	internal static readonly List<Vector3> ElementalPositions = [];
@@ -53,7 +56,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static readonly Lock KillingLock = new();
 	internal static Vector3? lastFarmPos;
 	internal static bool FarmFull;
-	private static IntPtr? SpeedPtr;
+	private static IntPtr? BaseMovementSpeedPtr;
+	private static IntPtr _overriddenSpeedAddress;
+	private static float _originalSpeed;
+	private static bool _speedOverridden, _speedScanAttempted, _speedFailureLogged, _speedApplyDisabled, _restoreFailed;
 	internal static SpeedInfo? CurrentSpeedInfo;
 	internal static Dictionary<string, string> MapInfo = new();
 	private static Timer _carrotTimer = null!, _potTimer = null!;
@@ -85,6 +91,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			if (Configuration.AutoPot) UsePotCarrot();
 			else StopPotTimer();
 		};
+		mountState = Condition[ConditionFlag.Mounted];
 		Framework.Update += UpdateRoundPlayers;
 		Framework.Update += Farm;
 		Framework.Update += FindElemental;
@@ -95,24 +102,20 @@ public sealed partial class Plugin : IDalamudPlugin {
 		ChatGui.ChatMessageUnhandled += ChatPot;
 		ChatGui.ChatMessageUnhandled += ChatMoonPack;
 		ChatGui.ChatMessageUnhandled += Chat30OccultTreasure;
-		if (Configuration.SpeedUp.Count == 0) {
-			Configuration.SpeedUp.Add(SpeedInfo.Default());
-			Configuration.SpeedUp.Add(new SpeedInfo());
-		}
+		var configChanged = MigrateConfiguration();
+		configChanged |= EnsureDefaultSpeedInfo();
+		configChanged |= DisableAutoTreasureOnTerritoryEnter(ClientState.TerritoryType);
+		if (configChanged) Configuration.Save();
 		MapInfo = DataManager.GetExcelSheet<TerritoryType>().Where(i => !i.PlaceNameRegion.Value.Name.IsEmpty)
 			.ToDictionary(i => i.RowId.ToString(), i => $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}");
-		foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
-			CurrentSpeedInfo = s;
-			break;
-		}
+		RefreshCurrentSpeedInfo(ClientState.TerritoryType);
 		if (Configuration.NameReplacement) EnableNameplate();
-		SetSpeed(1);
 	}
 
 	private void CheckState(IFramework _) {
-		if (!InArea() || Condition[ConditionFlag.Mounted] == mountState) return;
+		if (Condition[ConditionFlag.Mounted] == mountState) return;
 		mountState = Condition[ConditionFlag.Mounted];
-		SetSpeed(1);
+		RestoreSpeed(true);
 	}
 
 	private void OnCommand() => OnCommand(null, null);
@@ -149,7 +152,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update -= FindElemental;
 		Framework.Update -= CheckState;
 		DisableNameplate();
-		SetSpeed(1);
+		RestoreSpeed(true);
 		_uiBuilder.Dispose();
 		CommandManager.RemoveHandler("/skyeye");
 		_carrotTimer.Stop();
@@ -209,6 +212,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	internal static void FindPot(bool force = false) {
+		if (!Configuration.EnableOccultPotNavigation) return;
 		if (!force && (_potTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || wait4chest)) return;
 		if (!string.IsNullOrEmpty(Configuration.BeforeGotoNewPot))
 			foreach (var cmd in Configuration.BeforeGotoNewPot.Split('|'))
@@ -372,7 +376,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	internal static bool InEureka() => ObjectTable.LocalPlayer != null && InEureka(ClientState.TerritoryType);
 	internal static bool InOccult() => ObjectTable.LocalPlayer != null && InOccult(ClientState.TerritoryType);
 	internal static bool InEureka(uint id) => (Territory)id is Territory.Anemos or Territory.Pagos or Territory.Pyros or Territory.Hydatos;
-	private static bool InOccult(uint id) => id == 1252;
+	internal static bool InOccult(uint id) => id == 1252;
 
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
 	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, (Territory)ClientState.TerritoryType == Territory.Hydatos ? 20.25f : 11.25f));
@@ -593,35 +597,236 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	internal static bool GreenNearby() {
+		var localPlayer = ObjectTable.LocalPlayer;
+		if (localPlayer == null) return false;
 		var friends = Configuration.SpeedUpFriendly.Split('|');
-		return OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ObjectTable.LocalPlayer!.Position) < (110 ^ 2));
+		return OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.DistanceSquared(i.Position, localPlayer.Position) < 110f * 110f);
 	}
 
 	private static void UpdateRoundPlayers(IFramework _) {
-		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null || !InArea() || CurrentSpeedInfo == null) return;
+		if (!Configuration.PluginEnabled || !Configuration.SpeedUpEnabled || ObjectTable.LocalPlayer == null || !InArea() || CurrentSpeedInfo == null) {
+			RestoreSpeed();
+			return;
+		}
 		OtherPlayer.Clear();
 		foreach (var obj in ObjectTable)
 			if (obj.GameObjectId != ObjectTable.LocalPlayer.GameObjectId & obj.Address.ToInt64() != 0 && obj is IPlayerCharacter rcTemp)
 				OtherPlayer.Add(rcTemp);
-		SetSpeed(!Configuration.SpeedUpEnabled || GreenNearby() ? 1f : CurrentSpeedInfo.SpeedUpN);
+		if (GreenNearby()) RestoreSpeed();
+		else ApplyBaseMovementSpeedOverride();
+	}
+
+	internal static SpeedInfo? FindSpeedInfo(uint territoryType) {
+		var territory = territoryType.ToString();
+		return Configuration.SpeedUp.FirstOrDefault(s =>
+			s != null &&
+			s.Enabled &&
+			!string.IsNullOrWhiteSpace(s.SpeedUpTerritory ?? string.Empty) &&
+			(s.SpeedUpTerritory ?? string.Empty).Split('|').Contains(territory) &&
+			IsValidSpeedValue(s.BaseMovementSpeed) &&
+			IsValidSpeedValue(s.MountBaseMovementSpeed) &&
+			IsValidSpeedValue(s.SpeedUpN) &&
+			IsValidSpeedValue(s.SpeedUpMax));
+	}
+
+	internal static bool IsValidSpeedValue(float value) => float.IsFinite(value) && value > 0f;
+
+	internal static bool DisableAutoTreasureOnTerritoryEnter(uint territoryId) {
+		var changed = false;
+		if (Configuration.DisableAutoRabbitWhenTerritoryChanged && InEureka(territoryId)) {
+			changed |= Configuration.AutoRabbit;
+			changed |= Configuration.AutoForwardNewRabbit;
+			Configuration.AutoRabbit = false;
+			Configuration.AutoForwardNewRabbit = false;
+		}
+		if (Configuration.DisableAutoPotWhenTerritoryChanged && InOccult(territoryId)) {
+			changed |= Configuration.AutoPot;
+			changed |= Configuration.EnableOccultPotNavigation;
+			Configuration.AutoPot = false;
+			Configuration.EnableOccultPotNavigation = false;
+		}
+		return changed;
+	}
+
+	private static bool MigrateConfiguration() {
+		if (Configuration.Version >= CurrentConfigurationVersion) return false;
+		if (Configuration.Version < 1) {
+			Configuration.DisableAutoRabbitWhenTerritoryChanged = true;
+			Configuration.DisableAutoPotWhenTerritoryChanged = true;
+		}
+		Configuration.Version = CurrentConfigurationVersion;
+		return true;
+	}
+
+	private static bool EnsureDefaultSpeedInfo() {
+		var changed = false;
+		Configuration.SpeedUp ??= [];
+		if (Configuration.SpeedUp.Count == 0) {
+			Configuration.SpeedUp.Add(SpeedInfo.Default());
+			return true;
+		}
+		if (Configuration.SpeedUp.Any(speedInfo => speedInfo?.IsDefault == true)) return changed;
+		var legacyDefault = Configuration.SpeedUp.FirstOrDefault(speedInfo =>
+			speedInfo != null && SpeedInfo.HasLegacyDefaultCharacteristics(speedInfo));
+		if (legacyDefault != null) {
+			legacyDefault.IsDefault = true;
+			changed = true;
+		}
+		return changed;
+	}
+
+	internal static void RefreshCurrentSpeedInfo(uint? territoryType = null, bool resetFailures = false) {
+		if (resetFailures) ResetSpeedFailureState();
+		RestoreSpeed(true);
+		CurrentSpeedInfo = FindSpeedInfo(territoryType ?? ClientState.TerritoryType);
+	}
+
+	internal static void ResetSpeedFailureState() {
+		_speedApplyDisabled = false;
+		_speedScanAttempted = false;
+		_speedFailureLogged = false;
+		if (!_speedOverridden) _restoreFailed = false;
 	}
 
 	// https://github.com/Jaksuhn/ffxiv-bundleoftweaks
 	// https://github.com/MnFeN/Triggernometry
 	[SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
-	internal static void SetSpeed(float speedBase) {
-		if (CurrentSpeedInfo == null || !Configuration.SpeedUpEnabled) return;
+	internal static void ApplyBaseMovementSpeedOverride() {
+		var speedInfo = CurrentSpeedInfo;
+		if (_speedApplyDisabled || _restoreFailed || speedInfo == null || !Configuration.PluginEnabled || !Configuration.SpeedUpEnabled ||
+		    !IsValidSpeedValue(speedInfo.BaseMovementSpeed) || !IsValidSpeedValue(speedInfo.MountBaseMovementSpeed) ||
+		    !IsValidSpeedValue(speedInfo.SpeedUpN) || !IsValidSpeedValue(speedInfo.SpeedUpMax)) return;
 		var mounted = Condition[ConditionFlag.Mounted];
-		if (mounted) speedBase *= CurrentSpeedInfo.SpeedUpMountX;
-		if (_lSpeed == speedBase) return;
-		_lSpeed = speedBase;
-		if (SpeedPtr == null) {
-			var ba = SigScanner.ScanText("48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 4F") + 3;
-			SpeedPtr = ba + Marshal.ReadInt32(ba) + 4 + 0x58;
+		var baseSpeed = mounted ? speedInfo.MountBaseMovementSpeed : speedInfo.BaseMovementSpeed;
+		if (_speedOverridden) {
+			var requestedSpeed = Math.Min(speedInfo.SpeedUpMax, baseSpeed * speedInfo.SpeedUpN);
+			if (_lSpeed == requestedSpeed) return;
 		}
-		var finalspeed = Math.Min(CurrentSpeedInfo.SpeedUpMax, speedBase * 6);
-		ChatBox.SendMessage($"/e SetSpeed({(mounted ? 6 * CurrentSpeedInfo.SpeedUpMountX : 6)}x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
-		SafeMemory.Write(SpeedPtr.Value, finalspeed);
+		if (!TryResolveBaseMovementSpeedAddress(out var address)) return;
+
+		float previousSpeed, finalSpeed;
+		try {
+			var values = SafeMemory.Read<float>(address, 1);
+			if (values == null || values.Length == 0 || !IsValidSpeedValue(values[0])) {
+				LogSpeedFailure("读取当前基础移速失败");
+				_speedApplyDisabled = true;
+				if (!_speedOverridden) BaseMovementSpeedPtr = null;
+				return;
+			}
+			previousSpeed = values[0];
+			finalSpeed = Math.Min(speedInfo.SpeedUpMax, baseSpeed * speedInfo.SpeedUpN);
+			if (!IsValidSpeedValue(finalSpeed)) {
+				LogSpeedFailure("计算得到的基础移速覆盖值无效");
+				_speedApplyDisabled = true;
+				return;
+			}
+			SafeMemory.Write(address, finalSpeed);
+		} catch (Exception ex) {
+			LogSpeedFailure("读写基础移速内存失败", ex);
+			_speedApplyDisabled = true;
+			if (!_speedOverridden) BaseMovementSpeedPtr = null;
+			return;
+		}
+
+		if (!_speedOverridden) {
+			_originalSpeed = previousSpeed;
+			_overriddenSpeedAddress = address;
+			_speedOverridden = true;
+		}
+		_lSpeed = finalSpeed;
+		if (Configuration.SpeedDebugOutput) {
+			try {
+				ChatBox.SendMessage($"/e SetBaseSpeed: mounted={mounted} base={baseSpeed}*rate={speedInfo.SpeedUpN} capped={speedInfo.SpeedUpMax} {previousSpeed}->{finalSpeed}");
+			} catch (Exception ex) {
+				LogSpeedFailure("基础移速调试输出失败", ex);
+			}
+		}
+	}
+
+	internal static void RestoreSpeed(bool force = false) {
+		if (!_speedOverridden) {
+			_lSpeed = float.NaN;
+			return;
+		}
+		if (_restoreFailed && !force) return;
+		var addressValue = _overriddenSpeedAddress.ToInt64();
+		if (_overriddenSpeedAddress == IntPtr.Zero || addressValue < 0x10000 || addressValue > 0x00007FFFFFFFFFFF) {
+			LogSpeedFailure("缓存的基础移速地址不合理，取消恢复写入");
+			_restoreFailed = true;
+			return;
+		}
+		try {
+			var currentValues = SafeMemory.Read<float>(_overriddenSpeedAddress, 1);
+			if (currentValues == null || currentValues.Length == 0 || !float.IsFinite(currentValues[0])) {
+				LogSpeedFailure("恢复前无法确认基础移速地址可读，取消恢复写入");
+				_restoreFailed = true;
+				return;
+			}
+			if (Math.Abs(currentValues[0] - _originalSpeed) <= 0.0001f) {
+				ClearSpeedOverrideState();
+				return;
+			}
+			if (!float.IsFinite(_lSpeed) || Math.Abs(currentValues[0] - _lSpeed) > 0.0001f) {
+				LogSpeedFailure("恢复前当前基础移速与插件最后写入值不符，无法确认目标地址");
+				_restoreFailed = true;
+				return;
+			}
+			SafeMemory.Write(_overriddenSpeedAddress, _originalSpeed);
+			var restoredValues = SafeMemory.Read<float>(_overriddenSpeedAddress, 1);
+			if (restoredValues == null || restoredValues.Length == 0 || !float.IsFinite(restoredValues[0]) || Math.Abs(restoredValues[0] - _originalSpeed) > 0.0001f) {
+				LogSpeedFailure("恢复后基础移速值校验失败");
+				_restoreFailed = true;
+				return;
+			}
+		} catch (Exception ex) {
+			LogSpeedFailure("恢复原始基础移速失败", ex);
+			_restoreFailed = true;
+			return;
+		}
+		ClearSpeedOverrideState();
+	}
+
+	private static void ClearSpeedOverrideState() {
+		_speedOverridden = false;
+		_restoreFailed = false;
+		_overriddenSpeedAddress = IntPtr.Zero;
+		_originalSpeed = 0f;
+		_lSpeed = float.NaN;
+	}
+
+	private static bool TryResolveBaseMovementSpeedAddress(out IntPtr address) {
+		if (BaseMovementSpeedPtr.HasValue) {
+			address = BaseMovementSpeedPtr.Value;
+			return true;
+		}
+		address = IntPtr.Zero;
+		if (_speedScanAttempted) return false;
+		_speedScanAttempted = true;
+		try {
+			if (!SigScanner.TryScanText(BaseMovementSpeedSignature, out var signature) || signature == IntPtr.Zero) {
+				LogSpeedFailure("未找到基础移速签名");
+				return false;
+			}
+			var displacementAddress = signature + 3;
+			address = displacementAddress + Marshal.ReadInt32(displacementAddress) + 4 + BaseMovementSpeedOffset;
+			if (address == IntPtr.Zero) {
+				LogSpeedFailure("基础移速地址无效");
+				return false;
+			}
+			BaseMovementSpeedPtr = address;
+			return true;
+		} catch (Exception ex) {
+			LogSpeedFailure("解析基础移速地址失败", ex);
+			address = IntPtr.Zero;
+			return false;
+		}
+	}
+
+	private static void LogSpeedFailure(string message, Exception? exception = null) {
+		if (_speedFailureLogged) return;
+		_speedFailureLogged = true;
+		if (exception == null) Log.Error($"[BaseMovementSpeed] {message}");
+		else Log.Error(exception, $"[BaseMovementSpeed] {message}");
 	}
 
 	[GeneratedRegex("^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！")]

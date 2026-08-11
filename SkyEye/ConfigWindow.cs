@@ -11,9 +11,13 @@ namespace SkyEye;
 
 public partial class ConfigWindow() : Window("SkyEye") {
 	public override void Draw() {
-		if (ImGui.Checkbox("开关", ref Configuration.PluginEnabled)) Configuration.Save();
+		if (ImGui.Checkbox("开关", ref Configuration.PluginEnabled)) {
+			if (!Configuration.PluginEnabled) RestoreSpeed(true);
+			else RefreshCurrentSpeedInfo(resetFailures: true);
+			Configuration.Save();
+		}
 		if (!Configuration.PluginEnabled) {
-			SetSpeed(1);
+			RestoreSpeed();
 			lastFarmPos = null;
 			FarmFull = false;
 			Stop();
@@ -32,6 +36,11 @@ public partial class ConfigWindow() : Window("SkyEye") {
 			NewTab("月岛", () => {
 				if (ImGui.BeginTabBar("月岛tab")) {
 					NewTab("萝卜", () => {
+						if (ImGui.Checkbox("启用月岛萝卜导航/传送", ref Configuration.EnableOccultBunnyNavigation)) Configuration.Save();
+						if (!Configuration.EnableOccultBunnyNavigation) {
+							ImGui.Text("默认关闭，避免进图后误传送到萝卜点位。");
+							return;
+						}
 						foreach (var p in PData.OccultBunnyPosition
 							         .Where(p => ClientState.TerritoryType == p.Key))
 							for (var i = 0; i < p.Value.Count; i++) {
