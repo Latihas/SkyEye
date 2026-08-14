@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +12,7 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
+using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -40,13 +40,13 @@ namespace SkyEye;
 public sealed partial class Plugin : IDalamudPlugin {
 	private const uint LuckyCarrotItemId = 2002482;
 	private const uint LuckyPotItemId = 2003296;
-	private const int CurrentConfigurationVersion = 1;
-	private const string BaseMovementSpeedSignature = "48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 4F";
-	private const int BaseMovementSpeedOffset = 0x58;
+	private const int CurrentConfigurationVersion = 2;
+	private const string SpeedMultiplierCalculateSignature = "40 57 48 83 EC ?? 48 8B F9 48 8B 49 ?? 48 8B 01 FF 90 ?? ?? ?? ?? 48 85 C0 75";
 	private const float SpeedComparisonTolerance = 0.001f;
-	private const long SpeedRetryDelayMilliseconds = 1000;
+	private const long SpeedHookRetryDelayMilliseconds = 1000;
 	internal const int FarmTimeout = 50;
-	private static float _lSpeed = float.NaN;
+	private sealed record SpeedMultiplierState(float Multiplier, float MaxMultiplier);
+	private static SpeedMultiplierState _speedMultiplierState = new(1f, 0f);
 	internal static List<Vector3> DetectedTreasurePositions = [];
 	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
 	internal static readonly List<Vector3> ElementalPositions = [];
@@ -58,17 +58,16 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static readonly Lock KillingLock = new();
 	internal static Vector3? lastFarmPos;
 	internal static bool FarmFull;
-	private static IntPtr? BaseMovementSpeedPtr;
-	private static IntPtr _overriddenSpeedAddress;
-	private static float _originalSpeed, _restoreWalkingBaseSpeed, _restoreMountedBaseSpeed;
-	private static long _speedRetryAfter;
-	private static bool _speedOverridden, _speedScanAttempted, _speedFailureLogged, _overrideMounted;
+	private delegate float SpeedMultiplierCalculateDelegate(nint characterSpeedContainer);
+	private static Hook<SpeedMultiplierCalculateDelegate>? _speedMultiplierCalculateHook;
+	private static SpeedMultiplierCalculateDelegate? _speedMultiplierCalculateOriginal;
+	private static long _speedHookRetryAfter;
+	private static bool _speedHookFailureLogged;
 	internal static SpeedInfo? CurrentSpeedInfo;
 	internal static Dictionary<string, string> MapInfo = new();
 	private static Timer _carrotTimer = null!, _potTimer = null!;
 	private readonly ConfigWindow _configWindow;
 	private readonly UiBuilder _uiBuilder;
-	private bool mountState;
 	// ReSharper disable once MemberCanBePrivate.Global
 	public readonly WindowSystem WindowSystem = new("SkyEye");
 
@@ -94,8 +93,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 			if (Configuration.AutoPot) UsePotCarrot();
 			else StopPotTimer();
 		};
-		mountState = Condition[ConditionFlag.Mounted];
-		Framework.Update += CheckState;
 		Framework.Update += UpdateRoundPlayers;
 		Framework.Update += Farm;
 		Framework.Update += FindElemental;
@@ -113,12 +110,6 @@ public sealed partial class Plugin : IDalamudPlugin {
 			.ToDictionary(i => i.RowId.ToString(), i => $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}");
 		RefreshCurrentSpeedInfo(ClientState.TerritoryType);
 		if (Configuration.NameReplacement) EnableNameplate();
-	}
-
-	private void CheckState(IFramework _) {
-		if (Condition[ConditionFlag.Mounted] == mountState) return;
-		mountState = Condition[ConditionFlag.Mounted];
-		RestoreSpeed(true);
 	}
 
 	private void OnCommand() => OnCommand(null, null);
@@ -153,9 +144,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update -= UpdateRoundPlayers;
 		Framework.Update -= Farm;
 		Framework.Update -= FindElemental;
-		Framework.Update -= CheckState;
 		DisableNameplate();
-		RestoreSpeed(true);
+		DisposeSpeedMultiplierHook();
 		_uiBuilder.Dispose();
 		CommandManager.RemoveHandler("/skyeye");
 		_carrotTimer.Stop();
@@ -612,12 +602,17 @@ public sealed partial class Plugin : IDalamudPlugin {
 			RestoreSpeed();
 			return;
 		}
+		if (_speedMultiplierCalculateHook == null) InitializeSpeedMultiplierHook();
+		if (_speedMultiplierCalculateHook == null) {
+			RestoreSpeed();
+			return;
+		}
 		OtherPlayer.Clear();
 		foreach (var obj in ObjectTable)
 			if (obj.GameObjectId != ObjectTable.LocalPlayer.GameObjectId & obj.Address.ToInt64() != 0 && obj is IPlayerCharacter rcTemp)
 				OtherPlayer.Add(rcTemp);
 		if (GreenNearby()) RestoreSpeed();
-		else ApplyBaseMovementSpeedOverride();
+		else SetSpeedMultiplier(CurrentSpeedInfo.SpeedUpN, CurrentSpeedInfo.SpeedMultiplierMax);
 	}
 
 	internal static SpeedInfo? FindSpeedInfo(uint territoryType) {
@@ -627,10 +622,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 			s.Enabled &&
 			!string.IsNullOrWhiteSpace(s.SpeedUpTerritory ?? string.Empty) &&
 			(s.SpeedUpTerritory ?? string.Empty).Split('|').Contains(territory) &&
-			IsValidSpeedValue(s.BaseMovementSpeed) &&
-			IsValidSpeedValue(s.MountBaseMovementSpeed) &&
 			IsValidSpeedValue(s.SpeedUpN) &&
-			IsValidSpeedValue(s.SpeedUpMax));
+			IsValidSpeedValue(s.SpeedMultiplierMax));
 	}
 
 	internal static bool IsValidSpeedValue(float value) => float.IsFinite(value) && value > 0f;
@@ -658,6 +651,14 @@ public sealed partial class Plugin : IDalamudPlugin {
 			Configuration.DisableAutoRabbitWhenTerritoryChanged = true;
 			Configuration.DisableAutoPotWhenTerritoryChanged = true;
 		}
+		if (Configuration.Version < 2) {
+			foreach (var speedInfo in Configuration.SpeedUp ?? []) {
+				if (speedInfo == null) continue;
+				speedInfo.SpeedMultiplierMax = IsValidSpeedValue(speedInfo.SpeedUpN)
+					? speedInfo.SpeedUpN
+					: SpeedInfo.DefaultSpeedMultiplierMax;
+			}
+		}
 		Configuration.Version = CurrentConfigurationVersion;
 		return true;
 	}
@@ -680,202 +681,103 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	internal static void RefreshCurrentSpeedInfo(uint? territoryType = null, bool resetFailures = false) {
-		if (resetFailures) ResetSpeedFailureState();
-		RestoreSpeed(true);
+		if (resetFailures) {
+			_speedHookRetryAfter = 0;
+			_speedHookFailureLogged = false;
+		}
+		RestoreSpeed();
 		CurrentSpeedInfo = FindSpeedInfo(territoryType ?? ClientState.TerritoryType);
-	}
-
-	internal static void ResetSpeedFailureState() {
-		_speedRetryAfter = 0;
-		_speedScanAttempted = false;
-		_speedFailureLogged = false;
-	}
-
-	// https://github.com/Jaksuhn/ffxiv-bundleoftweaks
-	// https://github.com/MnFeN/Triggernometry
-	[SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
-	internal static void ApplyBaseMovementSpeedOverride() {
-		var speedInfo = CurrentSpeedInfo;
-		if (SpeedRetryPending() || speedInfo == null || !Configuration.PluginEnabled || !Configuration.SpeedUpEnabled ||
-		    !IsValidSpeedValue(speedInfo.BaseMovementSpeed) || !IsValidSpeedValue(speedInfo.MountBaseMovementSpeed) ||
-		    !IsValidSpeedValue(speedInfo.SpeedUpN) || !IsValidSpeedValue(speedInfo.SpeedUpMax)) return;
-		var mounted = Condition[ConditionFlag.Mounted];
-		var baseSpeed = mounted ? speedInfo.MountBaseMovementSpeed : speedInfo.BaseMovementSpeed;
-		var requestedSpeed = Math.Min(speedInfo.SpeedUpMax, baseSpeed * speedInfo.SpeedUpN);
-		if (_speedOverridden) {
-			try {
-				var activeValues = SafeMemory.Read<float>(_overriddenSpeedAddress, 1);
-				if (activeValues == null || activeValues.Length == 0 || !IsValidSpeedValue(activeValues[0])) {
-					ScheduleSpeedRetry("无法校验当前基础移速覆盖值");
-					return;
-				}
-				if (float.IsFinite(_lSpeed) && SpeedApproximatelyEquals(activeValues[0], _lSpeed)) {
-					if (SpeedApproximatelyEquals(_lSpeed, requestedSpeed)) return;
-				} else {
-					Log.Information($"[BaseMovementSpeed] 检测到游戏重置基础移速为 {activeValues[0]}，重新建立覆盖状态");
-					ClearSpeedOverrideState();
-				}
-			} catch (Exception ex) {
-				ScheduleSpeedRetry("校验当前基础移速覆盖值失败", ex);
-				return;
-			}
-		}
-		if (!TryResolveBaseMovementSpeedAddress(out var address)) return;
-
-		float previousSpeed, finalSpeed;
-		try {
-			var values = SafeMemory.Read<float>(address, 1);
-			if (values == null || values.Length == 0 || !IsValidSpeedValue(values[0])) {
-				ScheduleSpeedRetry("读取当前基础移速失败");
-				if (!_speedOverridden) {
-					BaseMovementSpeedPtr = null;
-					_speedScanAttempted = false;
-				}
-				return;
-			}
-			previousSpeed = values[0];
-			finalSpeed = requestedSpeed;
-			if (!IsValidSpeedValue(finalSpeed)) {
-				ScheduleSpeedRetry("计算得到的基础移速覆盖值无效");
-				return;
-			}
-			SafeMemory.Write(address, finalSpeed);
-		} catch (Exception ex) {
-			ScheduleSpeedRetry("读写基础移速内存失败", ex);
-			if (!_speedOverridden) {
-				BaseMovementSpeedPtr = null;
-				_speedScanAttempted = false;
-			}
-			return;
-		}
-
-		if (!_speedOverridden) {
-			_originalSpeed = previousSpeed;
-			_restoreWalkingBaseSpeed = speedInfo.BaseMovementSpeed;
-			_restoreMountedBaseSpeed = speedInfo.MountBaseMovementSpeed;
-			_overrideMounted = mounted;
-			_overriddenSpeedAddress = address;
-			_speedOverridden = true;
-		}
-		_lSpeed = finalSpeed;
-		ClearSpeedRetry();
-		if (Configuration.SpeedDebugOutput) {
-			try {
-				ChatBox.SendMessage($"/e SetBaseSpeed: mounted={mounted} base={baseSpeed}*rate={speedInfo.SpeedUpN} capped={speedInfo.SpeedUpMax} {previousSpeed}->{finalSpeed}");
-			} catch (Exception ex) {
-				LogSpeedFailure("基础移速调试输出失败", ex);
-			}
-		}
+		if (_speedMultiplierCalculateHook == null) InitializeSpeedMultiplierHook();
 	}
 
 	internal static void RestoreSpeed(bool force = false) {
-		if (!_speedOverridden) {
-			_lSpeed = float.NaN;
-			return;
-		}
-		if (!force && SpeedRetryPending()) return;
-		var addressValue = _overriddenSpeedAddress.ToInt64();
-		if (_overriddenSpeedAddress == IntPtr.Zero || addressValue < 0x10000 || addressValue > 0x00007FFFFFFFFFFF) {
-			ScheduleSpeedRetry("缓存的基础移速地址不合理，暂缓恢复写入");
-			return;
-		}
-		try {
-			var currentValues = SafeMemory.Read<float>(_overriddenSpeedAddress, 1);
-			if (currentValues == null || currentValues.Length == 0 || !float.IsFinite(currentValues[0])) {
-				ScheduleSpeedRetry("恢复前无法确认基础移速地址可读，暂缓恢复写入");
-				return;
-			}
-			var mounted = Condition[ConditionFlag.Mounted];
-			var restoreSpeed = mounted == _overrideMounted
-				? _originalSpeed
-				: mounted ? _restoreMountedBaseSpeed : _restoreWalkingBaseSpeed;
-			if (!IsValidSpeedValue(restoreSpeed)) {
-				ScheduleSpeedRetry("没有可用的基础移速恢复值");
-				return;
-			}
-			if (SpeedApproximatelyEquals(currentValues[0], restoreSpeed)) {
-				ClearSpeedOverrideState();
-				return;
-			}
-			if (!float.IsFinite(_lSpeed) || !SpeedApproximatelyEquals(currentValues[0], _lSpeed)) {
-				Log.Warning($"[BaseMovementSpeed] 当前值已被游戏或其他插件改为 {currentValues[0]}，放弃旧覆盖状态，不写入过期恢复值");
-				ClearSpeedOverrideState();
-				return;
-			}
-			SafeMemory.Write(_overriddenSpeedAddress, restoreSpeed);
-			var restoredValues = SafeMemory.Read<float>(_overriddenSpeedAddress, 1);
-			if (restoredValues == null || restoredValues.Length == 0 || !float.IsFinite(restoredValues[0]) || !SpeedApproximatelyEquals(restoredValues[0], restoreSpeed)) {
-				ScheduleSpeedRetry("恢复后基础移速值校验失败");
-				return;
-			}
-		} catch (Exception ex) {
-			ScheduleSpeedRetry("恢复原始基础移速失败", ex);
-			return;
-		}
-		ClearSpeedOverrideState();
+		_ = force; // A multiplier hook has no stale memory value to force-write.
+		SetSpeedMultiplier(1f);
 	}
 
-	private static void ClearSpeedOverrideState() {
-		_speedOverridden = false;
-		_overriddenSpeedAddress = IntPtr.Zero;
-		_originalSpeed = 0f;
-		_restoreWalkingBaseSpeed = 0f;
-		_restoreMountedBaseSpeed = 0f;
-		_overrideMounted = false;
-		_lSpeed = float.NaN;
-		ClearSpeedRetry();
+	private static void SetSpeedMultiplier(float multiplier, float maxMultiplier = 0f) {
+		if (!IsValidSpeedValue(multiplier)) multiplier = 1f;
+		if (!IsValidSpeedValue(maxMultiplier)) {
+			if (multiplier > 1f) multiplier = 1f;
+			maxMultiplier = 0f;
+		}
+		var previous = Volatile.Read(ref _speedMultiplierState);
+		if (SpeedApproximatelyEquals(previous.Multiplier, multiplier) &&
+		    SpeedApproximatelyEquals(previous.MaxMultiplier, maxMultiplier)) return;
+		Volatile.Write(ref _speedMultiplierState, new SpeedMultiplierState(multiplier, maxMultiplier));
+		if (!Configuration.SpeedDebugOutput || _speedMultiplierCalculateHook == null) return;
+		try {
+			ChatBox.SendMessage($"/e SpeedMultiplier: {previous.Multiplier}->{multiplier}, max={maxMultiplier}");
+		} catch (Exception ex) {
+			Log.Error(ex, "[SpeedMultiplier] 输出调试信息失败");
+		}
+	}
+
+	//hook游戏内基础移速
+	private static float SpeedMultiplierCalculateDetour(nint characterSpeedContainer) {
+		var originalMultiplier = _speedMultiplierCalculateOriginal!(characterSpeedContainer);
+		var state = Volatile.Read(ref _speedMultiplierState);
+		return CalculateFinalSpeedMultiplier(originalMultiplier, state.Multiplier, state.MaxMultiplier);
+	}
+
+	private static float CalculateFinalSpeedMultiplier(float originalMultiplier, float multiplier, float maxMultiplier) {
+		if (!float.IsFinite(originalMultiplier) || originalMultiplier < 0f) return 0f;
+		if (originalMultiplier == 0f) return 0f;
+		if (!IsValidSpeedValue(multiplier)) multiplier = 1f;
+		if (multiplier <= 1f) return originalMultiplier * multiplier;
+		if (!IsValidSpeedValue(maxMultiplier)) return originalMultiplier;
+		var result = (double)originalMultiplier * multiplier;
+		return (float)Math.Min(result, maxMultiplier);
+	}
+
+	private static void InitializeSpeedMultiplierHook() {
+		if (_speedMultiplierCalculateHook != null) return;
+		if (Environment.TickCount64 < _speedHookRetryAfter) return;
+		_speedHookRetryAfter = Environment.TickCount64 + SpeedHookRetryDelayMilliseconds;
+		Hook<SpeedMultiplierCalculateDelegate>? hook = null;
+		try {
+			if (!SigScanner.TryScanText(SpeedMultiplierCalculateSignature, out var address) || address == IntPtr.Zero) {
+				LogSpeedHookFailure("未找到移速倍率计算签名");
+				return;
+			}
+			hook = GameInteropProvider.HookFromAddress(address, (SpeedMultiplierCalculateDelegate)SpeedMultiplierCalculateDetour);
+			_speedMultiplierCalculateOriginal = hook.OriginalDisposeSafe;
+			_speedMultiplierCalculateHook = hook;
+			hook.Enable();
+			_speedHookRetryAfter = 0;
+			_speedHookFailureLogged = false;
+		} catch (Exception ex) {
+			try {
+				hook?.Dispose();
+			} catch (Exception disposeException) {
+				Log.Error(disposeException, "[SpeedMultiplier] 清理初始化失败的 Hook 时出错");
+			}
+			_speedMultiplierCalculateHook = null;
+			LogSpeedHookFailure("建立移速倍率 Hook 失败", ex);
+		}
+	}
+
+	private static void DisposeSpeedMultiplierHook() {
+		Volatile.Write(ref _speedMultiplierState, new SpeedMultiplierState(1f, 0f));
+		_speedHookRetryAfter = 0;
+		var hook = _speedMultiplierCalculateHook;
+		if (hook == null) return;
+		try {
+			hook.Dispose();
+		} catch (Exception ex) {
+			Log.Error(ex, "[SpeedMultiplier] 释放移速倍率 Hook 失败");
+		} finally {
+			_speedMultiplierCalculateHook = null;
+		}
 	}
 
 	private static bool SpeedApproximatelyEquals(float left, float right) => Math.Abs(left - right) <= SpeedComparisonTolerance;
 
-	private static bool SpeedRetryPending() => Environment.TickCount64 < _speedRetryAfter;
-
-	private static void ScheduleSpeedRetry(string message, Exception? exception = null) {
-		_speedRetryAfter = Environment.TickCount64 + SpeedRetryDelayMilliseconds;
-		LogSpeedFailure(message, exception);
-	}
-
-	private static void ClearSpeedRetry() {
-		_speedRetryAfter = 0;
-		_speedFailureLogged = false;
-	}
-
-	private static bool TryResolveBaseMovementSpeedAddress(out IntPtr address) {
-		if (BaseMovementSpeedPtr.HasValue) {
-			address = BaseMovementSpeedPtr.Value;
-			return true;
-		}
-		address = IntPtr.Zero;
-		if (_speedScanAttempted) return false;
-		_speedScanAttempted = true;
-		try {
-			if (!SigScanner.TryScanText(BaseMovementSpeedSignature, out var signature) || signature == IntPtr.Zero) {
-				_speedScanAttempted = false;
-				ScheduleSpeedRetry("未找到基础移速签名");
-				return false;
-			}
-			var displacementAddress = signature + 3;
-			address = displacementAddress + Marshal.ReadInt32(displacementAddress) + 4 + BaseMovementSpeedOffset;
-			if (address == IntPtr.Zero) {
-				_speedScanAttempted = false;
-				ScheduleSpeedRetry("基础移速地址无效");
-				return false;
-			}
-			BaseMovementSpeedPtr = address;
-			return true;
-		} catch (Exception ex) {
-			_speedScanAttempted = false;
-			ScheduleSpeedRetry("解析基础移速地址失败", ex);
-			address = IntPtr.Zero;
-			return false;
-		}
-	}
-
-	private static void LogSpeedFailure(string message, Exception? exception = null) {
-		if (_speedFailureLogged) return;
-		_speedFailureLogged = true;
-		if (exception == null) Log.Error($"[BaseMovementSpeed] {message}");
-		else Log.Error(exception, $"[BaseMovementSpeed] {message}");
+	private static void LogSpeedHookFailure(string message, Exception? exception = null) {
+		if (_speedHookFailureLogged) return;
+		_speedHookFailureLogged = true;
+		if (exception == null) Log.Error($"[SpeedMultiplier] {message}");
+		else Log.Error(exception, $"[SpeedMultiplier] {message}");
 	}
 
 	[GeneratedRegex("^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！")]

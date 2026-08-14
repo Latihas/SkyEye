@@ -25,27 +25,29 @@ public partial class ConfigWindow {
 
 	private static void DrawSpeed() {
 		ImGui.Text("提示：");
-		ImGui.Text("最终移速按配置的基础移速×倍率计算，并受速度上限限制。死亡会掉速，点击重置即可恢复。");
+		ImGui.Text("移速算法已重置，目前是hook游戏基础移速×配置倍率。");
+		ImGui.Text("特殊场景上限基本都是3.5左右，高了基本掉线，视网络情况而定");
+		ImGui.Text("保护公式：最终倍率=min(游戏原始倍率×配置倍率, 每行上限)，技能加速也会被截断。");
 		ImGui.Text("地区id用竖线|隔开。");
 		if (ImGui.Checkbox("无人就加速", ref Configuration.SpeedUpEnabled)) {
-			if (!Configuration.SpeedUpEnabled) RestoreSpeed(true);
+			if (!Configuration.SpeedUpEnabled) RestoreSpeed();
 			else RefreshCurrentSpeedInfo(resetFailures: true);
 			Configuration.Save();
 		}
 		ImGui.SameLine();
-		if (ImGui.Checkbox("输出基础移速调试信息", ref Configuration.SpeedDebugOutput)) Configuration.Save();
+		if (ImGui.Checkbox("输出移速倍率调试信息", ref Configuration.SpeedDebugOutput)) Configuration.Save();
 		ImGui.SameLine();
-		if (ImGui.Button("重置")) {
+		if (ImGui.Button("重新应用")) {
 			RefreshCurrentSpeedInfo(resetFailures: true);
 		}
 		if (ImGui.Button("添加配置")) {
-			RestoreSpeed(true);
+			RestoreSpeed();
 			Configuration.SpeedUp.Add(new SpeedInfo());
 			SpeedConfigurationChanged();
 		}
 
 		if (Configuration.SpeedUpEnabled) {
-			string[] header = ["启用", "地区Id", "基础移速", "坐骑基础移速", "倍率", "最终速度上限", "备注", "操作"];
+			string[] header = ["启用", "地区Id", "倍率", "最终倍率上限", "备注", "操作"];
 			var deleteIndex = -1;
 			if (ImGui.BeginTable("TableSpeedInfo", header.Length, ImGuiTableFlag)) {
 				foreach (var item in header) ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthStretch);
@@ -56,7 +58,7 @@ public partial class ConfigWindow {
 					if (speedInfo == null) {
 						ImGui.TableSetColumnIndex(1);
 						ImGui.Text("无效的 null 配置项");
-						ImGui.TableSetColumnIndex(7);
+						ImGui.TableSetColumnIndex(5);
 						if (ImGui.Button($"删除##速度null{i}")) deleteIndex = i;
 						continue;
 					}
@@ -81,33 +83,25 @@ public partial class ConfigWindow {
 					}
 					ImGui.TableSetColumnIndex(2);
 					ImGui.SetNextItemWidth(-1);
-					if (isDefault) ImGui.Text(speedInfo.BaseMovementSpeed.ToString());
-					else if (InputPositiveSpeed($"##基础移速{i}", ref speedInfo.BaseMovementSpeed)) SpeedConfigurationChanged();
+					if (InputPositiveSpeed($"##倍率{i}", ref speedInfo.SpeedUpN)) SpeedConfigurationChanged();
 					ImGui.TableSetColumnIndex(3);
 					ImGui.SetNextItemWidth(-1);
-					if (isDefault) ImGui.Text(speedInfo.MountBaseMovementSpeed.ToString());
-					else if (InputPositiveSpeed($"##坐骑基础移速{i}", ref speedInfo.MountBaseMovementSpeed)) SpeedConfigurationChanged();
+					if (InputPositiveSpeed($"##倍率上限{i}", ref speedInfo.SpeedMultiplierMax)) SpeedConfigurationChanged();
 					ImGui.TableSetColumnIndex(4);
-					ImGui.SetNextItemWidth(-1);
-					if (InputPositiveSpeed($"##倍率{i}", ref speedInfo.SpeedUpN)) SpeedConfigurationChanged();
-					ImGui.TableSetColumnIndex(5);
-					ImGui.SetNextItemWidth(-1);
-					if (InputPositiveSpeed($"##最大{i}", ref speedInfo.SpeedUpMax)) SpeedConfigurationChanged();
-					ImGui.TableSetColumnIndex(6);
 					ImGui.SetNextItemWidth(-1);
 					if (isDefault) ImGui.Text(descText);
 					else if (ImGui.InputText($"##描述{i}", ref descText)) {
 						speedInfo.Desc = descText;
 						SpeedConfigurationChanged();
 					}
-					ImGui.TableSetColumnIndex(7);
+					ImGui.TableSetColumnIndex(5);
 					if (isDefault) ImGui.Text("默认配置");
 					else if (ImGui.Button($"删除##速度{i}")) deleteIndex = i;
 				}
 				ImGui.EndTable();
 			}
 			if (deleteIndex >= 0) {
-				RestoreSpeed(true);
+				RestoreSpeed();
 				Configuration.SpeedUp.RemoveAt(deleteIndex);
 				SpeedConfigurationChanged();
 			}

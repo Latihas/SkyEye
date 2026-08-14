@@ -46,21 +46,19 @@ public class MConfiguration : IPluginConfiguration {
 	public void Save() => PluginInterface.SavePluginConfig(this);
 
 	public record SpeedInfo {
+		public const float DefaultSpeedMultiplierMax = 3.5f;
 		public string Desc = "";
 		public bool Enabled, IsDefault;
-		// Configurable on-foot/mounted base movement speeds, multiplier and final cap.
+		public float SpeedUpN = 3.5f;
+		public float SpeedMultiplierMax = DefaultSpeedMultiplierMax;
 		public float BaseMovementSpeed = 6f;
 		public float MountBaseMovementSpeed = 9.6f;
 		public float SpeedUpMax = 20f;
-		public float SpeedUpN = 3.5f;
-		// Legacy mount multiplier retained only for old configuration deserialization.
 		public float SpeedUpMountX = 2f;
 		public string SpeedUpTerritory = "";
 		private static readonly SpeedInfo _default = new() {
 			Desc = "ULK, 该行地区Id与描述不可修改",
 			SpeedUpTerritory = "732|763|795|827",
-			BaseMovementSpeed = 6f,
-			MountBaseMovementSpeed = 9.6f,
 			Enabled = true,
 			IsDefault = true
 		};
@@ -68,8 +66,6 @@ public class MConfiguration : IPluginConfiguration {
 		public static SpeedInfo Default() => new() {
 			Desc = _default.Desc,
 			SpeedUpTerritory = _default.SpeedUpTerritory,
-			BaseMovementSpeed = _default.BaseMovementSpeed,
-			MountBaseMovementSpeed = _default.MountBaseMovementSpeed,
 			Enabled = _default.Enabled,
 			IsDefault = true
 		};
