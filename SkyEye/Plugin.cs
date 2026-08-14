@@ -43,6 +43,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private const int CurrentConfigurationVersion = 1;
 	private const string BaseMovementSpeedSignature = "48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 4F";
 	private const int BaseMovementSpeedOffset = 0x58;
+	private const float SpeedComparisonTolerance = 0.001f;
+	private const long SpeedRetryDelayMilliseconds = 1000;
 	internal const int FarmTimeout = 50;
 	private static float _lSpeed = float.NaN;
 	internal static List<Vector3> DetectedTreasurePositions = [];
@@ -58,8 +60,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 	internal static bool FarmFull;
 	private static IntPtr? BaseMovementSpeedPtr;
 	private static IntPtr _overriddenSpeedAddress;
-	private static float _originalSpeed;
-	private static bool _speedOverridden, _speedScanAttempted, _speedFailureLogged, _speedApplyDisabled, _restoreFailed;
+	private static float _originalSpeed, _restoreWalkingBaseSpeed, _restoreMountedBaseSpeed;
+	private static long _speedRetryAfter;
+	private static bool _speedOverridden, _speedScanAttempted, _speedFailureLogged, _overrideMounted;
 	internal static SpeedInfo? CurrentSpeedInfo;
 	internal static Dictionary<string, string> MapInfo = new();
 	private static Timer _carrotTimer = null!, _potTimer = null!;
@@ -92,10 +95,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 			else StopPotTimer();
 		};
 		mountState = Condition[ConditionFlag.Mounted];
+		Framework.Update += CheckState;
 		Framework.Update += UpdateRoundPlayers;
 		Framework.Update += Farm;
 		Framework.Update += FindElemental;
-		Framework.Update += CheckState;
 		PluginInterface.UiBuilder.OpenConfigUi += OnCommand;
 		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
 		ChatGui.ChatMessageUnhandled += ChatRabbit;
@@ -604,7 +607,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	private static void UpdateRoundPlayers(IFramework _) {
-		if (!Configuration.PluginEnabled || !Configuration.SpeedUpEnabled || ObjectTable.LocalPlayer == null || !InArea() || CurrentSpeedInfo == null) {
+		if (!Configuration.PluginEnabled || !Configuration.SpeedUpEnabled || ObjectTable.LocalPlayer == null ||
+		    Condition[ConditionFlag.BetweenAreas] || Condition[ConditionFlag.BetweenAreas51] || !InArea() || CurrentSpeedInfo == null) {
 			RestoreSpeed();
 			return;
 		}
@@ -682,10 +686,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	internal static void ResetSpeedFailureState() {
-		_speedApplyDisabled = false;
+		_speedRetryAfter = 0;
 		_speedScanAttempted = false;
 		_speedFailureLogged = false;
-		if (!_speedOverridden) _restoreFailed = false;
 	}
 
 	// https://github.com/Jaksuhn/ffxiv-bundleoftweaks
@@ -693,14 +696,29 @@ public sealed partial class Plugin : IDalamudPlugin {
 	[SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
 	internal static void ApplyBaseMovementSpeedOverride() {
 		var speedInfo = CurrentSpeedInfo;
-		if (_speedApplyDisabled || _restoreFailed || speedInfo == null || !Configuration.PluginEnabled || !Configuration.SpeedUpEnabled ||
+		if (SpeedRetryPending() || speedInfo == null || !Configuration.PluginEnabled || !Configuration.SpeedUpEnabled ||
 		    !IsValidSpeedValue(speedInfo.BaseMovementSpeed) || !IsValidSpeedValue(speedInfo.MountBaseMovementSpeed) ||
 		    !IsValidSpeedValue(speedInfo.SpeedUpN) || !IsValidSpeedValue(speedInfo.SpeedUpMax)) return;
 		var mounted = Condition[ConditionFlag.Mounted];
 		var baseSpeed = mounted ? speedInfo.MountBaseMovementSpeed : speedInfo.BaseMovementSpeed;
+		var requestedSpeed = Math.Min(speedInfo.SpeedUpMax, baseSpeed * speedInfo.SpeedUpN);
 		if (_speedOverridden) {
-			var requestedSpeed = Math.Min(speedInfo.SpeedUpMax, baseSpeed * speedInfo.SpeedUpN);
-			if (_lSpeed == requestedSpeed) return;
+			try {
+				var activeValues = SafeMemory.Read<float>(_overriddenSpeedAddress, 1);
+				if (activeValues == null || activeValues.Length == 0 || !IsValidSpeedValue(activeValues[0])) {
+					ScheduleSpeedRetry("无法校验当前基础移速覆盖值");
+					return;
+				}
+				if (float.IsFinite(_lSpeed) && SpeedApproximatelyEquals(activeValues[0], _lSpeed)) {
+					if (SpeedApproximatelyEquals(_lSpeed, requestedSpeed)) return;
+				} else {
+					Log.Information($"[BaseMovementSpeed] 检测到游戏重置基础移速为 {activeValues[0]}，重新建立覆盖状态");
+					ClearSpeedOverrideState();
+				}
+			} catch (Exception ex) {
+				ScheduleSpeedRetry("校验当前基础移速覆盖值失败", ex);
+				return;
+			}
 		}
 		if (!TryResolveBaseMovementSpeedAddress(out var address)) return;
 
@@ -708,32 +726,39 @@ public sealed partial class Plugin : IDalamudPlugin {
 		try {
 			var values = SafeMemory.Read<float>(address, 1);
 			if (values == null || values.Length == 0 || !IsValidSpeedValue(values[0])) {
-				LogSpeedFailure("读取当前基础移速失败");
-				_speedApplyDisabled = true;
-				if (!_speedOverridden) BaseMovementSpeedPtr = null;
+				ScheduleSpeedRetry("读取当前基础移速失败");
+				if (!_speedOverridden) {
+					BaseMovementSpeedPtr = null;
+					_speedScanAttempted = false;
+				}
 				return;
 			}
 			previousSpeed = values[0];
-			finalSpeed = Math.Min(speedInfo.SpeedUpMax, baseSpeed * speedInfo.SpeedUpN);
+			finalSpeed = requestedSpeed;
 			if (!IsValidSpeedValue(finalSpeed)) {
-				LogSpeedFailure("计算得到的基础移速覆盖值无效");
-				_speedApplyDisabled = true;
+				ScheduleSpeedRetry("计算得到的基础移速覆盖值无效");
 				return;
 			}
 			SafeMemory.Write(address, finalSpeed);
 		} catch (Exception ex) {
-			LogSpeedFailure("读写基础移速内存失败", ex);
-			_speedApplyDisabled = true;
-			if (!_speedOverridden) BaseMovementSpeedPtr = null;
+			ScheduleSpeedRetry("读写基础移速内存失败", ex);
+			if (!_speedOverridden) {
+				BaseMovementSpeedPtr = null;
+				_speedScanAttempted = false;
+			}
 			return;
 		}
 
 		if (!_speedOverridden) {
 			_originalSpeed = previousSpeed;
+			_restoreWalkingBaseSpeed = speedInfo.BaseMovementSpeed;
+			_restoreMountedBaseSpeed = speedInfo.MountBaseMovementSpeed;
+			_overrideMounted = mounted;
 			_overriddenSpeedAddress = address;
 			_speedOverridden = true;
 		}
 		_lSpeed = finalSpeed;
+		ClearSpeedRetry();
 		if (Configuration.SpeedDebugOutput) {
 			try {
 				ChatBox.SendMessage($"/e SetBaseSpeed: mounted={mounted} base={baseSpeed}*rate={speedInfo.SpeedUpN} capped={speedInfo.SpeedUpMax} {previousSpeed}->{finalSpeed}");
@@ -748,39 +773,43 @@ public sealed partial class Plugin : IDalamudPlugin {
 			_lSpeed = float.NaN;
 			return;
 		}
-		if (_restoreFailed && !force) return;
+		if (!force && SpeedRetryPending()) return;
 		var addressValue = _overriddenSpeedAddress.ToInt64();
 		if (_overriddenSpeedAddress == IntPtr.Zero || addressValue < 0x10000 || addressValue > 0x00007FFFFFFFFFFF) {
-			LogSpeedFailure("缓存的基础移速地址不合理，取消恢复写入");
-			_restoreFailed = true;
+			ScheduleSpeedRetry("缓存的基础移速地址不合理，暂缓恢复写入");
 			return;
 		}
 		try {
 			var currentValues = SafeMemory.Read<float>(_overriddenSpeedAddress, 1);
 			if (currentValues == null || currentValues.Length == 0 || !float.IsFinite(currentValues[0])) {
-				LogSpeedFailure("恢复前无法确认基础移速地址可读，取消恢复写入");
-				_restoreFailed = true;
+				ScheduleSpeedRetry("恢复前无法确认基础移速地址可读，暂缓恢复写入");
 				return;
 			}
-			if (Math.Abs(currentValues[0] - _originalSpeed) <= 0.0001f) {
+			var mounted = Condition[ConditionFlag.Mounted];
+			var restoreSpeed = mounted == _overrideMounted
+				? _originalSpeed
+				: mounted ? _restoreMountedBaseSpeed : _restoreWalkingBaseSpeed;
+			if (!IsValidSpeedValue(restoreSpeed)) {
+				ScheduleSpeedRetry("没有可用的基础移速恢复值");
+				return;
+			}
+			if (SpeedApproximatelyEquals(currentValues[0], restoreSpeed)) {
 				ClearSpeedOverrideState();
 				return;
 			}
-			if (!float.IsFinite(_lSpeed) || Math.Abs(currentValues[0] - _lSpeed) > 0.0001f) {
-				LogSpeedFailure("恢复前当前基础移速与插件最后写入值不符，无法确认目标地址");
-				_restoreFailed = true;
+			if (!float.IsFinite(_lSpeed) || !SpeedApproximatelyEquals(currentValues[0], _lSpeed)) {
+				Log.Warning($"[BaseMovementSpeed] 当前值已被游戏或其他插件改为 {currentValues[0]}，放弃旧覆盖状态，不写入过期恢复值");
+				ClearSpeedOverrideState();
 				return;
 			}
-			SafeMemory.Write(_overriddenSpeedAddress, _originalSpeed);
+			SafeMemory.Write(_overriddenSpeedAddress, restoreSpeed);
 			var restoredValues = SafeMemory.Read<float>(_overriddenSpeedAddress, 1);
-			if (restoredValues == null || restoredValues.Length == 0 || !float.IsFinite(restoredValues[0]) || Math.Abs(restoredValues[0] - _originalSpeed) > 0.0001f) {
-				LogSpeedFailure("恢复后基础移速值校验失败");
-				_restoreFailed = true;
+			if (restoredValues == null || restoredValues.Length == 0 || !float.IsFinite(restoredValues[0]) || !SpeedApproximatelyEquals(restoredValues[0], restoreSpeed)) {
+				ScheduleSpeedRetry("恢复后基础移速值校验失败");
 				return;
 			}
 		} catch (Exception ex) {
-			LogSpeedFailure("恢复原始基础移速失败", ex);
-			_restoreFailed = true;
+			ScheduleSpeedRetry("恢复原始基础移速失败", ex);
 			return;
 		}
 		ClearSpeedOverrideState();
@@ -788,10 +817,27 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	private static void ClearSpeedOverrideState() {
 		_speedOverridden = false;
-		_restoreFailed = false;
 		_overriddenSpeedAddress = IntPtr.Zero;
 		_originalSpeed = 0f;
+		_restoreWalkingBaseSpeed = 0f;
+		_restoreMountedBaseSpeed = 0f;
+		_overrideMounted = false;
 		_lSpeed = float.NaN;
+		ClearSpeedRetry();
+	}
+
+	private static bool SpeedApproximatelyEquals(float left, float right) => Math.Abs(left - right) <= SpeedComparisonTolerance;
+
+	private static bool SpeedRetryPending() => Environment.TickCount64 < _speedRetryAfter;
+
+	private static void ScheduleSpeedRetry(string message, Exception? exception = null) {
+		_speedRetryAfter = Environment.TickCount64 + SpeedRetryDelayMilliseconds;
+		LogSpeedFailure(message, exception);
+	}
+
+	private static void ClearSpeedRetry() {
+		_speedRetryAfter = 0;
+		_speedFailureLogged = false;
 	}
 
 	private static bool TryResolveBaseMovementSpeedAddress(out IntPtr address) {
@@ -804,19 +850,22 @@ public sealed partial class Plugin : IDalamudPlugin {
 		_speedScanAttempted = true;
 		try {
 			if (!SigScanner.TryScanText(BaseMovementSpeedSignature, out var signature) || signature == IntPtr.Zero) {
-				LogSpeedFailure("未找到基础移速签名");
+				_speedScanAttempted = false;
+				ScheduleSpeedRetry("未找到基础移速签名");
 				return false;
 			}
 			var displacementAddress = signature + 3;
 			address = displacementAddress + Marshal.ReadInt32(displacementAddress) + 4 + BaseMovementSpeedOffset;
 			if (address == IntPtr.Zero) {
-				LogSpeedFailure("基础移速地址无效");
+				_speedScanAttempted = false;
+				ScheduleSpeedRetry("基础移速地址无效");
 				return false;
 			}
 			BaseMovementSpeedPtr = address;
 			return true;
 		} catch (Exception ex) {
-			LogSpeedFailure("解析基础移速地址失败", ex);
+			_speedScanAttempted = false;
+			ScheduleSpeedRetry("解析基础移速地址失败", ex);
 			address = IntPtr.Zero;
 			return false;
 		}
