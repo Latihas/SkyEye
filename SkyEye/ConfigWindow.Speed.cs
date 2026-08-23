@@ -1,92 +1,109 @@
-﻿using System;
 using System.Linq;
 using System.Text;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Utility;
 using static SkyEye.Plugin;
 using static SkyEye.MConfiguration;
 using static SkyEye.Util;
 
-
 namespace SkyEye;
 
 public partial class ConfigWindow {
-	private static void ValidateSpeedInfo() {
-		SetSpeed(1);
-		if (!Configuration.SpeedUp[0].SpeedUpTerritory.Equals(SpeedInfo.Default().SpeedUpTerritory))
-			Configuration.SpeedUp[0].SpeedUpTerritory = SpeedInfo.Default().SpeedUpTerritory;
-		if (!Configuration.SpeedUp[0].Desc.Equals(SpeedInfo.Default().Desc))
-			Configuration.SpeedUp[0].Desc = SpeedInfo.Default().Desc;
-		if (!Configuration.SpeedUp[0].SpeedUpMountX.Equals(SpeedInfo.Default().SpeedUpMountX))
-			Configuration.SpeedUp[0].SpeedUpMountX = SpeedInfo.Default().SpeedUpMountX;
-		if (Configuration.SpeedUp[^2].SpeedUpTerritory.IsNullOrEmpty())
-			Configuration.SpeedUp.Remove(Configuration.SpeedUp[^2]);
-		if (!Configuration.SpeedUp[^1].SpeedUpTerritory.IsNullOrEmpty())
-			Configuration.SpeedUp.Add(new SpeedInfo());
-		CurrentSpeedInfo = null;
-		foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
-			CurrentSpeedInfo = s;
-			break;
-		}
-		SetSpeed(1);
+	private static void SpeedConfigurationChanged() {
+		RefreshCurrentSpeedInfo();
 		Configuration.Save();
+	}
+
+	private static bool InputPositiveSpeed(string label, ref float value) {
+		var previous = value;
+		if (!ImGui.InputFloat(label, ref value)) return false;
+		if (!IsValidSpeedValue(value)) {
+			value = previous;
+			return false;
+		}
+		return true;
 	}
 
 	private static void DrawSpeed() {
 		ImGui.Text("提示：");
-		ImGui.Text("走路倍率6，坐骑倍率6*2。死亡会掉速，点击重置即可恢复。");
+		ImGui.Text("移速算法已重置，目前是hook游戏基础移速×配置倍率。");
+		ImGui.Text("特殊场景上限基本都是3.5左右，高了基本掉线，视网络情况而定");
+		ImGui.Text("保护公式：最终倍率=min(游戏原始倍率×配置倍率, 每行上限)，技能加速也会被截断。");
 		ImGui.Text("地区id用竖线|隔开。");
-		if (ImGui.Checkbox("无人就加速", ref Configuration.SpeedUpEnabled)) Configuration.Save();
-		ImGui.SameLine();
-		if (ImGui.Button("重置")) {
-			foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
-				CurrentSpeedInfo = s;
-				break;
-			}
-			SetSpeed(1);
+		if (ImGui.Checkbox("无人就加速", ref Configuration.SpeedUpEnabled)) {
+			if (!Configuration.SpeedUpEnabled) RestoreSpeed();
+			else RefreshCurrentSpeedInfo(resetFailures: true);
+			Configuration.Save();
 		}
-		ImGui.Text("从下往上删没问题，从中间删会导致null项目，点击即可清除");
 		ImGui.SameLine();
-		if (ImGui.Button("清空null项目")) {
-			Configuration.SpeedUp = Configuration.SpeedUp.Where(i => !i.SpeedUpTerritory.IsNullOrEmpty()).ToList();
-			ValidateSpeedInfo();
+		if (ImGui.Checkbox("输出移速倍率调试信息", ref Configuration.SpeedDebugOutput)) Configuration.Save();
+		ImGui.SameLine();
+		if (ImGui.Button("重新应用")) {
+			RefreshCurrentSpeedInfo(resetFailures: true);
 		}
+		if (ImGui.Button("添加配置")) {
+			RestoreSpeed();
+			Configuration.SpeedUp.Add(new SpeedInfo());
+			SpeedConfigurationChanged();
+		}
+
 		if (Configuration.SpeedUpEnabled) {
-			string[] header = ["启用", "地区Id", "倍率", "最终速度上限(含乘算倍率)", "基础坐骑速度倍率(默认2)", "备注"];
+			string[] header = ["启用", "地区Id", "倍率", "最终倍率上限", "备注", "操作"];
+			var deleteIndex = -1;
 			if (ImGui.BeginTable("TableSpeedInfo", header.Length, ImGuiTableFlag)) {
 				foreach (var item in header) ImGui.TableSetupColumn(item, ImGuiTableColumnFlags.WidthStretch);
 				ImGui.TableHeadersRow();
 				for (var i = 0; i < Configuration.SpeedUp.Count; i++) {
+					var speedInfo = Configuration.SpeedUp[i];
 					ImGui.TableNextRow();
+					if (speedInfo == null) {
+						ImGui.TableSetColumnIndex(1);
+						ImGui.Text("无效的 null 配置项");
+						ImGui.TableSetColumnIndex(5);
+						if (ImGui.Button($"删除##速度null{i}")) deleteIndex = i;
+						continue;
+					}
+					var isDefault = speedInfo.IsDefault;
+					var territoryText = speedInfo.SpeedUpTerritory ?? string.Empty;
+					var descText = speedInfo.Desc ?? string.Empty;
 					ImGui.TableSetColumnIndex(0);
-					if (ImGui.Checkbox($"##启用{i}", ref Configuration.SpeedUp[i].Enabled)) ValidateSpeedInfo();
+					if (ImGui.Checkbox($"##启用{i}", ref speedInfo.Enabled)) SpeedConfigurationChanged();
 					ImGui.TableSetColumnIndex(1);
 					ImGui.SetNextItemWidth(-1);
-					if (ImGui.InputText($"##地区{i}", ref Configuration.SpeedUp[i].SpeedUpTerritory)) ValidateSpeedInfo();
+					if (isDefault) ImGui.Text(territoryText);
+					else if (ImGui.InputText($"##地区{i}", ref territoryText)) {
+						speedInfo.SpeedUpTerritory = territoryText;
+						SpeedConfigurationChanged();
+					}
 					if (ImGui.IsItemHovered()) {
 						var sb = new StringBuilder();
-						foreach (var t in Configuration.SpeedUp[i].SpeedUpTerritory.Split('|'))
-							if (!t.IsNullOrEmpty() && MapInfo.TryGetValue(t, out var value))
-								sb.Append(t).Append('|').Append(value).Append('\n');
-						if (sb.Length != 0) {
-							sb.Remove(sb.Length - 1, 1);
-							ImGui.SetTooltip(sb.ToString());
-						}
+						foreach (var territory in territoryText.Split('|'))
+							if (!string.IsNullOrEmpty(territory) && MapInfo.TryGetValue(territory, out var value))
+								sb.Append(territory).Append('|').Append(value).Append('\n');
+						if (sb.Length != 0) ImGui.SetTooltip(sb.ToString().TrimEnd());
 					}
 					ImGui.TableSetColumnIndex(2);
 					ImGui.SetNextItemWidth(-1);
-					if (ImGui.InputFloat($"##倍率{i}", ref Configuration.SpeedUp[i].SpeedUpN)) ValidateSpeedInfo();
+					if (InputPositiveSpeed($"##倍率{i}", ref speedInfo.SpeedUpN)) SpeedConfigurationChanged();
 					ImGui.TableSetColumnIndex(3);
 					ImGui.SetNextItemWidth(-1);
-					if (ImGui.InputFloat($"##最大{i}", ref Configuration.SpeedUp[i].SpeedUpMax)) ValidateSpeedInfo();
+					if (InputPositiveSpeed($"##倍率上限{i}", ref speedInfo.SpeedMultiplierMax)) SpeedConfigurationChanged();
 					ImGui.TableSetColumnIndex(4);
 					ImGui.SetNextItemWidth(-1);
-					if (ImGui.InputFloat($"##基础坐骑倍率{i}", ref Configuration.SpeedUp[i].SpeedUpMountX)) ValidateSpeedInfo();
+					if (isDefault) ImGui.Text(descText);
+					else if (ImGui.InputText($"##描述{i}", ref descText)) {
+						speedInfo.Desc = descText;
+						SpeedConfigurationChanged();
+					}
 					ImGui.TableSetColumnIndex(5);
-					ImGui.SetNextItemWidth(-1);
-					if (ImGui.InputText($"##描述{i}", ref Configuration.SpeedUp[i].Desc)) ValidateSpeedInfo();
+					if (isDefault) ImGui.Text("默认配置");
+					else if (ImGui.Button($"删除##速度{i}")) deleteIndex = i;
 				}
 				ImGui.EndTable();
+			}
+			if (deleteIndex >= 0) {
+				RestoreSpeed();
+				Configuration.SpeedUp.RemoveAt(deleteIndex);
+				SpeedConfigurationChanged();
 			}
 		}
 		ImGui.Text("无视周边的挂壁亲友（用竖线|隔开）");

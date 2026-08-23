@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Media;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Text;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
@@ -45,15 +44,7 @@ internal class UiBuilder : IDisposable {
 	}
 
 	private static void TerritoryChanged(uint u) {
-		if (Configuration.DisableAutoRabbitWhenTerritoryChanged) {
-			Configuration.AutoRabbit = false;
-			Configuration.AutoForwardNewRabbit = false;
-			Configuration.Save();
-		}
-		if (Configuration.DisableAutoPotWhenTerritoryChanged) {
-			Configuration.AutoPot = false;
-			Configuration.Save();
-		}
+		if (DisableAutoTreasureOnTerritoryEnter(u)) Configuration.Save();
 		if (InEureka(lastTerritoryId) || InEureka(ClientState.TerritoryType)) {
 			Plugin.ElementalPositions.Clear();
 			ElementalSet.Clear();
@@ -64,12 +55,7 @@ internal class UiBuilder : IDisposable {
 				DeadFateDic[p.Key][k] = "-1";
 		}
 		lastTerritoryId = ClientState.TerritoryType;
-		CurrentSpeedInfo = null;
-		foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
-			CurrentSpeedInfo = s;
-			break;
-		}
-		SetSpeed(1);
+		RefreshCurrentSpeedInfo(u, true);
 	}
 
 	private static uint LastPotId;
@@ -402,25 +388,31 @@ internal class UiBuilder : IDisposable {
 		_mapOrigin = null;
 		if (!MapVisible) return;
 		var areaMapAddon = AreaMapAddon;
+		if (areaMapAddon == null) return;
 		_globalUiScale = areaMapAddon->Scale;
 		var areaMapAddonUldManager = areaMapAddon->UldManager;
 		if (areaMapAddonUldManager.NodeListCount <= 4) return;
 		var ptr = (AtkComponentNode*)areaMapAddonUldManager.NodeList[3];
+		if (ptr == null || ptr->Component == null) return;
 		var atkResNode = ptr->AtkResNode;
 		var ptrUldManager = ptr->Component->UldManager;
 		if (ptrUldManager.NodeListCount < 233) return;
 		var ptrUldManagerNodeList = ptrUldManager.NodeList;
 		for (var i = 6; i < ptrUldManager.NodeListCount - 1; i++) {
 			var item = ptrUldManagerNodeList[i];
-			if (!item->IsVisible()) continue;
+			if (item == null || !item->IsVisible()) continue;
 			var itemx = (AtkComponentNode*)item;
+			if (itemx->Component == null || itemx->Component->UldManager.NodeListCount <= 4) continue;
 			var ptr3 = (AtkImageNode*)itemx->Component->UldManager.NodeList[4];
+			if (ptr3 == null) continue;
 			var atkResNode2 = itemx->AtkResNode;
 			string? text = null;
 			var ptr3PartsList = ptr3->PartsList;
-			if (ptr3PartsList != null && ptr3->PartId <= ptr3PartsList->PartCount) {
-				var AtkTexture = (ptr3PartsList->Parts + ptr3->PartId * Unsafe.SizeOf<AtkUldPart>())->UldAsset->AtkTexture;
-				if (AtkTexture.TextureType == TextureType.Resource)
+			if (ptr3PartsList != null && ptr3PartsList->Parts != null && ptr3->PartId < ptr3PartsList->PartCount) {
+				var part = ptr3PartsList->Parts + ptr3->PartId;
+				if (part->UldAsset == null) continue;
+				var AtkTexture = part->UldAsset->AtkTexture;
+				if (AtkTexture.TextureType == TextureType.Resource && AtkTexture.Resource != null && AtkTexture.Resource->TexFileResourceHandle != null)
 					text = Path.GetFileName(AtkTexture.Resource->TexFileResourceHandle->ResourceHandle.FileName.ToString());
 			}
 			if (text is not ("060443.tex" or "060443_hr1.tex")) continue;

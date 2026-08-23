@@ -5,7 +5,8 @@ namespace SkyEye;
 
 public partial class ConfigWindow {
 	private void DrawOccultPot() {
-		if (ImGui.Checkbox("进入新场景禁用开宝箱", ref Configuration.DisableAutoPotWhenTerritoryChanged)) Configuration.Save();
+		if (ImGui.Checkbox("进入月岛自动关闭罐子自动开箱", ref Configuration.DisableAutoPotWhenTerritoryChanged)) Configuration.Save();
+		if (ImGui.Checkbox("启用月岛罐子导航/传送", ref Configuration.EnableOccultPotNavigation)) Configuration.Save();
 		if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoPot)) Configuration.Save();
 		if (Configuration.AutoPot) {
 			ImGui.Indent();
@@ -13,10 +14,14 @@ public partial class ConfigWindow {
 			if (ImGui.InputText("开宝箱后指令(|分割)", ref Configuration.AfterFindPot)) Configuration.Save();
 			ImGui.Unindent();
 		}
-		if (ImGui.Button("立刻寻找")) FindPot(true);
-		ImGui.Indent();
-		if (ImGui.InputText("开始导航到罐子前指令(|分割)", ref Configuration.BeforeGotoNewPot)) Configuration.Save();
-		ImGui.Unindent();
+		if (Configuration.EnableOccultPotNavigation) {
+			if (ImGui.Button("立刻寻找")) FindPot(true);
+			ImGui.Indent();
+			if (ImGui.InputText("开始导航到罐子前指令(|分割)", ref Configuration.BeforeGotoNewPot)) Configuration.Save();
+			ImGui.Unindent();
+		} else {
+			ImGui.Text("默认关闭，避免进图后误导航/传送到罐子。");
+		}
 
 		ImGui.Separator();
 		ImGui.Text("统计");

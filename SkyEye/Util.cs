@@ -44,8 +44,19 @@ internal static class Util {
 	}
 
 	internal static unsafe AddonAreaMap* AreaMapAddon => Plugin.Gui.GetAddonByName<AddonAreaMap>("AreaMap");
-	internal static unsafe bool MapVisible => AreaMapAddon->IsVisible;
-	internal static unsafe float MapScale => AreaMapAddon->AreaMap.MapScale;
+	internal static unsafe bool MapVisible {
+		get {
+			var addon = AreaMapAddon;
+			return addon != null && addon->IsVisible;
+		}
+	}
+
+	internal static unsafe float MapScale {
+		get {
+			var addon = AreaMapAddon;
+			return addon != null ? addon->AreaMap.MapScale : 1f;
+		}
+	}
 	internal static Vector2 ToVector2(Vector3 v) => new(v.X, v.Z);
 
 	internal static Vector3 ToVector3(Vector2 v) => new(v.X, 0f, v.Y);

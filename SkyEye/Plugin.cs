@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +12,7 @@ using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
+using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -40,8 +40,13 @@ namespace SkyEye;
 public sealed partial class Plugin : IDalamudPlugin {
 	private const uint LuckyCarrotItemId = 2002482;
 	private const uint LuckyPotItemId = 2003296;
+	private const int CurrentConfigurationVersion = 2;
+	private const string SpeedMultiplierCalculateSignature = "40 57 48 83 EC ?? 48 8B F9 48 8B 49 ?? 48 8B 01 FF 90 ?? ?? ?? ?? 48 85 C0 75";
+	private const float SpeedComparisonTolerance = 0.001f;
+	private const long SpeedHookRetryDelayMilliseconds = 1000;
 	internal const int FarmTimeout = 50;
-	private static float _lSpeed = 1f;
+	private sealed record SpeedMultiplierState(float Multiplier, float MaxMultiplier);
+	private static SpeedMultiplierState _speedMultiplierState = new(1f, 0f);
 	internal static List<Vector3> DetectedTreasurePositions = [];
 	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
 	internal static readonly List<Vector3> ElementalPositions = [];
@@ -53,13 +58,16 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static readonly Lock KillingLock = new();
 	internal static Vector3? lastFarmPos;
 	internal static bool FarmFull;
-	private static IntPtr? SpeedPtr;
+	private delegate float SpeedMultiplierCalculateDelegate(nint characterSpeedContainer);
+	private static Hook<SpeedMultiplierCalculateDelegate>? _speedMultiplierCalculateHook;
+	private static SpeedMultiplierCalculateDelegate? _speedMultiplierCalculateOriginal;
+	private static long _speedHookRetryAfter;
+	private static bool _speedHookFailureLogged;
 	internal static SpeedInfo? CurrentSpeedInfo;
 	internal static Dictionary<string, string> MapInfo = new();
 	private static Timer _carrotTimer = null!, _potTimer = null!;
 	private readonly ConfigWindow _configWindow;
 	private readonly UiBuilder _uiBuilder;
-	private bool mountState;
 	// ReSharper disable once MemberCanBePrivate.Global
 	public readonly WindowSystem WindowSystem = new("SkyEye");
 
@@ -88,31 +96,20 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update += UpdateRoundPlayers;
 		Framework.Update += Farm;
 		Framework.Update += FindElemental;
-		Framework.Update += CheckState;
 		PluginInterface.UiBuilder.OpenConfigUi += OnCommand;
 		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
 		ChatGui.ChatMessageUnhandled += ChatRabbit;
 		ChatGui.ChatMessageUnhandled += ChatPot;
 		ChatGui.ChatMessageUnhandled += ChatMoonPack;
 		ChatGui.ChatMessageUnhandled += Chat30OccultTreasure;
-		if (Configuration.SpeedUp.Count == 0) {
-			Configuration.SpeedUp.Add(SpeedInfo.Default());
-			Configuration.SpeedUp.Add(new SpeedInfo());
-		}
+		var configChanged = MigrateConfiguration();
+		configChanged |= EnsureDefaultSpeedInfo();
+		configChanged |= DisableAutoTreasureOnTerritoryEnter(ClientState.TerritoryType);
+		if (configChanged) Configuration.Save();
 		MapInfo = DataManager.GetExcelSheet<TerritoryType>().Where(i => !i.PlaceNameRegion.Value.Name.IsEmpty)
 			.ToDictionary(i => i.RowId.ToString(), i => $"{i.PlaceNameRegion.Value.Name}|{i.PlaceName.Value.Name}");
-		foreach (var s in Configuration.SpeedUp.Where(s => s.Enabled && s.SpeedUpTerritory.Split('|').Contains(ClientState.TerritoryType.ToString()))) {
-			CurrentSpeedInfo = s;
-			break;
-		}
+		RefreshCurrentSpeedInfo(ClientState.TerritoryType);
 		if (Configuration.NameReplacement) EnableNameplate();
-		SetSpeed(1);
-	}
-
-	private void CheckState(IFramework _) {
-		if (!InArea() || Condition[ConditionFlag.Mounted] == mountState) return;
-		mountState = Condition[ConditionFlag.Mounted];
-		SetSpeed(1);
 	}
 
 	private void OnCommand() => OnCommand(null, null);
@@ -147,9 +144,8 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update -= UpdateRoundPlayers;
 		Framework.Update -= Farm;
 		Framework.Update -= FindElemental;
-		Framework.Update -= CheckState;
 		DisableNameplate();
-		SetSpeed(1);
+		DisposeSpeedMultiplierHook();
 		_uiBuilder.Dispose();
 		CommandManager.RemoveHandler("/skyeye");
 		_carrotTimer.Stop();
@@ -209,6 +205,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	internal static void FindPot(bool force = false) {
+		if (!Configuration.EnableOccultPotNavigation) return;
 		if (!force && (_potTimer is { Enabled: true } || Condition[ConditionFlag.InCombat] || wait4chest)) return;
 		if (!string.IsNullOrEmpty(Configuration.BeforeGotoNewPot))
 			foreach (var cmd in Configuration.BeforeGotoNewPot.Split('|'))
@@ -372,7 +369,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	internal static bool InEureka() => ObjectTable.LocalPlayer != null && InEureka(ClientState.TerritoryType);
 	internal static bool InOccult() => ObjectTable.LocalPlayer != null && InOccult(ClientState.TerritoryType);
 	internal static bool InEureka(uint id) => (Territory)id is Territory.Anemos or Territory.Pagos or Territory.Pyros or Territory.Hydatos;
-	private static bool InOccult(uint id) => id == 1252;
+	internal static bool InOccult(uint id) => id == 1252;
 
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
 	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, (Territory)ClientState.TerritoryType == Territory.Hydatos ? 20.25f : 11.25f));
@@ -593,35 +590,194 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	internal static bool GreenNearby() {
+		var localPlayer = ObjectTable.LocalPlayer;
+		if (localPlayer == null) return false;
 		var friends = Configuration.SpeedUpFriendly.Split('|');
-		return OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.Distance(i.Position, ObjectTable.LocalPlayer!.Position) < (110 ^ 2));
+		return OtherPlayer.Any(i => !friends.Contains(i.Name.ToString()) && Vector3.DistanceSquared(i.Position, localPlayer.Position) < 110f * 110f);
 	}
 
 	private static void UpdateRoundPlayers(IFramework _) {
-		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null || !InArea() || CurrentSpeedInfo == null) return;
+		if (!Configuration.PluginEnabled || !Configuration.SpeedUpEnabled || ObjectTable.LocalPlayer == null ||
+		    Condition[ConditionFlag.BetweenAreas] || Condition[ConditionFlag.BetweenAreas51] || !InArea() || CurrentSpeedInfo == null) {
+			RestoreSpeed();
+			return;
+		}
+		if (_speedMultiplierCalculateHook == null) InitializeSpeedMultiplierHook();
+		if (_speedMultiplierCalculateHook == null) {
+			RestoreSpeed();
+			return;
+		}
 		OtherPlayer.Clear();
 		foreach (var obj in ObjectTable)
 			if (obj.GameObjectId != ObjectTable.LocalPlayer.GameObjectId & obj.Address.ToInt64() != 0 && obj is IPlayerCharacter rcTemp)
 				OtherPlayer.Add(rcTemp);
-		SetSpeed(!Configuration.SpeedUpEnabled || GreenNearby() ? 1f : CurrentSpeedInfo.SpeedUpN);
+		if (GreenNearby()) RestoreSpeed();
+		else SetSpeedMultiplier(CurrentSpeedInfo.SpeedUpN, CurrentSpeedInfo.SpeedMultiplierMax);
 	}
 
-	// https://github.com/Jaksuhn/ffxiv-bundleoftweaks
-	// https://github.com/MnFeN/Triggernometry
-	[SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
-	internal static void SetSpeed(float speedBase) {
-		if (CurrentSpeedInfo == null || !Configuration.SpeedUpEnabled) return;
-		var mounted = Condition[ConditionFlag.Mounted];
-		if (mounted) speedBase *= CurrentSpeedInfo.SpeedUpMountX;
-		if (_lSpeed == speedBase) return;
-		_lSpeed = speedBase;
-		if (SpeedPtr == null) {
-			var ba = SigScanner.ScanText("48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 84 C0 75 4F") + 3;
-			SpeedPtr = ba + Marshal.ReadInt32(ba) + 4 + 0x58;
+	internal static SpeedInfo? FindSpeedInfo(uint territoryType) {
+		var territory = territoryType.ToString();
+		return Configuration.SpeedUp.FirstOrDefault(s =>
+			s != null &&
+			s.Enabled &&
+			!string.IsNullOrWhiteSpace(s.SpeedUpTerritory ?? string.Empty) &&
+			(s.SpeedUpTerritory ?? string.Empty).Split('|').Contains(territory) &&
+			IsValidSpeedValue(s.SpeedUpN) &&
+			IsValidSpeedValue(s.SpeedMultiplierMax));
+	}
+
+	internal static bool IsValidSpeedValue(float value) => float.IsFinite(value) && value > 0f;
+
+	internal static bool DisableAutoTreasureOnTerritoryEnter(uint territoryId) {
+		var changed = false;
+		if (Configuration.DisableAutoRabbitWhenTerritoryChanged && InEureka(territoryId)) {
+			changed |= Configuration.AutoRabbit;
+			changed |= Configuration.AutoForwardNewRabbit;
+			Configuration.AutoRabbit = false;
+			Configuration.AutoForwardNewRabbit = false;
 		}
-		var finalspeed = Math.Min(CurrentSpeedInfo.SpeedUpMax, speedBase * 6);
-		ChatBox.SendMessage($"/e SetSpeed({(mounted ? 6 * CurrentSpeedInfo.SpeedUpMountX : 6)}x): {SafeMemory.Read<float>(SpeedPtr.Value, 1)![0]}->{finalspeed}");
-		SafeMemory.Write(SpeedPtr.Value, finalspeed);
+		if (Configuration.DisableAutoPotWhenTerritoryChanged && InOccult(territoryId)) {
+			changed |= Configuration.AutoPot;
+			changed |= Configuration.EnableOccultPotNavigation;
+			Configuration.AutoPot = false;
+			Configuration.EnableOccultPotNavigation = false;
+		}
+		return changed;
+	}
+
+	private static bool MigrateConfiguration() {
+		if (Configuration.Version >= CurrentConfigurationVersion) return false;
+		if (Configuration.Version < 1) {
+			Configuration.DisableAutoRabbitWhenTerritoryChanged = true;
+			Configuration.DisableAutoPotWhenTerritoryChanged = true;
+		}
+		if (Configuration.Version < 2) {
+			foreach (var speedInfo in Configuration.SpeedUp ?? []) {
+				if (speedInfo == null) continue;
+				speedInfo.SpeedMultiplierMax = IsValidSpeedValue(speedInfo.SpeedUpN)
+					? speedInfo.SpeedUpN
+					: SpeedInfo.DefaultSpeedMultiplierMax;
+			}
+		}
+		Configuration.Version = CurrentConfigurationVersion;
+		return true;
+	}
+
+	private static bool EnsureDefaultSpeedInfo() {
+		var changed = false;
+		Configuration.SpeedUp ??= [];
+		if (Configuration.SpeedUp.Count == 0) {
+			Configuration.SpeedUp.Add(SpeedInfo.Default());
+			return true;
+		}
+		if (Configuration.SpeedUp.Any(speedInfo => speedInfo?.IsDefault == true)) return changed;
+		var legacyDefault = Configuration.SpeedUp.FirstOrDefault(speedInfo =>
+			speedInfo != null && SpeedInfo.HasLegacyDefaultCharacteristics(speedInfo));
+		if (legacyDefault != null) {
+			legacyDefault.IsDefault = true;
+			changed = true;
+		}
+		return changed;
+	}
+
+	internal static void RefreshCurrentSpeedInfo(uint? territoryType = null, bool resetFailures = false) {
+		if (resetFailures) {
+			_speedHookRetryAfter = 0;
+			_speedHookFailureLogged = false;
+		}
+		RestoreSpeed();
+		CurrentSpeedInfo = FindSpeedInfo(territoryType ?? ClientState.TerritoryType);
+		if (_speedMultiplierCalculateHook == null) InitializeSpeedMultiplierHook();
+	}
+
+	internal static void RestoreSpeed(bool force = false) {
+		_ = force; // A multiplier hook has no stale memory value to force-write.
+		SetSpeedMultiplier(1f);
+	}
+
+	private static void SetSpeedMultiplier(float multiplier, float maxMultiplier = 0f) {
+		if (!IsValidSpeedValue(multiplier)) multiplier = 1f;
+		if (!IsValidSpeedValue(maxMultiplier)) {
+			if (multiplier > 1f) multiplier = 1f;
+			maxMultiplier = 0f;
+		}
+		var previous = Volatile.Read(ref _speedMultiplierState);
+		if (SpeedApproximatelyEquals(previous.Multiplier, multiplier) &&
+		    SpeedApproximatelyEquals(previous.MaxMultiplier, maxMultiplier)) return;
+		Volatile.Write(ref _speedMultiplierState, new SpeedMultiplierState(multiplier, maxMultiplier));
+		if (!Configuration.SpeedDebugOutput || _speedMultiplierCalculateHook == null) return;
+		try {
+			ChatBox.SendMessage($"/e SpeedMultiplier: {previous.Multiplier}->{multiplier}, max={maxMultiplier}");
+		} catch (Exception ex) {
+			Log.Error(ex, "[SpeedMultiplier] 输出调试信息失败");
+		}
+	}
+
+	//hook游戏内基础移速
+	private static float SpeedMultiplierCalculateDetour(nint characterSpeedContainer) {
+		var originalMultiplier = _speedMultiplierCalculateOriginal!(characterSpeedContainer);
+		var state = Volatile.Read(ref _speedMultiplierState);
+		return CalculateFinalSpeedMultiplier(originalMultiplier, state.Multiplier, state.MaxMultiplier);
+	}
+
+	private static float CalculateFinalSpeedMultiplier(float originalMultiplier, float multiplier, float maxMultiplier) {
+		if (!float.IsFinite(originalMultiplier) || originalMultiplier < 0f) return 0f;
+		if (originalMultiplier == 0f) return 0f;
+		if (!IsValidSpeedValue(multiplier)) multiplier = 1f;
+		if (multiplier <= 1f) return originalMultiplier * multiplier;
+		if (!IsValidSpeedValue(maxMultiplier)) return originalMultiplier;
+		var result = (double)originalMultiplier * multiplier;
+		return (float)Math.Min(result, maxMultiplier);
+	}
+
+	private static void InitializeSpeedMultiplierHook() {
+		if (_speedMultiplierCalculateHook != null) return;
+		if (Environment.TickCount64 < _speedHookRetryAfter) return;
+		_speedHookRetryAfter = Environment.TickCount64 + SpeedHookRetryDelayMilliseconds;
+		Hook<SpeedMultiplierCalculateDelegate>? hook = null;
+		try {
+			if (!SigScanner.TryScanText(SpeedMultiplierCalculateSignature, out var address) || address == IntPtr.Zero) {
+				LogSpeedHookFailure("未找到移速倍率计算签名");
+				return;
+			}
+			hook = GameInteropProvider.HookFromAddress(address, (SpeedMultiplierCalculateDelegate)SpeedMultiplierCalculateDetour);
+			_speedMultiplierCalculateOriginal = hook.OriginalDisposeSafe;
+			_speedMultiplierCalculateHook = hook;
+			hook.Enable();
+			_speedHookRetryAfter = 0;
+			_speedHookFailureLogged = false;
+		} catch (Exception ex) {
+			try {
+				hook?.Dispose();
+			} catch (Exception disposeException) {
+				Log.Error(disposeException, "[SpeedMultiplier] 清理初始化失败的 Hook 时出错");
+			}
+			_speedMultiplierCalculateHook = null;
+			LogSpeedHookFailure("建立移速倍率 Hook 失败", ex);
+		}
+	}
+
+	private static void DisposeSpeedMultiplierHook() {
+		Volatile.Write(ref _speedMultiplierState, new SpeedMultiplierState(1f, 0f));
+		_speedHookRetryAfter = 0;
+		var hook = _speedMultiplierCalculateHook;
+		if (hook == null) return;
+		try {
+			hook.Dispose();
+		} catch (Exception ex) {
+			Log.Error(ex, "[SpeedMultiplier] 释放移速倍率 Hook 失败");
+		} finally {
+			_speedMultiplierCalculateHook = null;
+		}
+	}
+
+	private static bool SpeedApproximatelyEquals(float left, float right) => Math.Abs(left - right) <= SpeedComparisonTolerance;
+
+	private static void LogSpeedHookFailure(string message, Exception? exception = null) {
+		if (_speedHookFailureLogged) return;
+		_speedHookFailureLogged = true;
+		if (exception == null) Log.Error($"[SpeedMultiplier] {message}");
+		else Log.Error(exception, $"[SpeedMultiplier] {message}");
 	}
 
 	[GeneratedRegex("^财宝好像是在(?<direction>正北|东北|正东|东南|正南|西南|正西|西北)方向(?<distance>(很远|稍远|不远|很近))的地方！")]

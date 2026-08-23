@@ -7,7 +7,7 @@ namespace SkyEye;
 public partial class ConfigWindow {
 	private static void DrawChest() {
 		if (ImGui.Checkbox("宝箱位置绘制开关", ref Configuration.Overlay3DEnabled)) Configuration.Save();
-		if (ImGui.Checkbox("进入新场景禁用开宝箱", ref Configuration.DisableAutoRabbitWhenTerritoryChanged)) Configuration.Save();
+		if (ImGui.Checkbox("进入ULK自动关闭兔子自动开箱/导航", ref Configuration.DisableAutoRabbitWhenTerritoryChanged)) Configuration.Save();
 		if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoRabbit)) Configuration.Save();
 		if (Configuration.AutoRabbit) {
 			ImGui.Indent();
