@@ -93,7 +93,6 @@ internal class UiBuilder : IDisposable {
 				if (obj.Name.ToString().Contains(pat))
 					poses.Add(obj.Position);
 		}
-
 		foreach (var obj in ObjectTable) {
 			if (obj is not IPlayerCharacter i) continue;
 			var hw = i.HomeWorld.Value.DataCenter.Value.Name.ToString();
@@ -161,7 +160,7 @@ internal class UiBuilder : IDisposable {
 			Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var p);
 			_bdl.DrawMapDot(p, 0xFFFFFFFF, 0xFFFFFFFF, Configuration.ShowThickness);
 		}
-		const uint color=0xFF00FF00;
+		const uint color = 0xFF00FF00;
 		if (Configuration.ShowCircle) {
 			var center = new Vector3(Configuration.ShowCenterX, Configuration.ShowCenterY, Configuration.ShowCenterZ);
 			var r1 = Configuration.CircleR;
@@ -196,7 +195,7 @@ internal class UiBuilder : IDisposable {
 	}
 
 	private (float, float)[]? _paramsPalacePal;
-	private const int DefaultCircleSegments = 16,HighResCircleSegments=50;
+	private const int DefaultCircleSegments = 16, HighResCircleSegments = 50;
 	private const float DefaultCircleSegmentFullRotation = 2 * MathF.PI / DefaultCircleSegments,
 		HighResCircleSegmentFullRotation = 2 * MathF.PI / HighResCircleSegments;
 
@@ -284,7 +283,6 @@ internal class UiBuilder : IDisposable {
 			_eurekaList2D.Add((Pos2Map(o10.FatePosition),
 				uint.MaxValue, uint.MaxValue, o10.BossShortName, o10.FateId, o10.SpawnRequiredWeather, o10.SpawnByRequiredNight));
 	}
-
 
 	private unsafe void DrawMapOverlay() {
 		RefreshMapOrigin();
@@ -383,7 +381,6 @@ internal class UiBuilder : IDisposable {
 		_bdl.PopClipRect();
 	}
 
-
 	private unsafe void RefreshMapOrigin() {
 		_mapOrigin = null;
 		if (!MapVisible) return;
@@ -427,7 +424,6 @@ internal class UiBuilder : IDisposable {
 
 	private Vector2 WorldToMap(Vector2 origin, Vector3 worldVector3) =>
 		origin + ToVector2(worldVector3 - ObjectTable.LocalPlayer!.Position) * MapScale * _globalUiScale;
-
 
 	internal static void NmFound() {
 		Player1.Stop();

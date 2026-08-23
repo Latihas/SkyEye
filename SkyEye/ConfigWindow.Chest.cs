@@ -1,7 +1,6 @@
 ﻿using Dalamud.Bindings.ImGui;
 using static SkyEye.Plugin;
 
-
 namespace SkyEye;
 
 public partial class ConfigWindow {

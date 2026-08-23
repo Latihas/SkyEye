@@ -4,7 +4,6 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.ImGuiNotification;
 using static SkyEye.Plugin;
 
-
 namespace SkyEye;
 
 public partial class ConfigWindow {

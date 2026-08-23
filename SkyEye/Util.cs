@@ -50,7 +50,6 @@ internal static class Util {
 			return addon != null && addon->IsVisible;
 		}
 	}
-
 	internal static unsafe float MapScale {
 		get {
 			var addon = AreaMapAddon;
@@ -58,9 +57,7 @@ internal static class Util {
 		}
 	}
 	internal static Vector2 ToVector2(Vector3 v) => new(v.X, v.Z);
-
 	internal static Vector3 ToVector3(Vector2 v) => new(v.X, 0f, v.Y);
-
 	private static float MapToWorld(float value, int scale, float offset) => -offset * (scale / 100.0f) + 50.0f * (value - offset) * (scale / 100.0f);
 
 	internal static Vector2 MapToWorld(Vector2 coordinates, int SizeFactor, float OffsetX, float OffsetY) =>

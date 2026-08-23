@@ -6,7 +6,6 @@ using Dalamud.Bindings.ImGui;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using static SkyEye.Plugin;
 
-
 namespace SkyEye;
 
 public partial class ConfigWindow {

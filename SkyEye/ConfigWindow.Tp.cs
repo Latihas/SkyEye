@@ -7,7 +7,6 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using static SkyEye.Ipcs;
 using static SkyEye.Plugin;
 
-
 namespace SkyEye;
 
 public partial class ConfigWindow {
@@ -15,7 +14,6 @@ public partial class ConfigWindow {
 	private static SetPositionDelegate? setPosition;
 
 	private delegate long SetPositionDelegate(long playerAddress, float x, float y, float z);
-
 
 	private static void DrawTp() {
 		ImGui.Text("自定义Tp为其他插件的潜水tp指令。");

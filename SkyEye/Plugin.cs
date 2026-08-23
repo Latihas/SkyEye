@@ -6,7 +6,6 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Dalamud;
 using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
@@ -45,7 +44,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private const float SpeedComparisonTolerance = 0.001f;
 	private const long SpeedHookRetryDelayMilliseconds = 1000;
 	internal const int FarmTimeout = 50;
+
 	private sealed record SpeedMultiplierState(float Multiplier, float MaxMultiplier);
+
 	private static SpeedMultiplierState _speedMultiplierState = new(1f, 0f);
 	internal static List<Vector3> DetectedTreasurePositions = [];
 	internal static readonly List<IPlayerCharacter> OtherPlayer = [];
@@ -58,7 +59,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static readonly Lock KillingLock = new();
 	internal static Vector3? lastFarmPos;
 	internal static bool FarmFull;
+
 	private delegate float SpeedMultiplierCalculateDelegate(nint characterSpeedContainer);
+
 	private static Hook<SpeedMultiplierCalculateDelegate>? _speedMultiplierCalculateHook;
 	private static SpeedMultiplierCalculateDelegate? _speedMultiplierCalculateOriginal;
 	private static long _speedHookRetryAfter;
@@ -365,12 +368,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	private void OnCommand(string? command, string? args) => _configWindow.Toggle();
-
 	internal static bool InEureka() => ObjectTable.LocalPlayer != null && InEureka(ClientState.TerritoryType);
 	internal static bool InOccult() => ObjectTable.LocalPlayer != null && InOccult(ClientState.TerritoryType);
 	internal static bool InEureka(uint id) => (Territory)id is Territory.Anemos or Territory.Pagos or Territory.Pyros or Territory.Hydatos;
 	internal static bool InOccult(uint id) => id == 1252;
-
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
 	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, (Territory)ClientState.TerritoryType == Territory.Hydatos ? 20.25f : 11.25f));
 

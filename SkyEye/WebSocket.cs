@@ -30,7 +30,6 @@ internal static class WebSocket {
 		}, _wssCts.Token);
 	}
 
-
 	internal static void StopWss() {
 		try {
 			_wssCts?.Cancel();

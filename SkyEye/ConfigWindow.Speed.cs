@@ -45,7 +45,6 @@ public partial class ConfigWindow {
 			Configuration.SpeedUp.Add(new SpeedInfo());
 			SpeedConfigurationChanged();
 		}
-
 		if (Configuration.SpeedUpEnabled) {
 			string[] header = ["启用", "地区Id", "倍率", "最终倍率上限", "备注", "操作"];
 			var deleteIndex = -1;

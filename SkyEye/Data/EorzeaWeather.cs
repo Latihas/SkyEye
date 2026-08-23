@@ -24,7 +24,6 @@ internal static class EorzeaWeather {
 	internal static (EurekaWeather weather, TimeSpan time) GetCurrentWeatherInfo((int, EurekaWeather)[] weathers) =>
 		(Forecast(weathers, CalculateTarget(DateTime.Now.ToUniversalTime())), (GetNearestEarthInterval(DateTime.Now) + TIME_STEP).ToLocalTime() - DateTime.Now);
 
-
 	internal static List<(EurekaWeather Weather, TimeSpan Time)> GetAllWeathers((int, EurekaWeather)[] weathers) {
 		var results = new List<(EurekaWeather, TimeSpan)>();
 		var ws = weathers.Select(i => i.Item2).ToArray();

@@ -3,7 +3,6 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using static SkyEye.Plugin;
 
-
 namespace SkyEye;
 
 public partial class ConfigWindow {

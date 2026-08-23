@@ -1,19 +1,19 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
-  <PropertyGroup>
-    <OutputPath>../bin</OutputPath>
-    <Version>7.51.1.1</Version>
-    <RepoUrl>https://github.com/Latihas/SkyEye</RepoUrl>
-    <Author>Latihas</Author>
-    <Name>SkyEye</Name>
-    <Description>改版SkyEye</Description>
-    <Punchline>ULK/月岛工具（也可以干别的）</Punchline>
-  </PropertyGroup>
-  <ItemGroup>
-    <Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
-    <PackageReference Include="System.Windows.Extensions" Version="*"/>
-  </ItemGroup>
-  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == ''">
-    <DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudLibPath>
-    <AssemblySearchPaths>$(AssemblySearchPaths);$(DalamudLibPath)</AssemblySearchPaths>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputPath>../bin</OutputPath>
+		<Version>7.55.1.0</Version>
+		<RepoUrl>https://github.com/Latihas/SkyEye</RepoUrl>
+		<Author>Latihas</Author>
+		<Name>SkyEye</Name>
+		<Description>改版SkyEye</Description>
+		<Punchline>ULK/月岛工具（也可以干别的）</Punchline>
+	</PropertyGroup>
+	<ItemGroup>
+		<Content Include="*.wav" CopyToOutputDirectory="PreserveNewest"/>
+		<PackageReference Include="System.Windows.Extensions" Version="10.0.11"/>
+	</ItemGroup>
+	<PropertyGroup Condition="'$(GITHUB_ACTIONS)' == ''">
+		<DalamudLibPath>$(appdata)\XIVLauncherCN\addon\Hooks\dev</DalamudLibPath>
+		<AssemblySearchPaths>$(AssemblySearchPaths);$(DalamudLibPath)</AssemblySearchPaths>
+	</PropertyGroup>
 </Project>

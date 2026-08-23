@@ -97,7 +97,6 @@ public partial class ConfigWindow {
 		Marshal.WriteByte(ptr, bytes.Length, 0);
 	}
 
-
 	private static bool ChangeSeString(SeString seString) => seString.Payloads.Any(payload => payload.Type == PayloadType.RawText)
 	                                                         && Configuration.NameReplacementDict.Select(i => ((string[])[i.Item1], i.Item2)).Any(pair => ReplacePlayerName(seString, pair.Item1, pair.Item2));
 

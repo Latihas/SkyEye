@@ -134,7 +134,7 @@ internal static class Ipcs {
 		}
 	}
 
-	internal static void PathfindAndMoveTo(Vector3 pos, bool fly=false) {
+	internal static void PathfindAndMoveTo(Vector3 pos, bool fly = false) {
 		if (!IsReady()) Init();
 		Stop();
 		if (CanTp() && (Configuration.CoreTpWhenGreenNearby || !GreenNearby())) {

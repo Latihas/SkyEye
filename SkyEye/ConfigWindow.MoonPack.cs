@@ -12,7 +12,7 @@ public partial class ConfigWindow {
 			var uld = addon->UldManager;
 			for (var i = 0; i < uld.NodeListSize; i++) {
 				var node = uld.NodeList[i];
-				if (!node->IsVisible() ||(int)node->Type != 1002) continue;
+				if (!node->IsVisible() || (int)node->Type != 1002) continue;
 				var comp = ((AtkComponentNode*)node)->Component;
 				if (comp->GetComponentType() != ComponentType.GaugeBar) continue;
 				var jg = (AtkComponentGaugeBar*)comp;
