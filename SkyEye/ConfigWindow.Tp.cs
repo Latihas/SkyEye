@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
@@ -42,7 +41,7 @@ public partial class ConfigWindow {
 		if (ImGui.Checkbox("解除高危tp防护", ref Configuration.PreventTp)) Configuration.Save();
 		if (Configuration.PreventTp) {
 			if (ImGui.Button("潜水Tp到坐标"))
-				CoreDiveTp(new Vector3(tpX, tpY, tpZ), true);
+				CoreDiveTp(new(tpX, tpY, tpZ), true);
 			if (ImGui.Button("到坐标再潜水Tp")) {
 				Task.Run(async () => {
 					if (setPosition == null) {

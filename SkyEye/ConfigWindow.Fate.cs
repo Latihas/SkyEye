@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Utility;
 using SkyEye.Data;
 using static SkyEye.Data.EorzeaWeather;
 using static SkyEye.Data.PData;
 using static SkyEye.Data.PData.EurekaWeather;
+using static SkyEye.Data.Territory;
 using static SkyEye.Plugin;
 using static SkyEye.Util;
 
@@ -18,16 +18,16 @@ public partial class ConfigWindow {
 	private static void DrawFate() {
 		if (ImGui.SliderInt("下几个天气", ref Configuration.NextWeatherCount, 10, 50)) Configuration.Save();
 		var data = new Dictionary<Territory, Dictionary<string, EurekaWeather>> {
-			[Territory.Anemos] = GetAllWeathers(Weathers[Territory.Anemos].ToArray())
+			[Anemos] = GetAllWeathers([.. Weathers[Anemos]])
 				.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather),
-			[Territory.Pagos] = GetAllWeathers(Weathers[Territory.Pagos])
+			[Pagos] = GetAllWeathers(Weathers[Pagos])
 				.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather),
-			[Territory.Pyros] = GetAllWeathers(Weathers[Territory.Pyros])
+			[Pyros] = GetAllWeathers(Weathers[Pyros])
 				.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather),
-			[Territory.Hydatos] = GetAllWeathers(Weathers[Territory.Hydatos])
+			[Hydatos] = GetAllWeathers(Weathers[Hydatos])
 				.ToDictionary(item => item.Time.ToString(UiBuilder.timeFormat), item => item.Weather)
 		};
-		var allUniqueTimes = data.Values.Aggregate(new List<string>(), (current, x) => current.Concat(x.Keys).ToList())
+		var allUniqueTimes = data.Values.Aggregate(new List<string>(), (current, x) => [.. current, .. x.Keys])
 			.Distinct().ToList();
 		var tablen = Math.Min(allUniqueTimes.Count, Configuration.NextWeatherCount);
 		if (ImGui.BeginTable("EurekaWeatherTable", 1 + tablen, ImGuiTableFlags.Borders)) {
@@ -43,15 +43,15 @@ public partial class ConfigWindow {
 				foreach (var time in allUniqueTimes) {
 					ImGui.TableNextColumn();
 					if (t.Value.TryGetValue(time, out var weather)) {
-						ImGui.PushStyleColor(ImGuiCol.Text, weather switch {
-							Gales => new Vector4(0, 1, 0, 1),
-							Blizzards => new Vector4(0, 1, 1, 1),
-							Fog => new Vector4(1, 1, 1, 1),
-							HeatWaves when t.Key == Territory.Pyros => new Vector4(1, 0, 0, 1),
-							Thunder when t.Key == Territory.Pyros => new Vector4(1, 0, 1, 1),
-							Snow when t.Key == Territory.Hydatos => new Vector4(.5f, .5f, 1, 1),
-							_ => new Vector4(1, 1, 1, .2f)
-						});
+						ImGui.PushStyleColor(ImGuiCol.Text, (Vector4)(weather switch {
+							Gales => new(0, 1, 0, 1),
+							Blizzards => new(0, 1, 1, 1),
+							Fog => new(1, 1, 1, 1),
+							HeatWaves when t.Key == Pyros => new(1, 0, 0, 1),
+							Thunder when t.Key == Pyros => new(1, 0, 1, 1),
+							Snow when t.Key == Hydatos => new(.5f, .5f, 1, 1),
+							_ => new(1, 1, 1, .2f)
+						}));
 						ImGui.Text(weather.ToFriendlyString());
 						ImGui.PopStyleColor();
 					}
@@ -64,7 +64,7 @@ public partial class ConfigWindow {
 			i => ImGui.Text(i.Lv), i => {
 				if (ImGui.Button(i.Name)) {
 					ImGui.SetClipboardText(i.Name);
-					NotificationManager.AddNotification(new Notification {
+					NotificationManager.AddNotification(new() {
 						Title = "已复制",
 						Content = i.Name
 					});
@@ -77,7 +77,7 @@ public partial class ConfigWindow {
 				if (i.Trigger.IsNullOrEmpty()) ImGui.Text("");
 				else if (ImGui.Button(i.Trigger)) {
 					ImGui.SetClipboardText(i.Trigger);
-					NotificationManager.AddNotification(new Notification {
+					NotificationManager.AddNotification(new() {
 						Title = "已复制",
 						Content = i.Trigger
 					});
@@ -88,23 +88,23 @@ public partial class ConfigWindow {
 		var orderact = new[] {
 			() => {
 				ImGui.Text("常风之地");
-				NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Territory.Anemos], acts);
+				NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Anemos], acts);
 			},
 			() => {
 				ImGui.Text("恒冰之地");
-				NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Territory.Pagos], acts);
+				NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Pagos], acts);
 			},
 			() => {
 				ImGui.Text("涌火之地");
-				NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Territory.Pyros], acts);
+				NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Pyros], acts);
 			},
 			() => {
 				ImGui.Text("丰水之地");
-				NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Territory.Hydatos], acts);
+				NewTable(["等级", "任务名", "触发怪", "触发怪等级", "天气", "夜晚"], XFates[Hydatos], acts);
 			}
 		};
 		switch ((Territory)ClientState.TerritoryType) {
-			case Territory.Anemos:
+			case Anemos:
 				ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
 				ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
 				orderact[0]();
@@ -115,7 +115,7 @@ public partial class ConfigWindow {
 				orderact[2]();
 				orderact[3]();
 				break;
-			case Territory.Pagos:
+			case Pagos:
 				ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
 				ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
 				orderact[1]();
@@ -126,7 +126,7 @@ public partial class ConfigWindow {
 				orderact[2]();
 				orderact[3]();
 				break;
-			case Territory.Pyros:
+			case Pyros:
 				ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
 				ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
 				orderact[2]();
@@ -137,7 +137,7 @@ public partial class ConfigWindow {
 				orderact[1]();
 				orderact[3]();
 				break;
-			case Territory.Hydatos:
+			case Hydatos:
 				ImGui.PushStyleColor(ImGuiCol.TableRowBg, white);
 				ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, white_alt);
 				orderact[3]();

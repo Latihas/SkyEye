@@ -106,7 +106,8 @@ internal static class Util {
 					if (ImGui.InputText($"##Filter{i}", ref filterdata[i])) {
 						for (var j = 0; j < acts.Length; j++) {
 							if (header[j].IsNullOrEmpty()) continue;
-							datax = datax.Where(x => filter[j](x).Contains(filterdata[j])).ToArray();
+							var j1 = j;
+							datax = [.. datax.Where(x => filter[j1](x).Contains(filterdata[j1]))];
 						}
 					}
 				}

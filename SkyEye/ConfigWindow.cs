@@ -42,7 +42,7 @@ public partial class ConfigWindow() : Window("SkyEye") {
 							return;
 						}
 						foreach (var p in PData.OccultBunnyPosition
-							         .Where(p => ClientState.TerritoryType == p.Key))
+							         .Where(p => (Territory)ClientState.TerritoryType == p.Key))
 							for (var i = 0; i < p.Value.Count; i++) {
 								var pos = p.Value[i];
 								ImGui.Text($"[{i}] {pos}");

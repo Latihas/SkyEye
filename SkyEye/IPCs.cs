@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using System.Numerics;
-using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Plugin.Ipc;
 using static SkyEye.Plugin;
 
@@ -24,7 +23,7 @@ internal static class Ipcs {
 		}
 	}
 
-	internal static void Init() {
+	private static void Init() {
 		if (IsPluginLoaded()) {
 			try {
 				var pi = PluginInterface;
@@ -65,7 +64,7 @@ internal static class Ipcs {
 		}
 	}
 
-	internal static bool IsReady() {
+	private static bool IsReady() {
 		var result = Execute(() => _navIsReady?.InvokeFunc());
 		return result.HasValue && result.Value;
 	}
@@ -92,7 +91,7 @@ internal static class Ipcs {
 	internal static void CoreDiveTp(Vector3 pos, bool force = false) {
 		if (!IsReady()) Init();
 		if (!force && !Configuration.CoreTpWhenGreenNearby && GreenNearby()) {
-			NotificationManager.AddNotification(new Notification {
+			NotificationManager.AddNotification(new() {
 				Title = "附近有绿玩",
 				Content = "禁用tp"
 			});
@@ -111,7 +110,7 @@ internal static class Ipcs {
 	internal static void CoreDive(bool force = false) {
 		if (!IsReady()) Init();
 		if (!force && !Configuration.CoreTpWhenGreenNearby && GreenNearby()) {
-			NotificationManager.AddNotification(new Notification {
+			NotificationManager.AddNotification(new() {
 				Title = "附近有绿玩",
 				Content = "禁用tp"
 			});

@@ -10,7 +10,6 @@ using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Game.Command;
 using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
@@ -27,6 +26,7 @@ using SkyEye.Data;
 using static System.StringComparison;
 using static SkyEye.ConfigWindow;
 using static SkyEye.Data.PData;
+using static SkyEye.Data.Territory;
 using static SkyEye.MConfiguration;
 using static SkyEye.Util;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
@@ -76,16 +76,16 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	public Plugin() {
 		Configuration = PluginInterface.GetPluginConfig() as MConfiguration ?? new MConfiguration();
-		_uiBuilder = new UiBuilder();
-		_configWindow = new ConfigWindow();
+		_uiBuilder = new();
+		_configWindow = new();
 		WindowSystem.AddWindow(_configWindow);
-		CommandManager.AddHandler("/skyeye", new CommandInfo(OnCommand) {
+		CommandManager.AddHandler("/skyeye", new(OnCommand) {
 			HelpMessage = "打开主界面"
 		});
-		_carrotTimer = new Timer(7000) {
+		_carrotTimer = new(7000) {
 			AutoReset = true
 		};
-		_potTimer = new Timer(7000) {
+		_potTimer = new(7000) {
 			AutoReset = true
 		};
 		_carrotTimer.Elapsed += (_, _) => {
@@ -190,7 +190,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 				ChatBox.SendMessage(cmd);
 		var territory = (Territory)ClientState.TerritoryType;
 		if (fateidx != -1) {
-			if (territory == Territory.Pagos && fateidx is 1367 or 1368 || territory == Territory.Pyros && fateidx is 1407 or 1408 || territory == Territory.Hydatos && fateidx is 1425) {
+			if (territory == Pagos && fateidx is 1367 or 1368 || territory == Pyros && fateidx is 1407 or 1408 || territory == Hydatos && fateidx is 1425) {
 				var ret = XFates[territory].FirstOrDefault(i => i.FateId == fateidx);
 				if (ret != null) {
 					SetFlagAndMove(ret.FatePosition);
@@ -199,7 +199,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			}
 		}
 		foreach (var ret in UiBuilder._eurekaLiveIdList2DOld
-			         .Where(fateid => territory == Territory.Pagos && fateid is 1367 or 1368 || territory == Territory.Pyros && fateid is 1407 or 1408 || territory == Territory.Hydatos && fateid is 1425)
+			         .Where(fateid => territory == Pagos && fateid is 1367 or 1368 || territory == Pyros && fateid is 1407 or 1408 || territory == Hydatos && fateid is 1425)
 			         .Select(fateid => XFates[territory].FirstOrDefault(i => i.FateId == fateid))) {
 			if (ret == null) continue;
 			SetFlagAndMove(ret.FatePosition);
@@ -261,7 +261,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 					TargetSystem.Instance()->SetHardTarget((GameObject*)obj.Address);
 					ChatBox.SendMessage(Configuration.FarmStartCommand);
 					if (attracted.Length == 0 || lastFarmPos == null)
-						lastFarmPos = Configuration.FarmDistAlgo == 0 ? obj.Position : new Vector3(Configuration.FarmWaitX, Configuration.FarmWaitY, Configuration.FarmWaitZ);
+						lastFarmPos = Configuration.FarmDistAlgo == 0 ? obj.Position : new(Configuration.FarmWaitX, Configuration.FarmWaitY, Configuration.FarmWaitZ);
 					Ipcs.Stop();
 					break;
 				}
@@ -370,10 +370,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private void OnCommand(string? command, string? args) => _configWindow.Toggle();
 	internal static bool InEureka() => ObjectTable.LocalPlayer != null && InEureka(ClientState.TerritoryType);
 	internal static bool InOccult() => ObjectTable.LocalPlayer != null && InOccult(ClientState.TerritoryType);
-	internal static bool InEureka(uint id) => (Territory)id is Territory.Anemos or Territory.Pagos or Territory.Pyros or Territory.Hydatos;
-	internal static bool InOccult(uint id) => id == 1252;
+	internal static bool InEureka(uint id) => (Territory)id is Anemos or Pagos or Pyros or Hydatos;
+	internal static bool InOccult(uint id) => (Territory)id is SouthHorn or NorthHorn;
 	internal static bool InArea() => InEureka() || CurrentSpeedInfo != null;
-	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, (Territory)ClientState.TerritoryType == Territory.Hydatos ? 20.25f : 11.25f));
+	internal static Vector3 Pos2Map(Vector2 pos) => ToVector3(MapToWorld(pos, 200, 11f, (Territory)ClientState.TerritoryType == Hydatos ? 20.25f : 11.25f));
 
 	internal static unsafe void SetFlagAndMove(Vector2 pos) {
 		AgentMap.Instance()->SetFlagMapMarker(ClientState.TerritoryType, ClientState.MapId, Pos2Map(pos));
@@ -437,17 +437,19 @@ public sealed partial class Plugin : IDalamudPlugin {
 		}
 		var playerPos = ObjectTable.LocalPlayer!.Position;
 		var playerPos2D = new Vector2(playerPos.X, playerPos.Z);
-		DetectedTreasurePositions = RabbitTreasurePositions[(Territory)ClientState.TerritoryType]
-			.Select(i => (i, Vector2.Distance(playerPos2D, new Vector2(i.X, i.Z))))
-			.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
-		if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
-		else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
-		else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
-		else if (direction.Equals("正西", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X < playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
-		else if (direction.Equals("东南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X >= playerPos.X).ToList();
-		else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
-		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
-		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
+		DetectedTreasurePositions = [
+			.. RabbitTreasurePositions[(Territory)ClientState.TerritoryType]
+				.Select(i => (i, Vector2.Distance(playerPos2D, new(i.X, i.Z))))
+				.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i)
+		];
+		if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z))];
+		else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z))];
+		else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z))];
+		else if (direction.Equals("正西", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.X < playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z))];
+		else if (direction.Equals("东南", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X >= playerPos.X)];
+		else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X)];
+		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X)];
+		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X)];
 		var pos = DetectedTreasurePositions.FirstOrDefault();
 		if (pos == default) {
 			Log.Warning("无可用点位");
@@ -522,17 +524,19 @@ public sealed partial class Plugin : IDalamudPlugin {
 		}
 		var playerPos = ObjectTable.LocalPlayer!.Position;
 		var playerPos2D = new Vector2(playerPos.X, playerPos.Z);
-		DetectedTreasurePositions = OccultPotPosition[ClientState.TerritoryType]
-			.Select(i => (i, Vector2.Distance(playerPos2D, new Vector2(i.X, i.Z))))
-			.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i).ToList();
-		if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
-		else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z)).ToList();
-		else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
-		else if (direction.Equals("正西", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.X < playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z)).ToList();
-		else if (direction.Equals("东南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X >= playerPos.X).ToList();
-		else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X).ToList();
-		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X).ToList();
-		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X).ToList();
+		DetectedTreasurePositions = [
+			.. OccultPotPosition[(Territory)ClientState.TerritoryType]
+				.Select(i => (i, Vector2.Distance(playerPos2D, new(i.X, i.Z))))
+				.OrderBy(c => c.Item2).Where(c => c.Item2 >= minDistance && c.Item2 <= maxDistance).Select(i => i.i)
+		];
+		if (direction.Equals("正南", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z > playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z))];
+		else if (direction.Equals("正北", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z < playerPos.Z && Math.Abs(c.X - playerPos.X) <= Math.Abs(c.Z - playerPos.Z))];
+		else if (direction.Equals("正东", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.X > playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z))];
+		else if (direction.Equals("正西", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.X < playerPos.X && Math.Abs(c.X - playerPos.X) >= Math.Abs(c.Z - playerPos.Z))];
+		else if (direction.Equals("东南", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X >= playerPos.X)];
+		else if (direction.Equals("西南", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z >= playerPos.Z && c.X <= playerPos.X)];
+		else if (direction.Equals("东北", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X >= playerPos.X)];
+		else if (direction.Equals("西北", OrdinalIgnoreCase)) DetectedTreasurePositions = [.. DetectedTreasurePositions.Where(c => c.Z <= playerPos.Z && c.X <= playerPos.X)];
 		var pos = DetectedTreasurePositions.FirstOrDefault();
 		if (pos == default) {
 			Log.Warning("无可用点位");
@@ -553,7 +557,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			Task.Run(async () => {
 				while (true) {
 					await Task.Delay(1000);
-					if (!isFindingMoonPack || MoonPackId == 0) return;
+					if (!isFindingMoonPack || MoonPackId == 0 || ObjectTable.LocalPlayer == null) return;
 					if (Vector3.DistanceSquared(ObjectTable.LocalPlayer.Position, pos) < 10
 					    && !Condition[ConditionFlag.BetweenAreas]
 					    && !Condition[ConditionFlag.BetweenAreas51]
@@ -582,7 +586,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static void Chat30OccultTreasure(IChatMessage chatMessage) {
 		if (!InOccult() || !Configuration.Auto30OccultTreasure) return;
 		var msg = chatMessage.Message.TextValue.Trim();
-		if (Chat30OccultTreasureRegex().IsMatch(msg) && OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) {
+		if (Chat30OccultTreasureRegex().IsMatch(msg) && OccultTreasurePosition.TryGetValue((Territory)ClientState.TerritoryType, out _)) {
 			foreach (var p in Configuration.BeforeAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
 			StartFindOccultTreasure(() => {
 				foreach (var p in Configuration.AfterAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
@@ -617,12 +621,10 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	internal static SpeedInfo? FindSpeedInfo(uint territoryType) {
-		var territory = territoryType.ToString();
 		return Configuration.SpeedUp.FirstOrDefault(s =>
-			s != null &&
 			s.Enabled &&
-			!string.IsNullOrWhiteSpace(s.SpeedUpTerritory ?? string.Empty) &&
-			(s.SpeedUpTerritory ?? string.Empty).Split('|').Contains(territory) &&
+			!string.IsNullOrWhiteSpace(s.SpeedUpTerritory) &&
+			s.SpeedUpTerritory.Split('|').Contains(territoryType.ToString()) &&
 			IsValidSpeedValue(s.SpeedUpN) &&
 			IsValidSpeedValue(s.SpeedMultiplierMax));
 	}
@@ -653,8 +655,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 			Configuration.DisableAutoPotWhenTerritoryChanged = true;
 		}
 		if (Configuration.Version < 2) {
-			foreach (var speedInfo in Configuration.SpeedUp ?? []) {
-				if (speedInfo == null) continue;
+			foreach (var speedInfo in Configuration.SpeedUp) {
 				speedInfo.SpeedMultiplierMax = IsValidSpeedValue(speedInfo.SpeedUpN)
 					? speedInfo.SpeedUpN
 					: SpeedInfo.DefaultSpeedMultiplierMax;
@@ -666,14 +667,12 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	private static bool EnsureDefaultSpeedInfo() {
 		var changed = false;
-		Configuration.SpeedUp ??= [];
 		if (Configuration.SpeedUp.Count == 0) {
 			Configuration.SpeedUp.Add(SpeedInfo.Default());
 			return true;
 		}
-		if (Configuration.SpeedUp.Any(speedInfo => speedInfo?.IsDefault == true)) return changed;
-		var legacyDefault = Configuration.SpeedUp.FirstOrDefault(speedInfo =>
-			speedInfo != null && SpeedInfo.HasLegacyDefaultCharacteristics(speedInfo));
+		if (Configuration.SpeedUp.Any(speedInfo => speedInfo.IsDefault)) return changed;
+		var legacyDefault = Configuration.SpeedUp.FirstOrDefault(SpeedInfo.HasLegacyDefaultCharacteristics);
 		if (legacyDefault != null) {
 			legacyDefault.IsDefault = true;
 			changed = true;
@@ -705,7 +704,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		var previous = Volatile.Read(ref _speedMultiplierState);
 		if (SpeedApproximatelyEquals(previous.Multiplier, multiplier) &&
 		    SpeedApproximatelyEquals(previous.MaxMultiplier, maxMultiplier)) return;
-		Volatile.Write(ref _speedMultiplierState, new SpeedMultiplierState(multiplier, maxMultiplier));
+		Volatile.Write(ref _speedMultiplierState, new(multiplier, maxMultiplier));
 		if (!Configuration.SpeedDebugOutput || _speedMultiplierCalculateHook == null) return;
 		try {
 			ChatBox.SendMessage($"/e SpeedMultiplier: {previous.Multiplier}->{multiplier}, max={maxMultiplier}");
@@ -759,7 +758,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	}
 
 	private static void DisposeSpeedMultiplierHook() {
-		Volatile.Write(ref _speedMultiplierState, new SpeedMultiplierState(1f, 0f));
+		Volatile.Write(ref _speedMultiplierState, new(1f, 0f));
 		_speedHookRetryAfter = 0;
 		var hook = _speedMultiplierCalculateHook;
 		if (hook == null) return;

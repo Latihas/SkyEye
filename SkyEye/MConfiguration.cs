@@ -50,10 +50,6 @@ public class MConfiguration : IPluginConfiguration {
 		public bool Enabled, IsDefault;
 		public float SpeedUpN = 3.5f;
 		public float SpeedMultiplierMax = DefaultSpeedMultiplierMax;
-		public float BaseMovementSpeed = 6f;
-		public float MountBaseMovementSpeed = 9.6f;
-		public float SpeedUpMax = 20f;
-		public float SpeedUpMountX = 2f;
 		public string SpeedUpTerritory = "";
 		private static readonly SpeedInfo _default = new() {
 			Desc = "ULK, 该行地区Id与描述不可修改",
@@ -71,11 +67,11 @@ public class MConfiguration : IPluginConfiguration {
 
 		internal static bool HasLegacyDefaultCharacteristics(SpeedInfo speedInfo) {
 			var expectedTerritories = _default.SpeedUpTerritory.Split('|', StringSplitOptions.RemoveEmptyEntries);
-			var actualTerritories = (speedInfo.SpeedUpTerritory ?? string.Empty).Split('|', StringSplitOptions.RemoveEmptyEntries);
+			var actualTerritories = speedInfo.SpeedUpTerritory.Split('|', StringSplitOptions.RemoveEmptyEntries);
 			return actualTerritories.Length == expectedTerritories.Length &&
 			       actualTerritories.Distinct().Count() == expectedTerritories.Length &&
 			       expectedTerritories.All(actualTerritories.Contains) &&
-			       string.Equals(speedInfo.Desc ?? string.Empty, _default.Desc, StringComparison.Ordinal);
+			       string.Equals(speedInfo.Desc, _default.Desc, StringComparison.Ordinal);
 		}
 	}
 }

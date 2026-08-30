@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.Enums;
@@ -43,13 +42,13 @@ public partial class ConfigWindow {
 		}
 		if (!Configuration.NameReplacement) return;
 		if (ImGui.Button("添加")) {
-			Configuration.NameReplacementDict.Add(new ValueTuple<string, string>("原始", "替换"));
+			Configuration.NameReplacementDict.Add(new("原始", "替换"));
 			Configuration.Save();
 		}
 		try {
 			for (var index = 0; index < Configuration.NameReplacementDict.Count; index++) {
 				var p1 = Configuration.NameReplacementDict[index].Item1;
-				if (ImGui.InputTextEx($"##Ori{index}", "原始", ref p1, 512, new Vector2(200, 0))) {
+				if (ImGui.InputTextEx($"##Ori{index}", "原始", ref p1, 512, new(200, 0))) {
 					Configuration.NameReplacementDict[index] = new(p1, Configuration.NameReplacementDict[index].Item2);
 					if (string.IsNullOrEmpty(Configuration.NameReplacementDict[index].Item1) && string.IsNullOrEmpty(Configuration.NameReplacementDict[index].Item2))
 						Configuration.NameReplacementDict.RemoveAt(index);
@@ -59,7 +58,7 @@ public partial class ConfigWindow {
 				ImGui.Text("->");
 				ImGui.SameLine();
 				var p2 = Configuration.NameReplacementDict[index].Item2;
-				if (ImGui.InputTextEx($"##Rep{index}", "替换", ref p2, 512, new Vector2(200, 0))) {
+				if (ImGui.InputTextEx($"##Rep{index}", "替换", ref p2, 512, new(200, 0))) {
 					Configuration.NameReplacementDict[index] = new(Configuration.NameReplacementDict[index].Item1, p2);
 					if (string.IsNullOrEmpty(Configuration.NameReplacementDict[index].Item1) && string.IsNullOrEmpty(Configuration.NameReplacementDict[index].Item2))
 						Configuration.NameReplacementDict.RemoveAt(index);
@@ -125,7 +124,7 @@ public partial class ConfigWindow {
 					if (!string.IsNullOrEmpty(str) && str.Length >= 3) {
 						var start = str[0];
 						var end = str[^1];
-						handler.Title = string.Concat(new ReadOnlySpan<char>(ref start), ReplaceNameplate(str[1..^1]), new ReadOnlySpan<char>(ref end));
+						handler.Title = string.Concat(new(ref start), ReplaceNameplate(str[1..^1]), new ReadOnlySpan<char>(ref end));
 					}
 				}
 				continue;

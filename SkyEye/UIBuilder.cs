@@ -133,22 +133,22 @@ internal class UiBuilder : IDisposable {
 			if (ConfigWindow.PalacePalDatList.Count == 0) {
 				ConfigWindow.PalacePalDatList.Clear();
 				foreach (var sp in Ipcs.PalacePalData()) {
-					ConfigWindow.PalacePalDatList.Add(new ConfigWindow.PalacePalDat(
+					ConfigWindow.PalacePalDatList.Add(new(
 						uint.Parse(sp[0]),
 						int.Parse(sp[1]),
-						new Vector3(float.Parse(sp[2]),
+						new(float.Parse(sp[2]),
 							float.Parse(sp[3]),
 							float.Parse(sp[4])))
 					);
 				}
-				ConfigWindow.PalacePalDatTerritoryIds = ConfigWindow.PalacePalDatList.Select(i => i.territoryType).ToArray();
+				ConfigWindow.PalacePalDatTerritoryIds = [.. ConfigWindow.PalacePalDatList.Select(i => i.territoryType)];
 			}
 			if (ConfigWindow.PalacePalDatTerritoryIds.Contains(ClientState.TerritoryType)) {
 				foreach (var (territoryType, type, position) in ConfigWindow.PalacePalDatList) {
 					if (territoryType != ClientState.TerritoryType) continue;
 					for (var i = 0; i <= DefaultCircleSegments; i++) {
 						var p = _paramsPalacePal[i];
-						Gui.WorldToScreen(new Vector3(position.X + p.Item1, position.Y, position.Z + p.Item2), out var segment);
+						Gui.WorldToScreen(new(position.X + p.Item1, position.Y, position.Z + p.Item2), out var segment);
 						_bdl.PathLineTo(segment);
 					}
 					_bdl.PathFillConvex(type == 1 ? 0x50FFFF00u : 0x500000FFu);
@@ -173,20 +173,20 @@ internal class UiBuilder : IDisposable {
 			for (var i = 0; i <= HighResCircleSegments; i++) {
 				var p = _params[i];
 				if (i == 0) {
-					Gui.WorldToScreen(new Vector3(center.X + p.Item1, center.Y, center.Z + p.Item2), out last);
+					Gui.WorldToScreen(new(center.X + p.Item1, center.Y, center.Z + p.Item2), out last);
 					continue;
 				}
-				Gui.WorldToScreen(new Vector3(center.X + p.Item1, center.Y, center.Z + p.Item2), out var now);
+				Gui.WorldToScreen(new(center.X + p.Item1, center.Y, center.Z + p.Item2), out var now);
 				_bdl.DrawLine(last, now, color, Configuration.ShowThickness);
 				last = now;
 			}
 		}
 		if (Configuration.ShowSquare) {
 			var center = new Vector3(Configuration.ShowCenterX, Configuration.ShowCenterY, Configuration.ShowCenterZ);
-			var LT = Gui.WorldToScreen(new Vector3(center.X - Configuration.SquareR, center.Y, center.Z + Configuration.SquareR), out var LT2);
-			var RT = Gui.WorldToScreen(new Vector3(center.X + Configuration.SquareR, center.Y, center.Z + Configuration.SquareR), out var RT2);
-			var LB = Gui.WorldToScreen(new Vector3(center.X - Configuration.SquareR, center.Y, center.Z - Configuration.SquareR), out var LB2);
-			var RB = Gui.WorldToScreen(new Vector3(center.X + Configuration.SquareR, center.Y, center.Z - Configuration.SquareR), out var RB2);
+			Gui.WorldToScreen(new(center.X - Configuration.SquareR, center.Y, center.Z + Configuration.SquareR), out var LT2);
+			Gui.WorldToScreen(new(center.X + Configuration.SquareR, center.Y, center.Z + Configuration.SquareR), out var RT2);
+			Gui.WorldToScreen(new(center.X - Configuration.SquareR, center.Y, center.Z - Configuration.SquareR), out var LB2);
+			Gui.WorldToScreen(new(center.X + Configuration.SquareR, center.Y, center.Z - Configuration.SquareR), out var RB2);
 			_bdl.DrawLine(LT2, RT2, color, Configuration.ShowThickness);
 			_bdl.DrawLine(LT2, LB2, color, Configuration.ShowThickness);
 			_bdl.DrawLine(RT2, RB2, color, Configuration.ShowThickness);
@@ -487,9 +487,9 @@ internal class UiBuilder : IDisposable {
 			notice.Append("○(").Append((EorzeaWeather.GetWeatherUptime(o.Weather, Weathers[Territory.Pagos], DateTime.Now).End - DateTime.Now).ToString(timeFormat));
 		notice.Append(')');
 		_bdl.DrawText(WorldToMap(valueOrDefault, (Territory)ClientState.TerritoryType switch {
-			Territory.Anemos or Territory.Pagos => new Vector3(-9.1946f, 0f, 584.4f),
-			Territory.Pyros => new Vector3(0.2181f, 0f, 865.32275f),
-			Territory.Hydatos => new Vector3(89.62729f, 0f, -1241.035f)
+			Territory.Anemos or Territory.Pagos => new(-9.1946f, 0f, 584.4f),
+			Territory.Pyros => new(0.2181f, 0f, 865.32275f),
+			Territory.Hydatos => new(89.62729f, 0f, -1241.035f)
 		}), notice.ToString(), uint.MaxValue);
 	}
 }

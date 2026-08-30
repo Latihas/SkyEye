@@ -5,7 +5,7 @@ namespace SkyEye.Data;
 internal class EorzeaTime(DateTime dateTime) {
 	internal static readonly DateTime Zero = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 	internal DateTime EorzeaDateTime { get; } = dateTime;
-	internal static EorzeaTime ToEorzeaTime(DateTime dateTime) => new(new DateTime((long)Math.Round((dateTime.ToUniversalTime().Ticks - Zero.Ticks) * 20.571428571428573)));
+	internal static EorzeaTime ToEorzeaTime(DateTime dateTime) => new(new((long)Math.Round((dateTime.ToUniversalTime().Ticks - Zero.Ticks) * 20.571428571428573)));
 
 	internal static DateTime GetNearestEarthInterval(DateTime dateTime) {
 		var num = new DateTimeOffset(dateTime).ToUnixTimeMilliseconds();

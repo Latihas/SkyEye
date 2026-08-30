@@ -2,7 +2,6 @@ using System.Linq;
 using System.Text;
 using Dalamud.Bindings.ImGui;
 using static SkyEye.Plugin;
-using static SkyEye.MConfiguration;
 using static SkyEye.Util;
 
 namespace SkyEye;
@@ -42,7 +41,7 @@ public partial class ConfigWindow {
 		}
 		if (ImGui.Button("添加配置")) {
 			RestoreSpeed();
-			Configuration.SpeedUp.Add(new SpeedInfo());
+			Configuration.SpeedUp.Add(new());
 			SpeedConfigurationChanged();
 		}
 		if (Configuration.SpeedUpEnabled) {
@@ -54,16 +53,9 @@ public partial class ConfigWindow {
 				for (var i = 0; i < Configuration.SpeedUp.Count; i++) {
 					var speedInfo = Configuration.SpeedUp[i];
 					ImGui.TableNextRow();
-					if (speedInfo == null) {
-						ImGui.TableSetColumnIndex(1);
-						ImGui.Text("无效的 null 配置项");
-						ImGui.TableSetColumnIndex(5);
-						if (ImGui.Button($"删除##速度null{i}")) deleteIndex = i;
-						continue;
-					}
 					var isDefault = speedInfo.IsDefault;
-					var territoryText = speedInfo.SpeedUpTerritory ?? string.Empty;
-					var descText = speedInfo.Desc ?? string.Empty;
+					var territoryText = speedInfo.SpeedUpTerritory;
+					var descText = speedInfo.Desc;
 					ImGui.TableSetColumnIndex(0);
 					if (ImGui.Checkbox($"##启用{i}", ref speedInfo.Enabled)) SpeedConfigurationChanged();
 					ImGui.TableSetColumnIndex(1);
@@ -109,7 +101,7 @@ public partial class ConfigWindow {
 		if (ImGui.InputText("亲友", ref Configuration.SpeedUpFriendly, 114514)) Configuration.Save();
 		ImGui.Text($"周围人数：{(InArea() ? OtherPlayer.Count : "不在区域内")};区域id：{ClientState.TerritoryType}");
 		ImGui.Separator();
-		NewTable(["Id", "名称"], MapInfo.Select(p => (p.Key, p.Value)).ToArray(), [
+		NewTable(["Id", "名称"], [.. MapInfo.Select(p => (p.Key, p.Value))], [
 			i => ImGui.Text(i.Key),
 			i => ImGui.Text(i.Value)
 		], [

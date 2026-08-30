@@ -4,7 +4,7 @@ using static SkyEye.Plugin;
 namespace SkyEye;
 
 public partial class ConfigWindow {
-	private void DrawOccultPot() {
+	private static void DrawOccultPot() {
 		if (ImGui.Checkbox("进入月岛自动关闭罐子自动开箱", ref Configuration.DisableAutoPotWhenTerritoryChanged)) Configuration.Save();
 		if (ImGui.Checkbox("启用月岛罐子导航/传送", ref Configuration.EnableOccultPotNavigation)) Configuration.Save();
 		if (ImGui.Checkbox("自动开宝箱", ref Configuration.AutoPot)) Configuration.Save();

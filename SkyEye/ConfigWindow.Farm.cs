@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.ImGuiNotification;
 using static SkyEye.Plugin;
 
 namespace SkyEye;
@@ -14,7 +13,7 @@ public partial class ConfigWindow {
 		ImGui.SameLine();
 		if (ImGui.Button("永恒不灭的菲兰德副耀士")) {
 			ImGui.SetClipboardText("永恒不灭的菲兰德副耀士");
-			NotificationManager.AddNotification(new Notification {
+			NotificationManager.AddNotification(new() {
 				Title = "已复制",
 				Content = "永恒不灭的菲兰德副耀士"
 			});

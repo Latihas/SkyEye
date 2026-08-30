@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using SkyEye.Data;
+using static SkyEye.Data.TreasureRarity;
 using static SkyEye.Ipcs;
 using static SkyEye.Plugin;
 
@@ -15,9 +16,9 @@ public partial class ConfigWindow {
 		if (ImGui.InputText("手动寻宝前指令(竖线|隔开)", ref Configuration.BeforeOccultTreasure)) Configuration.Save();
 		if (ImGui.InputText("手动寻宝后指令(竖线|隔开)", ref Configuration.AfterOccultTreasure)) Configuration.Save();
 		if (ImGui.InputInt("时间延迟(看加载速度)(ms)", ref Configuration.OccultTreasureDelay)) Configuration.Save();
-		if (!PData.OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) return;
+		if (!PData.OccultTreasurePosition.TryGetValue((Territory)ClientState.TerritoryType, out var value)) return;
 		if (ImGui.CollapsingHeader("银箱子")) {
-			foreach (var p in value.Where(p => p.Item2 == 1597)) {
+			foreach (var p in value.Where(p => p.Item2 == Silver)) {
 				ImGui.Text($"{p.Item1}");
 				ImGui.SameLine();
 				if (ImGui.Button($"走##{p.Item1}")) CoreDiveTp(p.Item1, true);
@@ -43,7 +44,7 @@ public partial class ConfigWindow {
 
 	internal static void StartFindOccultTreasure(Action after) {
 		var t = ClientState.TerritoryType;
-		if (!PData.OccultTreasurePosition.TryGetValue(ClientState.TerritoryType, out var value)) return;
+		if (!PData.OccultTreasurePosition.TryGetValue((Territory)ClientState.TerritoryType, out var value)) return;
 		isFindingTreasure = true;
 		foreach (var p in Configuration.BeforeOccultTreasure.Split("|")) ChatBox.SendMessage(p);
 		Task.Run(async () => {

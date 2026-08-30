@@ -22,7 +22,7 @@ internal static class WebSocket {
 	internal static readonly List<NmInfo> nmdead = [];
 
 	internal static void StartWssService() {
-		_wssCts = new CancellationTokenSource();
+		_wssCts = new();
 		Task.Run(async () => {
 			nmalive.Clear();
 			nmdead.Clear();
@@ -61,14 +61,14 @@ internal static class WebSocket {
 			} catch (Exception) {
 				//
 			}
-			client = new ClientWebSocket();
-			await client.ConnectAsync(new Uri($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Configuration.WssRegion}/ws"), cancellationToken);
+			client = new();
+			await client.ConnectAsync(new($"wss://eureka-tracker.tunnel.tidebyte.com:8129/v1/{Configuration.WssRegion}/ws"), cancellationToken);
 			var buffer = new byte[4096];
 			while (client.State == WebSocketState.Open) {
 				using var ms = new MemoryStream();
 				WebSocketReceiveResult result;
 				do {
-					result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+					result = await client.ReceiveAsync(new(buffer), cancellationToken);
 					if (result.MessageType == WebSocketMessageType.Close) {
 						try {
 							await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "服务终止", CancellationToken.None);
@@ -127,7 +127,7 @@ internal static class WebSocket {
 							var info4 = nmdead.FirstOrDefault(a => vdata["name"]!.ToString() == a.oriname);
 							if (info4 != null) nmalive.Remove(info4);
 							var ni = new NmInfo(vdata);
-							nmdead.Add(new NmInfo(vdata));
+							nmdead.Add(new(vdata));
 							Notify($"{ni.oriname}已死亡", false);
 							break;
 						}
