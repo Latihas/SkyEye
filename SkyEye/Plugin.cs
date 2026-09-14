@@ -587,9 +587,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (!InOccult() || !Configuration.Auto30OccultTreasure) return;
 		var msg = chatMessage.Message.TextValue.Trim();
 		if (Chat30OccultTreasureRegex().IsMatch(msg) && OccultTreasurePosition.TryGetValue((Territory)ClientState.TerritoryType, out _)) {
-			foreach (var p in Configuration.BeforeAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
+			foreach (var p in Configuration.BeforeOccultTreasure.Split("|")) ChatBox.SendMessage(p);
 			StartFindOccultTreasure(() => {
-				foreach (var p in Configuration.AfterAuto30OccultTreasure.Split("|")) ChatBox.SendMessage(p);
+				foreach (var p in Configuration.AfterOccultTreasure.Split("|")) ChatBox.SendMessage(p);
 			});
 		}
 	}
