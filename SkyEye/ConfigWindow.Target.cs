@@ -92,5 +92,17 @@ public partial class ConfigWindow {
 		if (ImGui.Checkbox($"维埃拉族男({Cats[80]})", ref Configuration.FindRaceWeiAiLaM)) Configuration.Save();
 		ImGui.SameLine();
 		if (ImGui.Checkbox($"维埃拉族女({Cats[81]})", ref Configuration.FindRaceWeiAiLaF)) Configuration.Save();
+		if (ImGui.Checkbox($"狩猎", ref Configuration.FindHunt)) Configuration.Save();
+		if (Configuration.FindHunt) {
+			if (ImGui.Checkbox($"B", ref Configuration.FindHuntB)) Configuration.Save();
+			ImGui.SameLine();
+			if (ImGui.Checkbox($"A", ref Configuration.FindHuntA)) Configuration.Save();
+			ImGui.SameLine();
+			if (ImGui.Checkbox($"S", ref Configuration.FindHuntS)) Configuration.Save();
+			ImGui.SameLine();
+			if (ImGui.Checkbox($"SS", ref Configuration.FindHuntS)) Configuration.Save();
+			ImGui.SameLine();
+			if (ImGui.Checkbox($"SSMinion", ref Configuration.FindHuntS)) Configuration.Save();
+		}
 	}
 }

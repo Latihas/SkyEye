@@ -10,6 +10,13 @@ public partial class ConfigWindow {
 
 	internal static readonly List<PalacePalDat> PalacePalDatList = [];
 	internal static uint[] PalacePalDatTerritoryIds = [];
+	internal static Dictionary<uint, List<Hunt>> HuntData = [];
+
+	public class Hunt {
+		public string rank;
+		public uint id;
+		public int level;
+	}
 
 	private static void DrawPalacePal() {
 		if (ImGui.Checkbox("启用", ref Configuration.EnablePalacePal)) Configuration.Save();

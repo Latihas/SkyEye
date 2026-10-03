@@ -8,10 +8,13 @@ using System.Text;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Objects.SubKinds;
+using Dalamud.Game.ClientState.Objects.Types;
 using FFXIVClientStructs.FFXIV.Client.Game.Fate;
 using FFXIVClientStructs.FFXIV.Component.GUI;
+using Newtonsoft.Json;
 using SkyEye.Data;
 using static System.Globalization.CultureInfo;
+using static SkyEye.ConfigWindow;
 using static SkyEye.Data.PData;
 using static SkyEye.Plugin;
 using static SkyEye.Util;
@@ -118,9 +121,23 @@ internal class UiBuilder : IDisposable {
 			    Configuration.FindRaceWeiAiLaF && i.CustomizeData is { Race: 8, Sex: 1 })
 				poses.Add(i.Position);
 		}
-		foreach (var en in poses)
-			if (Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var v) && Gui.WorldToScreen(en, out var v2))
-				_bdl.DrawLine(v, v2, 0x7F0000FF);
+		if (Configuration.FindHunt) {
+			if (HuntData.Count == 0) {
+				HuntData = JsonConvert.DeserializeObject<Dictionary<uint, List<Hunt>>>(File.ReadAllText(Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, "hunt.json")))!;
+			}
+			if (HuntData.TryGetValue(ClientState.TerritoryType, out var vs)) {
+				foreach (var obj in ObjectTable) {
+					if (obj is not IBattleChara chara) continue;
+					if (vs.Any(v => chara.NameId == v.id
+						    && (Configuration.FindHuntB && v.rank == "B" ||
+						    Configuration.FindHuntA && v.rank == "A" ||
+						    Configuration.FindHuntS && v.rank == "S"||
+						    Configuration.FindHuntSS && v.rank == "SS"||
+						    Configuration.FindHuntSSMinion && v.rank == "SSMinion")
+						     )) poses.Add(obj.Position);
+				}
+			}
+		}
 		if (Configuration.EnablePalacePal) {
 			if (_paramsPalacePal == null) {
 				const float r1 = 2.5f;
@@ -130,10 +147,10 @@ internal class UiBuilder : IDisposable {
 					_paramsPalacePal[i] = (r1 * MathF.Sin(currentRotation), r1 * MathF.Cos(currentRotation));
 				}
 			}
-			if (ConfigWindow.PalacePalDatList.Count == 0) {
-				ConfigWindow.PalacePalDatList.Clear();
+			if (PalacePalDatList.Count == 0) {
+				PalacePalDatList.Clear();
 				foreach (var sp in Ipcs.PalacePalData()) {
-					ConfigWindow.PalacePalDatList.Add(new(
+					PalacePalDatList.Add(new(
 						uint.Parse(sp[0]),
 						int.Parse(sp[1]),
 						new(float.Parse(sp[2]),
@@ -141,10 +158,10 @@ internal class UiBuilder : IDisposable {
 							float.Parse(sp[4])))
 					);
 				}
-				ConfigWindow.PalacePalDatTerritoryIds = [.. ConfigWindow.PalacePalDatList.Select(i => i.territoryType)];
+				PalacePalDatTerritoryIds = [.. PalacePalDatList.Select(i => i.territoryType)];
 			}
-			if (ConfigWindow.PalacePalDatTerritoryIds.Contains(ClientState.TerritoryType)) {
-				foreach (var (territoryType, type, position) in ConfigWindow.PalacePalDatList) {
+			if (PalacePalDatTerritoryIds.Contains(ClientState.TerritoryType)) {
+				foreach (var (territoryType, type, position) in PalacePalDatList) {
 					if (territoryType != ClientState.TerritoryType) continue;
 					for (var i = 0; i <= DefaultCircleSegments; i++) {
 						var p = _paramsPalacePal[i];
@@ -156,6 +173,9 @@ internal class UiBuilder : IDisposable {
 				}
 			}
 		}
+		foreach (var en in poses)
+			if (Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var v) && Gui.WorldToScreen(en, out var v2))
+				_bdl.DrawLine(v, v2, 0x7F0000FF);
 		if (Configuration.ShowMyPos) {
 			Gui.WorldToScreen(ObjectTable.LocalPlayer.Position, out var p);
 			_bdl.DrawMapDot(p, 0xFFFFFFFF, 0xFFFFFFFF, Configuration.ShowThickness);

@@ -29,7 +29,8 @@ public class MConfiguration : IPluginConfiguration {
 		FindRaceLuJiaM, FindRaceLuJiaF,
 		FindRaceAoLongM, FindRaceAoLongF,
 		FindRaceGeShiM, FindRaceGeShiF,
-		FindRaceWeiAiLaM, FindRaceWeiAiLaF;
+		FindRaceWeiAiLaM, FindRaceWeiAiLaF,
+		FindHunt, FindHuntB, FindHuntA, FindHuntS,FindHuntSS,FindHuntSSMinion;
 	public List<SpeedInfo> SpeedUp = [];
 	public string SpeedUpFriendly = "", NmBattleTimeText = "", FarmTarget = "", FarmStartCommand = "/ac 飞斧", WssNotify = "", FindEntity = "",
 		BeforeFindTreasure = "/bmrai off", AfterFindTreasure = "", BeforeGotoNewRabbit = "/bmrai on",
