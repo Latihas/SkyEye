@@ -46,6 +46,8 @@ internal class UiBuilder : IDisposable {
 		ClientState.TerritoryChanged -= TerritoryChanged;
 	}
 
+	private static List<Hunt> CurrentTerritoryHunts = [];
+
 	private static void TerritoryChanged(uint u) {
 		if (DisableAutoTreasureOnTerritoryEnter(u)) Configuration.Save();
 		if (InEureka(lastTerritoryId) || InEureka(ClientState.TerritoryType)) {
@@ -59,6 +61,10 @@ internal class UiBuilder : IDisposable {
 		}
 		lastTerritoryId = ClientState.TerritoryType;
 		RefreshCurrentSpeedInfo(u, true);
+		if (HuntData.Count == 0) {
+			HuntData = JsonConvert.DeserializeObject<Dictionary<uint, List<Hunt>>>(File.ReadAllText(Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, "hunt.json")))!;
+		}
+		CurrentTerritoryHunts = HuntData.TryGetValue(ClientState.TerritoryType, out var vs) ? vs : [];
 	}
 
 	private static uint LastPotId;
@@ -125,17 +131,15 @@ internal class UiBuilder : IDisposable {
 			if (HuntData.Count == 0) {
 				HuntData = JsonConvert.DeserializeObject<Dictionary<uint, List<Hunt>>>(File.ReadAllText(Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, "hunt.json")))!;
 			}
-			if (HuntData.TryGetValue(ClientState.TerritoryType, out var vs)) {
-				foreach (var obj in ObjectTable) {
-					if (obj is not IBattleChara chara) continue;
-					if (vs.Any(v => chara.NameId == v.id
-						    && (Configuration.FindHuntB && v.rank == "B" ||
-						    Configuration.FindHuntA && v.rank == "A" ||
-						    Configuration.FindHuntS && v.rank == "S"||
-						    Configuration.FindHuntSS && v.rank == "SS"||
-						    Configuration.FindHuntSSMinion && v.rank == "SSMinion")
-						     )) poses.Add(obj.Position);
-				}
+			foreach (var obj in ObjectTable) {
+				if (obj is not IBattleChara chara) continue;
+				if (CurrentTerritoryHunts.Any(v => chara.NameId == v.id
+				                                   && (Configuration.FindHuntB && v.rank == "B" ||
+				                                       Configuration.FindHuntA && v.rank == "A" ||
+				                                       Configuration.FindHuntS && v.rank == "S" ||
+				                                       Configuration.FindHuntSS && v.rank == "SS" ||
+				                                       Configuration.FindHuntSSMinion && v.rank == "SSMinion")
+				    )) poses.Add(obj.Position);
 			}
 		}
 		if (Configuration.EnablePalacePal) {
