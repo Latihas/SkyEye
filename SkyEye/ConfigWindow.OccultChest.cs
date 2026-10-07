@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
+using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using SkyEye.Data;
 using static SkyEye.Data.TreasureRarity;
 using static SkyEye.Ipcs;
 using static SkyEye.Plugin;
+using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
 namespace SkyEye;
 
@@ -50,7 +54,23 @@ public partial class ConfigWindow {
 				if (!isFindingTreasure) break;
 				ChatBox.SendMessage($"/e 点位 {i + 1}/{value.Count}");
 				CoreDiveTp(p.Item1, true);
-				await Task.Delay(5000);
+				var start = DateTime.Now;
+				var opened = false;
+				while ((DateTime.Now - start).TotalSeconds < 5) {
+					if ((DateTime.Now - start).TotalSeconds < 0.5) continue;
+					if (opened) continue;
+					if (ObjectTable.LocalPlayer == null) continue;
+					foreach (var obj in ObjectTable) {
+						if (obj.ObjectKind == ObjectKind.Treasure && obj.Name.ToString().Contains("宝箱") && Vector3.DistanceSquared(ObjectTable.LocalPlayer.Position, obj.Position) < 12 * 12) {
+							ChatBox.SendMessage("/e 开箱");
+							unsafe {
+								TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
+							}
+							opened = true;
+						}
+					}
+				}
+				// await Task.Delay(5000);
 				if (t != ClientState.TerritoryType) break;
 			}
 			after();
