@@ -48,7 +48,7 @@ public partial class ConfigWindow {
 		if (!PData.OccultTreasurePosition.TryGetValue((Territory)ClientState.TerritoryType, out var value)) return;
 		isFindingTreasure = true;
 		foreach (var p in Configuration.BeforeOccultTreasure.Split("|")) ChatBox.SendMessage(p);
-		Task.Run(async () => {
+		Task.Run(() => {
 			for (var i = 0; i < value.Count; i++) {
 				var p = value[i];
 				if (!isFindingTreasure) break;
@@ -70,7 +70,6 @@ public partial class ConfigWindow {
 						}
 					}
 				}
-				// await Task.Delay(5000);
 				if (t != ClientState.TerritoryType) break;
 			}
 			after();

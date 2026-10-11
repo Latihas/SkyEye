@@ -213,7 +213,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 		if (!string.IsNullOrEmpty(Configuration.BeforeGotoNewPot))
 			foreach (var cmd in Configuration.BeforeGotoNewPot.Split('|'))
 				ChatBox.SendMessage(cmd);
-		foreach (var ret in Fates.Where(fate => fate.FateId is 1976 or 1977)) {
+		foreach (var ret in Fates.Where(fate => fate.FateId is 1976 or 1977 or 2072 or 2073)) {
 			Ipcs.PathfindAndMoveTo(ret.Position);
 			return;
 		}

@@ -38,11 +38,11 @@ internal class UiBuilder : IDisposable {
 
 	public UiBuilder() {
 		ClientState.TerritoryChanged += TerritoryChanged;
-		PluginInterface.UiBuilder.Draw += UiBuilder_OnBuildUi;
+		PluginInterface.UiBuilder.Draw += OnBuildUi;
 	}
 
 	public void Dispose() {
-		PluginInterface.UiBuilder.Draw -= UiBuilder_OnBuildUi;
+		PluginInterface.UiBuilder.Draw -= OnBuildUi;
 		ClientState.TerritoryChanged -= TerritoryChanged;
 	}
 
@@ -69,12 +69,13 @@ internal class UiBuilder : IDisposable {
 
 	private static uint LastPotId;
 
-	private void UiBuilder_OnBuildUi() {
+	private void OnBuildUi() {
 		if (!Configuration.PluginEnabled || ObjectTable.LocalPlayer == null) return;
 		_bdl = ImGui.GetBackgroundDrawList(ImGui.GetMainViewport());
 		if (InEureka() && !Condition[ConditionFlag.BetweenAreas] && !Condition[ConditionFlag.BetweenAreas51]) {
 			_eorzeaTime = EorzeaTime.ToEorzeaTime(DateTime.Now);
 			RefreshEureka();
+			RefreshMapOrigin();
 			DrawMapOverlay();
 			if (Configuration.Overlay3DEnabled)
 				foreach (var pos in DetectedTreasurePositions)
@@ -82,8 +83,8 @@ internal class UiBuilder : IDisposable {
 						_bdl.DrawMapDot(v, 0xFF00FFFF, 0xFF00FFFF);
 		}
 		if (InOccult() && !Condition[ConditionFlag.BetweenAreas] && !Condition[ConditionFlag.BetweenAreas51]
-		    && Fates.Any(f => f.FateId is 1976 or 1977)) {
-			var id = Fates.First(f => f.FateId is 1976 or 1977).FateId;
+		    && Fates.Any(f => f.FateId is 1976 or 1977 or 2072 or 2073)) {
+			var id = Fates.First(f => f.FateId is 1976 or 1977 or 2072 or 2073).FateId;
 			if (id != LastPotId) {
 				LastPotId = id;
 				FindPot();
@@ -133,12 +134,13 @@ internal class UiBuilder : IDisposable {
 			}
 			foreach (var obj in ObjectTable) {
 				if (obj is not IBattleChara chara) continue;
-				if (CurrentTerritoryHunts.Any(v => chara.NameId == v.id
-				                                   && (Configuration.FindHuntB && v.rank == "B" ||
-				                                       Configuration.FindHuntA && v.rank == "A" ||
-				                                       Configuration.FindHuntS && v.rank == "S" ||
-				                                       Configuration.FindHuntSS && v.rank == "SS" ||
-				                                       Configuration.FindHuntSSMinion && v.rank == "SSMinion")
+				if (CurrentTerritoryHunts.Any(v =>
+					    chara.NameId == v.id && (
+					    Configuration.FindHuntB && v.rank == "B" ||
+					    Configuration.FindHuntA && v.rank == "A" ||
+					    Configuration.FindHuntS && v.rank == "S" ||
+					    Configuration.FindHuntSS && v.rank == "SS" ||
+					    Configuration.FindHuntSSMinion && v.rank == "SSMinion")
 				    )) poses.Add(obj.Position);
 			}
 		}
@@ -225,76 +227,26 @@ internal class UiBuilder : IDisposable {
 
 	private void RefreshEureka() {
 		var territory = (Territory)ClientState.TerritoryType;
-		switch (territory) {
-			case Territory.Anemos:
-				foreach (var o7 in Fates) {
-					_eurekaLiveIdList2D.Add(o7.FateId);
-					if (!_eurekaLiveIdList2DOld.Contains(o7.FateId)) NmFound();
-					DeadFateDic[territory][o7.FateId] = "1";
-				}
-				foreach (var o8 in DeadFateDic[territory]
-					         .Where(o8 => o8.Value.Contains(':'))
-					         .Select(o8 => new { o8, minuteSpan4 = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o8.Value).Ticks) })
-					         .Where(t => t.minuteSpan4.Hours >= 2)
-					         .Select(t => t.o8))
-					DeadFateDic[territory][o8.Key] = "-1";
-				break;
-			case Territory.Pagos:
-				foreach (var o3 in Fates) {
-					_eurekaLiveIdList2D.Add(o3.FateId);
-					if (!_eurekaLiveIdList2DOld.Contains(o3.FateId)) {
-						if (o3.FateId is 1367 or 1368) TzFound(o3.FateId);
-						else NmFound();
-					}
-					DeadFateDic[territory][o3.FateId] = "1";
-				}
-				foreach (var o4 in DeadFateDic[territory]
-					         .Where(o4 => o4.Value.Contains(':'))
-					         .Select(o4 => new {
-						         o4,
-						         minuteSpan2 = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o4.Value).Ticks)
-					         })
-					         .Where(t => t.o4.Key is 1367 or 1368 && t.minuteSpan2.Minutes >= 7 || t.minuteSpan2.Hours >= 2)
-					         .Select(t => t.o4))
-					DeadFateDic[territory][o4.Key] = "-1";
-				break;
-			case Territory.Pyros:
-				foreach (var o5 in Fates) {
-					_eurekaLiveIdList2D.Add(o5.FateId);
-					if (!_eurekaLiveIdList2DOld.Contains(o5.FateId)) {
-						if (o5.FateId is 1407 or 1408) TzFound(o5.FateId);
-						else NmFound();
-					}
-					DeadFateDic[territory][o5.FateId] = "1";
-				}
-				foreach (var o6 in DeadFateDic[territory].Where(o6 => o6.Value.Contains(':'))
-					         .Select(o6 => new {
-						         o6,
-						         minuteSpan3 = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o6.Value).Ticks)
-					         })
-					         .Where(t => t.o6.Key is 1407 or 1408 && t.minuteSpan3.Minutes >= 7 || t.minuteSpan3.Hours >= 2)
-					         .Select(t => t.o6))
-					DeadFateDic[territory][o6.Key] = "-1";
-				break;
-			case Territory.Hydatos:
-				foreach (var o in Fates) {
-					_eurekaLiveIdList2D.Add(o.FateId);
-					if (!_eurekaLiveIdList2DOld.Contains(o.FateId)) {
-						if (o.FateId == 1425) TzFound(o.FateId);
-						else NmFound();
-					}
-					DeadFateDic[territory][o.FateId] = "1";
-				}
-				foreach (var o2 in DeadFateDic[territory].Where(o2 => o2.Value.Contains(':'))
-					         .Select(o2 => new {
-						         o2,
-						         minuteSpan = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o2.Value).Ticks)
-					         })
-					         .Where(t => t.o2.Key == 1425 && t.minuteSpan.Minutes >= 7 || t.minuteSpan.Hours >= 2)
-					         .Select(t => t.o2))
-					DeadFateDic[territory][o2.Key] = "-1";
-				break;
+		foreach (var fate in Fates) {
+			_eurekaLiveIdList2D.Add(fate.FateId);
+			if (!_eurekaLiveIdList2DOld.Contains(fate.FateId)) {
+				if (fate.FateId is 1367 or 1368 or 1407 or 1408 or 1425) TzFound(fate.FateId);
+				else NmFound();
+			}
+			DeadFateDic[territory][fate.FateId] = "1";
 		}
+		foreach (var fate in DeadFateDic[territory]
+			         .Where(i => i.Value.Contains(':'))
+			         .Select(i => new {
+				         fate = i,
+				         minuteSpan = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(i.Value).Ticks)
+			         })
+			         .Where(i => i.minuteSpan.Hours >= 2 ||
+			                     territory == Territory.Pagos && i.fate.Key is 1367 or 1368 && i.minuteSpan.Minutes >= 7 ||
+			                     territory == Territory.Pyros && i.fate.Key is 1407 or 1408 && i.minuteSpan.Minutes >= 7 ||
+			                     territory == Territory.Hydatos && i.fate.Key is 1425 && i.minuteSpan.Minutes >= 7)
+			         .Select(i => i.fate))
+			DeadFateDic[territory][fate.Key] = "-1";
 		var regionWeather = Weathers[territory];
 		_weatherNow = EorzeaWeather.GetCurrentWeatherInfo(regionWeather);
 		_eurekaLiveIdList2DOld.Clear();
@@ -309,7 +261,6 @@ internal class UiBuilder : IDisposable {
 	}
 
 	private unsafe void DrawMapOverlay() {
-		RefreshMapOrigin();
 		if (_mapOrigin == null) return;
 		var valueOrDefault = _mapOrigin.GetValueOrDefault();
 		if (valueOrDefault == Vector2.Zero || ClientState.TerritoryType == 0) return;
