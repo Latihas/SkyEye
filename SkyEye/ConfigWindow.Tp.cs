@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dalamud.Bindings.ImGui;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using static SkyEye.Ipcs;
 using static SkyEye.Plugin;
 
@@ -10,9 +11,6 @@ namespace SkyEye;
 
 public partial class ConfigWindow {
 	private static float tpX, tpZ, tpY;
-	private static SetPositionDelegate? setPosition;
-
-	private delegate long SetPositionDelegate(long playerAddress, float x, float y, float z);
 
 	private static void DrawTp() {
 		ImGui.Text("自定义Tp为其他插件的潜水tp指令。");
@@ -44,12 +42,9 @@ public partial class ConfigWindow {
 				CoreDiveTp(new(tpX, tpY, tpZ), true);
 			if (ImGui.Button("到坐标再潜水Tp")) {
 				Task.Run(async () => {
-					if (setPosition == null) {
-						if (SigScanner.TryScanText("E8 ?? ?? ?? ?? 83 4B 70 01", out var x))
-							setPosition = Marshal.GetDelegateForFunctionPointer<SetPositionDelegate>(x);
+					unsafe {
+						GameObject.MemberFunctionPointers.SetPosition((GameObject*)ObjectTable.LocalPlayer.Address, tpX, tpY, tpZ);
 					}
-					if (setPosition == null) return;
-					setPosition(ObjectTable.LocalPlayer.Address, tpX, tpY, tpZ);
 					await Task.Delay(100);
 					CoreDive(true);
 				});

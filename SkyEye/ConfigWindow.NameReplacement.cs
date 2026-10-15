@@ -8,6 +8,7 @@ using Dalamud.Game.Gui.NamePlate;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Hooking;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 using static SkyEye.Plugin;
 
 namespace SkyEye;
@@ -29,7 +30,7 @@ public partial class ConfigWindow {
 	}
 
 	internal static void EnableNameplate() {
-		_atkTextNodeSetTextHook = GameInteropProvider.HookFromAddress(SigScanner.ScanText("E8 ?? ?? ?? ?? 33 F6 0F B7 D6"), (AtkTextNodeSetTextDelegate)AtkTextNodeSetTextDetour);
+		_atkTextNodeSetTextHook = GameInteropProvider.HookFromAddress(AtkTextNode.Addresses.SetText.Value , (AtkTextNodeSetTextDelegate)AtkTextNodeSetTextDetour);
 		_atkTextNodeSetTextHook.Enable();
 		NamePlate.OnDataUpdate += NamePlate_OnDataUpdate;
 	}
@@ -70,9 +71,7 @@ public partial class ConfigWindow {
 		}
 	}
 
-	private static void AtkTextNodeSetTextDetour(IntPtr node, IntPtr text) {
-		_atkTextNodeSetTextHook?.Original(node, Configuration.NameReplacement ? ChangeName(text) : text);
-	}
+	private static void AtkTextNodeSetTextDetour(IntPtr node, IntPtr text) => _atkTextNodeSetTextHook?.Original(node, Configuration.NameReplacement ? ChangeName(text) : text);
 
 	private static unsafe SeString GetSeStringFromPtr(IntPtr seStringPtr) {
 		int offset;

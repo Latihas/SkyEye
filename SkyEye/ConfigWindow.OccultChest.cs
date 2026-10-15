@@ -55,18 +55,19 @@ public partial class ConfigWindow {
 				ChatBox.SendMessage($"/e 点位 {i + 1}/{value.Count}");
 				CoreDiveTp(p.Item1, true);
 				var start = DateTime.Now;
-				var opened = false;
+				var lastOpenChest = DateTime.MinValue;
 				while ((DateTime.Now - start).TotalSeconds < 5) {
-					if ((DateTime.Now - start).TotalSeconds < 0.5) continue;
-					if (opened) continue;
+					if ((DateTime.Now - start).TotalSeconds < 1) continue;
 					if (ObjectTable.LocalPlayer == null) continue;
-					foreach (var obj in ObjectTable) {
-						if (obj.ObjectKind == ObjectKind.Treasure && obj.Name.ToString().Contains("宝箱") && Vector3.DistanceSquared(ObjectTable.LocalPlayer.Position, obj.Position) < 12 * 12) {
-							ChatBox.SendMessage("/e 开箱");
-							unsafe {
+					unsafe {
+						foreach (var obj in ObjectTable) {
+							if (obj.ObjectKind == ObjectKind.Treasure && obj.Name.ToString().Contains("宝箱") && Vector3.DistanceSquared(ObjectTable.LocalPlayer.Position, obj.Position) < 12 * 12
+							    && ((Treasure*)obj.Address)->State == Treasure.TreasureState.Unopened
+							    && (DateTime.Now - lastOpenChest).TotalMilliseconds>200) {
+								ChatBox.SendMessage("/e 开箱");
+								lastOpenChest = DateTime.Now;
 								TargetSystem.Instance()->InteractWithObject((GameObject*)obj.Address);
 							}
-							opened = true;
 						}
 					}
 				}
