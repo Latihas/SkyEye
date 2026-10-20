@@ -11,10 +11,11 @@ namespace SkyEye;
 public class MConfiguration : IPluginConfiguration {
 	public float FarmMaxDistance = 100, FarmWaitX, FarmWaitY, FarmWaitZ, FlagR = 100;
 	public int FarmTargetMax = 1, WssRegion, FarmDistAlgo, NextWeatherCount = 10,
-		OccultTreasureDelay = 2000;
+		OccultTreasureDelay = 2000, OccultTrackerIntervalSeconds = 5;
 	public bool PluginEnabled = true, SpeedUpEnabled = true, SpeedDebugOutput, Overlay2DWeatherMapEnabled = true, Overlay2DDetailEnabled = true, Overlay3DEnabled = true,
 		AutoRabbit = true, AutoForwardNewRabbit = true,
 		AutoPot, Auto30OccultTreasure, EnableOccultBunnyNavigation, EnableOccultPotNavigation,
+		EnableOccultCrowd = true, ShowOccultPotDtrBar = true,
 		AutoFarm, FarmWait,
 		EnableWss,
 		ShowCurrentElemental,

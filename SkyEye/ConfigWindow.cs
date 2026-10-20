@@ -51,6 +51,7 @@ public partial class ConfigWindow() : Window("SkyEye") {
 							}
 					});
 					NewTab("罐子", DrawOccultPot);
+					NewTab("众包", DrawOccultCrowd);
 					if (CanTp()) NewTab("箱子", DrawOccultChest);
 					ImGui.EndTabBar();
 				}

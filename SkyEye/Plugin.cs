@@ -71,12 +71,26 @@ public sealed partial class Plugin : IDalamudPlugin {
 	private static Timer _carrotTimer = null!, _potTimer = null!;
 	private readonly ConfigWindow _configWindow;
 	private readonly UiBuilder _uiBuilder;
+	private readonly OccultPotDtrBar _occultPotDtrBar;
 	// ReSharper disable once MemberCanBePrivate.Global
 	public readonly WindowSystem WindowSystem = new("SkyEye");
+	internal static Dictionary<uint, string> FateDict = [];
 
 	public Plugin() {
 		Configuration = PluginInterface.GetPluginConfig() as MConfiguration ?? new MConfiguration();
 		_uiBuilder = new();
+		OccultTracker = new();
+		foreach (var i in DataManager.GetExcelSheet<Fate>()) {
+			var name = i.Name.ToString();
+			if (string.IsNullOrEmpty(name)) continue;
+			FateDict[i.RowId] = name;
+		}
+		foreach (var i in DataManager.GetExcelSheet<DynamicEvent>()) {
+			var name = i.Name.ToString();
+			if (string.IsNullOrEmpty(name)) continue;
+			FateDict[i.RowId] = name;
+		}
+		_occultPotDtrBar = new(OccultTracker);
 		_configWindow = new();
 		WindowSystem.AddWindow(_configWindow);
 		CommandManager.AddHandler("/skyeye", new(OnCommand) {
@@ -99,6 +113,9 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update += UpdateRoundPlayers;
 		Framework.Update += Farm;
 		Framework.Update += FindElemental;
+		Framework.Update += _uiBuilder.Update;
+		Framework.Update += OccultTracker.Update;
+		Framework.Update += _occultPotDtrBar.Update;
 		PluginInterface.UiBuilder.OpenConfigUi += OnCommand;
 		PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
 		ChatGui.ChatMessageUnhandled += ChatRabbit;
@@ -117,10 +134,11 @@ public sealed partial class Plugin : IDalamudPlugin {
 
 	private void OnCommand() => OnCommand(null, null);
 	public static MConfiguration Configuration { get; private set; } = null!;
+	internal static OccultTracker OccultTracker { get; private set; } = null!;
 	[PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
 	[PluginService] internal static IClientState ClientState { get; private set; } = null!;
 	[PluginService] internal static INotificationManager NotificationManager { get; private set; } = null!;
-	[PluginService] private static IDataManager DataManager { get; set; } = null!;
+	[PluginService] internal static IDataManager DataManager { get; set; } = null!;
 	[PluginService] internal static IPluginLog Log { get; private set; } = null!;
 	[PluginService] internal static ICondition Condition { get; private set; } = null!;
 	[PluginService] internal static IGameGui Gui { get; private set; } = null!;
@@ -131,6 +149,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 	[PluginService] private static IChatGui ChatGui { get; set; } = null!;
 	[PluginService] internal static IFramework Framework { get; private set; } = null!;
 	[PluginService] internal static INamePlateGui NamePlate { get; private set; } = null!;
+	[PluginService] internal static IDtrBar DtrBar { get; private set; } = null!;
 	[PluginService] private static ICommandManager CommandManager { get; set; } = null!;
 	[PluginService] internal static IGameInteropProvider GameInteropProvider { get; set; } = null!;
 
@@ -147,6 +166,11 @@ public sealed partial class Plugin : IDalamudPlugin {
 		Framework.Update -= UpdateRoundPlayers;
 		Framework.Update -= Farm;
 		Framework.Update -= FindElemental;
+		Framework.Update -= _uiBuilder.Update;
+		Framework.Update -= _occultPotDtrBar.Update;
+		Framework.Update -= OccultTracker.Update;
+		_occultPotDtrBar.Dispose();
+		OccultTracker.Dispose();
 		DisableNameplate();
 		DisposeSpeedMultiplierHook();
 		_uiBuilder.Dispose();
@@ -198,7 +222,7 @@ public sealed partial class Plugin : IDalamudPlugin {
 				}
 			}
 		}
-		foreach (var ret in UiBuilder._eurekaLiveIdList2DOld
+		foreach (var ret in UiBuilder.EurekaPreviousLiveIds
 			         .Where(fateid => territory == Pagos && fateid is 1367 or 1368 || territory == Pyros && fateid is 1407 or 1408 || territory == Hydatos && fateid is 1425)
 			         .Select(fateid => XFates[territory].FirstOrDefault(i => i.FateId == fateid))) {
 			if (ret == null) continue;
